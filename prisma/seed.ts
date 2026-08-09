@@ -106,7 +106,7 @@ async function main() {
       })
     );
   }
-  const [tracking, routing, driverApp, customsDocs, payments] = capabilities;
+  const [tracking, routing, driverApp, , payments] = capabilities;
 
   const starter = await prisma.package.create({
     data: { productId: product.id, name: "Starter" },

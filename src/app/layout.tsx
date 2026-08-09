@@ -21,7 +21,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${inter.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex bg-white text-zinc-900" style={{ fontFamily: "var(--font-inter)" }}>
+      <body className="min-h-full flex bg-white text-zinc-900">
         <Sidebar />
         <div className="flex flex-1 flex-col min-w-0">
           <TopBar />

@@ -108,10 +108,20 @@ export async function computeAgenticLayer(
     competitorMentions: { competitor: string; evidence: string }[];
   };
 
+  // The tool schema marks narrative "required", but that only forces the
+  // key to exist, not to be non-empty - seen in practice returning "" for
+  // one seeded customer while adjustmentReason still had real content.
+  // Fall back to adjustmentReason (it's evidence-grounded too) rather than
+  // silently storing an empty narrative.
+  const narrative = parsed.narrative?.trim() || parsed.adjustmentReason?.trim() || null;
+  if (!narrative) {
+    throw new Error(`Model returned no narrative and no adjustmentReason for customer ${customerId}.`);
+  }
+
   return {
     adjustmentDelta: Math.max(-15, Math.min(15, Math.round(parsed.adjustmentDelta))),
     adjustmentReason: parsed.adjustmentReason ?? null,
-    narrative: parsed.narrative,
+    narrative,
     confidenceLevel: parsed.confidenceLevel,
     competitorMentions: parsed.competitorMentions ?? [],
   };
