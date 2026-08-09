@@ -15,7 +15,7 @@ export default function Sidebar() {
   return (
     <div className="w-48 shrink-0 bg-zinc-50 border-r border-zinc-200 p-3">
       <div className="px-2 pb-4 text-sm font-medium text-zinc-900">
-        ai-customer-health-platform
+        Bearing
       </div>
       <nav className="flex flex-col gap-0.5">
         {NAV_ITEMS.map((item) => (

@@ -5,7 +5,7 @@
   <rect x="0" y="0" width="960" height="420" rx="12" fill="#ffffff" stroke="#e5e5e0"/>
 
   <line x1="0" y1="64" x2="960" y2="64" stroke="#e5e5e0"/>
-  <text x="30" y="40" font-size="16" font-weight="700" fill="#1a1a18">ai-customer-health-platform</text>
+  <text x="30" y="40" font-size="16" font-weight="700" fill="#1a1a18">Bearing</text>
   <text x="700" y="40" font-size="12" fill="#6b6b66">Product</text>
   <text x="770" y="40" font-size="12" fill="#6b6b66">Pricing</text>
   <text x="835" y="40" font-size="12" fill="#6b6b66">Docs</text>

@@ -9,6 +9,8 @@ A conceptual exploration of an agentic-AI Customer Success platform — planned 
 
 Both images above are illustrative mockups made while planning this repo, not real screenshots of a working feature — see [What's real vs. planned](#whats-real-vs-planned) below.
 
+The repo is named descriptively for portfolio discoverability; **"Bearing"** is the working product name used within the app and mockups themselves.
+
 ## What this is
 
 Most Customer Success tooling is a system of record — a place to manage accounts, log interactions, and store contracts. This project is deliberately **not** that. It's an insight layer that sits on top of the systems that already do that job, organised around five areas of the customer lifecycle:
