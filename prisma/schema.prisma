@@ -74,9 +74,13 @@ model Customer {
   createdAt      DateTime @default(now())
   archivedAt     DateTime?
 
-  workspace       Workspace        @relation(fields: [workspaceId], references: [id])
-  products        CustomerProduct[]
-  healthSnapshots HealthScoreSnapshot[]
+  workspace        Workspace              @relation(fields: [workspaceId], references: [id])
+  products         CustomerProduct[]
+  healthSnapshots  HealthScoreSnapshot[]
+  interactions     Interaction[]
+  usageSnapshots   UsageSnapshot[]
+  surveyResponses  SurveyResponse[]
+  eventAttendances EventAttendance[]
 
   @@map("customers")
 }
@@ -101,7 +105,8 @@ model Capability {
   name       String
   metricType String // "consumption" | "adoption" – see README.md classification rule
 
-  product Product @relation(fields: [productId], references: [id])
+  product        Product         @relation(fields: [productId], references: [id])
+  usageSnapshots UsageSnapshot[]
 
   @@map("capabilities")
 }
@@ -113,7 +118,8 @@ model Package {
   productId String
   name      String
 
-  product Product @relation(fields: [productId], references: [id])
+  product          Product           @relation(fields: [productId], references: [id])
+  customerProducts CustomerProduct[]
 
   @@map("packages")
 }
@@ -135,6 +141,7 @@ model CustomerProduct {
 
   customer Customer @relation(fields: [customerId], references: [id])
   product  Product  @relation(fields: [productId], references: [id])
+  package  Package? @relation(fields: [packageId], references: [id])
 
   @@map("customer_products")
 }
@@ -190,4 +197,64 @@ model CompetitorConfig {
   workspace Workspace @relation(fields: [workspaceId], references: [id])
 
   @@map("competitor_configs")
+}
+
+// A single piece of interaction text – ticket, call transcript, or email –
+// already ingested per the "not a CRM" integration model (see README.md).
+// This is what the Layer 2 reasoning call scans for competitor mentions
+// (driver 13) and what feeds support ticket volume/severity (driver 5-6).
+model Interaction {
+  id         String   @id @default(cuid())
+  customerId String
+  type       String   // "ticket" | "call" | "email"
+  text       String
+  severity   String?  // "low" | "medium" | "high" | "critical" – set at creation, synthetic
+  occurredAt DateTime
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@map("interactions")
+}
+
+// Periodic usage/consumption reading for a Capability a Customer has access
+// to. Feeds usage-depth (driver 2), consumption trend (driver 3), and
+// capability breadth/stickiness (driver 14) once aggregated across a
+// Customer's full set of Capabilities.
+model UsageSnapshot {
+  id           String   @id @default(cuid())
+  customerId   String
+  capabilityId String
+  occurredAt   DateTime
+  value        Decimal  // raw usage/consumption unit for that period
+
+  customer   Customer   @relation(fields: [customerId], references: [id])
+  capability Capability @relation(fields: [capabilityId], references: [id])
+
+  @@map("usage_snapshots")
+}
+
+// NPS / CSAT / CES readings (driver 7).
+model SurveyResponse {
+  id         String   @id @default(cuid())
+  customerId String
+  type       String   // "nps" | "csat" | "ces"
+  score      Int
+  occurredAt DateTime
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@map("survey_responses")
+}
+
+// Webinar/event attendance – the one new data point Engagement silence
+// (driver 15) needed that nothing else already tracked.
+model EventAttendance {
+  id         String   @id @default(cuid())
+  customerId String
+  eventName  String
+  occurredAt DateTime
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@map("event_attendance")
 }

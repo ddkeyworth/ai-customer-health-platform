@@ -5,7 +5,11 @@
   <rect x="0" y="0" width="960" height="420" rx="12" fill="#ffffff" stroke="#e5e5e0"/>
 
   <line x1="0" y1="64" x2="960" y2="64" stroke="#e5e5e0"/>
-  <text x="30" y="40" font-size="16" font-weight="700" fill="#1a1a18">Bearing</text>
+  <text x="30" y="40" font-size="16" font-weight="700" fill="#1a1a18">Bear</text>
+  <g transform="translate(67.36,34.13) rotate(25) scale(0.1704)">
+    <polygon points="0,-38 9,0 0,38 -9,0" fill="#378ADD"/>
+  </g>
+  <text x="69.37" y="40" font-size="16" font-weight="700" fill="#1a1a18">ng</text>
   <text x="700" y="40" font-size="12" fill="#6b6b66">Product</text>
   <text x="770" y="40" font-size="12" fill="#6b6b66">Pricing</text>
   <text x="835" y="40" font-size="12" fill="#6b6b66">Docs</text>
