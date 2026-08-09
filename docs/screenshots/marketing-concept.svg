@@ -42,5 +42,5 @@
   </g>
 
   <line x1="0" y1="370" x2="960" y2="370" stroke="#e5e5e0"/>
-  <text x="480" y="398" text-anchor="middle" font-size="11" fill="#9a9a94">This is a portfolio demo project &#8212; not a real company or live product.</text>
+  <text x="480" y="398" text-anchor="middle" font-size="11" fill="#9a9a94">This is a portfolio demo project &#8211; not a real company or live product.</text>
 </svg>

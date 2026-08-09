@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "ai-customer-health-platform (work in progress)",
   description:
-    "Conceptual exploration of an agentic-AI Customer Success platform. Not a real product — see README for scope and safety principles.",
+    "Conceptual exploration of an agentic-AI Customer Success platform. Not a real product – see README for scope and safety principles.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

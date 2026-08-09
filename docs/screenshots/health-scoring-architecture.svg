@@ -1,0 +1,61 @@
+<svg viewBox="0 0 860 640" xmlns="http://www.w3.org/2000/svg" role="img" font-family="Helvetica, Arial, sans-serif">
+  <title>Health scoring architecture</title>
+  <desc>Illustrative design diagram, not a screenshot. Layer 1 computes a deterministic baseline from 15 drivers normalized against account history and peer cohort. Layer 2 is a bounded agentic adjustment, capped, with a required evidence-grounded reason, producing the composite score, an evidence-chain narrative, and a confidence label driven by data volume.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6b6b66"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="860" height="640" rx="12" fill="#ffffff" stroke="#e5e5e0"/>
+
+  <text x="30" y="34" font-size="12" fill="#9a9a94">LAYER 1 &#8211; deterministic, reproducible, no AI</text>
+  <rect x="30" y="46" width="800" height="110" rx="10" fill="#f7f7f5" stroke="#e5e5e0"/>
+  <text x="50" y="76" font-size="14" font-weight="700" fill="#1a1a18">Baseline signal computation</text>
+  <text x="50" y="98" font-size="12.5" fill="#6b6b66">15 drivers, each normalized against two baselines:</text>
+  <text x="66" y="118" font-size="12.5" fill="#6b6b66">&#8226; this account's own history (is this unusual for them?)</text>
+  <text x="66" y="136" font-size="12.5" fill="#6b6b66">&#8226; a peer cohort of similar tier/industry/size accounts</text>
+
+  <line x1="430" y1="156" x2="430" y2="196" stroke="#6b6b66" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="446" y="182" font-size="11" fill="#9a9a94">baselineScore (0-100)</text>
+
+  <text x="30" y="222" font-size="12" fill="#9a9a94">LAYER 2 &#8211; agentic judgment, bounded, evidence-grounded</text>
+  <rect x="30" y="234" width="800" height="200" rx="10" fill="#e6f1fb" stroke="#b5d4f4"/>
+  <text x="50" y="264" font-size="14" font-weight="700" fill="#0c447c">Bounded adjustment + narrative</text>
+  <text x="50" y="288" font-size="12.5" fill="#0c447c">Given the baseline plus context a formula can't weigh:</text>
+  <text x="66" y="308" font-size="12" fill="#0c447c">lifecycle stage &#8226; days to renewal &#8226; capability breadth &#8226; open</text>
+  <text x="66" y="326" font-size="12" fill="#0c447c">Expansion opportunities &#8226; Desired Outcome progress &#8226; configured</text>
+  <text x="66" y="344" font-size="12" fill="#0c447c">competitor list matched against ingested interaction text</text>
+
+  <rect x="50" y="360" width="360" height="58" rx="8" fill="#ffffff" stroke="#b5d4f4"/>
+  <text x="64" y="380" font-size="12" font-weight="700" fill="#0c447c">adjustmentDelta</text>
+  <text x="64" y="398" font-size="11" fill="#0c447c">Capped, e.g. -15..+15 &#8211; never freeform</text>
+  <text x="64" y="412" font-size="11" fill="#0c447c">adjustmentReason must cite specific inputs</text>
+
+  <rect x="430" y="360" width="380" height="58" rx="8" fill="#ffffff" stroke="#b5d4f4"/>
+  <text x="444" y="380" font-size="12" font-weight="700" fill="#0c447c">Evidence-chain narrative</text>
+  <text x="444" y="398" font-size="11" fill="#0c447c">Every claim traces to a specific driver value &#8211;</text>
+  <text x="444" y="412" font-size="11" fill="#0c447c">no inferred or invented correlations</text>
+
+  <line x1="430" y1="434" x2="430" y2="474" stroke="#6b6b66" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <text x="30" y="500" font-size="12" fill="#9a9a94">OUTPUT &#8211; what every screen actually shows</text>
+  <rect x="30" y="512" width="256" height="96" rx="10" fill="#f7f7f5" stroke="#e5e5e0"/>
+  <text x="48" y="540" font-size="13" font-weight="700" fill="#1a1a18">compositeScore</text>
+  <text x="48" y="560" font-size="11.5" fill="#6b6b66">baselineScore +</text>
+  <text x="48" y="576" font-size="11.5" fill="#6b6b66">adjustmentDelta &#8211;</text>
+  <text x="48" y="592" font-size="11.5" fill="#6b6b66">always the primary value</text>
+
+  <rect x="302" y="512" width="256" height="96" rx="10" fill="#f7f7f5" stroke="#e5e5e0"/>
+  <text x="320" y="540" font-size="13" font-weight="700" fill="#1a1a18">narrative</text>
+  <text x="320" y="560" font-size="11.5" fill="#6b6b66">grounded, per-screen &#8211;</text>
+  <text x="320" y="576" font-size="11.5" fill="#6b6b66">not just Health's own</text>
+  <text x="320" y="592" font-size="11.5" fill="#6b6b66">list view</text>
+
+  <rect x="574" y="512" width="256" height="96" rx="10" fill="#f7f7f5" stroke="#e5e5e0"/>
+  <text x="592" y="540" font-size="13" font-weight="700" fill="#1a1a18">confidenceLevel</text>
+  <text x="592" y="560" font-size="11.5" fill="#6b6b66">from data volume,</text>
+  <text x="592" y="576" font-size="11.5" fill="#6b6b66">not the agent's own</text>
+  <text x="592" y="592" font-size="11.5" fill="#6b6b66">self-assessment</text>
+</svg>

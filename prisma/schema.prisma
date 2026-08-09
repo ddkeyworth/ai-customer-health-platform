@@ -1,5 +1,5 @@
 // Data model for the entities confirmed so far in planning.
-// This is a work-in-progress schema — see README.md for what's built vs. conceptual.
+// This is a work-in-progress schema – see README.md for what's built vs. conceptual.
 // Everything here is synthetic-data-only by design; see the safety section in README.md.
 
 generator client {
@@ -11,7 +11,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// The Bearing tenant — a paying customer workspace, distinct from the Customers they manage.
+// The Bearing tenant – a paying customer workspace, distinct from the Customers they manage.
 model Workspace {
   id                 String   @id @default(cuid())
   name               String
@@ -28,14 +28,15 @@ model Workspace {
   createdAt          DateTime @default(now())
   archivedAt         DateTime?
 
-  users     User[]
-  customers Customer[]
+  users             User[]
+  customers         Customer[]
+  competitorConfigs CompetitorConfig[]
 
   @@map("workspaces")
 }
 
 // A person inside a Workspace. Admin is a distinct persona (often technical/ops),
-// independent of the CS role hierarchy — see README.md.
+// independent of the CS role hierarchy – see README.md.
 model User {
   id              String   @id @default(cuid())
   workspaceId     String
@@ -57,7 +58,7 @@ model User {
   @@map("users")
 }
 
-// The managed customer record — deliberately NOT called "Account" (see README.md).
+// The managed customer record – deliberately NOT called "Account" (see README.md).
 model Customer {
   id             String   @id @default(cuid())
   workspaceId    String
@@ -98,14 +99,14 @@ model Capability {
   id         String @id @default(cuid())
   productId  String
   name       String
-  metricType String // "consumption" | "adoption" — see README.md classification rule
+  metricType String // "consumption" | "adoption" – see README.md classification rule
 
   product Product @relation(fields: [productId], references: [id])
 
   @@map("capabilities")
 }
 
-// A package/tier of a Product (Starter, Pro, Enterprise, etc.) — determines which
+// A package/tier of a Product (Starter, Pro, Enterprise, etc.) – determines which
 // Capabilities a Customer is actually entitled to.
 model Package {
   id        String @id @default(cuid())
@@ -118,7 +119,7 @@ model Package {
 }
 
 // Junction: which Products a Customer holds, with per-product ARR split and its own
-// lifecycle status — a Customer can be Live on one Product and Onboarding on another.
+// lifecycle status – a Customer can be Live on one Product and Onboarding on another.
 model CustomerProduct {
   id             String   @id @default(cuid())
   customerId     String
@@ -138,19 +139,55 @@ model CustomerProduct {
   @@map("customer_products")
 }
 
-// One row per Health computation — never overwritten, so trends/deltas are possible.
+// One row per Health computation – never overwritten, so trends/deltas are possible.
 // This is the load-bearing entity of the whole product (see README.md).
+//
+// Scoring is two layers, not one formula (see README.md "Health scoring" section):
+//   1. baselineScore – deterministic, reproducible: each of the 15 drivers normalized
+//      against the account's own history and its peer cohort. No AI involved yet.
+//   2. compositeScore – baselineScore plus a BOUNDED agentic adjustment (adjustmentDelta,
+//      capped, e.g. +-15), with adjustmentReason required and grounded to specific
+//      input data – never a freeform, unexplained number.
 model HealthScoreSnapshot {
-  id              String   @id @default(cuid())
-  customerId      String
-  computedAt      DateTime @default(now())
-  compositeScore  Int      // 0-100, raw — always the primary value, never hidden behind a tier label alone
-  tierLabel       String?  // derived gloss, not the primary value
-  confidenceLevel String   @default("early_read") // "early_read" | "established"
-  driverValues    Json     // the 14 drivers at this point in time
-  manualOverride  Json?    // { value, reason, overriddenBy } if a CSM has overridden the score
+  id               String   @id @default(cuid())
+  customerId       String
+  computedAt       DateTime @default(now())
+  baselineScore    Int      // 0-100, deterministic, Layer 1
+  adjustmentDelta  Int      @default(0) // bounded agentic nudge, Layer 2, e.g. -15..+15
+  adjustmentReason String?  // required whenever adjustmentDelta != 0, must cite specific inputs
+  compositeScore   Int      // baselineScore + adjustmentDelta – the primary value shown everywhere
+  tierLabel        String?  // derived gloss, not the primary value
+  confidenceLevel  String   @default("early_read") // "early_read" | "established" – driven by data volume, not agent self-assessment
+  driverValues     Json     // the 15 drivers at this point in time
+  narrative        String?  // evidence-chain explanation; every claim must trace to a driverValues entry
+  manualOverride   Json?    // { value, reason, overriddenBy } if a CSM has overridden the score
 
   customer Customer @relation(fields: [customerId], references: [id])
 
   @@map("health_score_snapshots")
+}
+
+// Workspace-level list of competitors to watch for, up to 20, each with a risk
+// weight since not all competitors are equal threats. This config is always safe
+// to populate – detection itself only runs against the two safe signal sources
+// below (see README.md "Competitor risk" section for the safety split).
+//
+// Detected via the same Anthropic reasoning call already used for Layer 2 scanning
+// already-ingested interaction text for:
+//   (a) direct mentions of the competitor name
+//   (b) mentions of capabilities the competitor is known for
+// Two further signal sources – job postings referencing the competitor's stack, and
+// references on the competitor's own website – are deliberately NOT implemented.
+// Both would require a genuinely new outbound integration (job boards, web
+// monitoring), which stays concept-only pending explicit sign-off, regardless of
+// whether this list is populated.
+model CompetitorConfig {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  riskWeight  Int       @default(3) // e.g. 1 (low) - 5 (high)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@map("competitor_configs")
 }

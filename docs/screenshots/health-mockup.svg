@@ -31,7 +31,7 @@
 
   <rect x="212" y="106" width="728" height="60" rx="10" fill="#f7f7f5"/>
   <text x="228" y="130" font-size="12.5" fill="#1a1a18">Average health is steady at 71, up 2 points this month. Support friction is the</text>
-  <text x="228" y="148" font-size="12.5" fill="#1a1a18">largest negative driver &#8212; three accounts share the same billing sync bug.</text>
+  <text x="228" y="148" font-size="12.5" fill="#1a1a18">largest negative driver &#8211; three accounts share the same billing sync bug.</text>
 
   <g font-size="18" font-weight="700" fill="#1a1a18">
     <rect x="212" y="182" width="170" height="60" rx="8" fill="#f7f7f5"/>

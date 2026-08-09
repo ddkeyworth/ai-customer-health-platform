@@ -9,7 +9,7 @@ export default function Home() {
       </p>
       <div className="mt-6 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-500">
         Not built yet. This screen depends on the Health-scoring engine,
-        which is still being designed — see README.md for what&apos;s real
+        which is still being designed – see README.md for what&apos;s real
         vs. planned in this repo.
       </div>
     </div>
