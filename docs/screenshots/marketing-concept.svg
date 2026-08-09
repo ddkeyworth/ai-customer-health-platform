@@ -1,0 +1,46 @@
+<svg viewBox="0 0 960 420" xmlns="http://www.w3.org/2000/svg" role="img" font-family="Helvetica, Arial, sans-serif">
+  <title>Mockup: positioning concept</title>
+  <desc>Illustrative mockup, not a real screenshot. Hero section with the product's positioning line and five feature areas.</desc>
+
+  <rect x="0" y="0" width="960" height="420" rx="12" fill="#ffffff" stroke="#e5e5e0"/>
+
+  <line x1="0" y1="64" x2="960" y2="64" stroke="#e5e5e0"/>
+  <text x="30" y="40" font-size="16" font-weight="700" fill="#1a1a18">ai-customer-health-platform</text>
+  <text x="700" y="40" font-size="12" fill="#6b6b66">Product</text>
+  <text x="770" y="40" font-size="12" fill="#6b6b66">Pricing</text>
+  <text x="835" y="40" font-size="12" fill="#6b6b66">Docs</text>
+
+  <text x="480" y="140" text-anchor="middle" font-size="24" font-weight="700" fill="#1a1a18">No AI reads every account right.</text>
+  <text x="480" y="172" text-anchor="middle" font-size="24" font-weight="700" fill="#1a1a18">It gets you close enough, fast enough, to act.</text>
+  <text x="480" y="204" text-anchor="middle" font-size="14" fill="#6b6b66">Across onboarding, health, expansion, and renewal.</text>
+
+  <g font-size="13" font-weight="700" fill="#1a1a18">
+    <rect x="30" y="250" width="168" height="90" rx="8" fill="#f7f7f5"/>
+    <text x="46" y="278">Health</text>
+    <text x="46" y="298" font-size="11" font-weight="400" fill="#6b6b66">One score,</text>
+    <text x="46" y="313" font-size="11" font-weight="400" fill="#6b6b66">14 signals</text>
+
+    <rect x="214" y="250" width="168" height="90" rx="8" fill="#f7f7f5"/>
+    <text x="230" y="278">Onboarding</text>
+    <text x="230" y="298" font-size="11" font-weight="400" fill="#6b6b66">Catch stalls</text>
+    <text x="230" y="313" font-size="11" font-weight="400" fill="#6b6b66">early</text>
+
+    <rect x="398" y="250" width="168" height="90" rx="8" fill="#f7f7f5"/>
+    <text x="414" y="278">Adoption</text>
+    <text x="414" y="298" font-size="11" font-weight="400" fill="#6b6b66">Usage tied to</text>
+    <text x="414" y="313" font-size="11" font-weight="400" fill="#6b6b66">outcomes</text>
+
+    <rect x="582" y="250" width="168" height="90" rx="8" fill="#f7f7f5"/>
+    <text x="598" y="278">Expansion</text>
+    <text x="598" y="298" font-size="11" font-weight="400" fill="#6b6b66">Cases built,</text>
+    <text x="598" y="313" font-size="11" font-weight="400" fill="#6b6b66">not guessed</text>
+
+    <rect x="766" y="250" width="164" height="90" rx="8" fill="#f7f7f5"/>
+    <text x="782" y="278">Renewal</text>
+    <text x="782" y="298" font-size="11" font-weight="400" fill="#6b6b66">Strategy, not</text>
+    <text x="782" y="313" font-size="11" font-weight="400" fill="#6b6b66">a guess</text>
+  </g>
+
+  <line x1="0" y1="370" x2="960" y2="370" stroke="#e5e5e0"/>
+  <text x="480" y="398" text-anchor="middle" font-size="11" fill="#9a9a94">This is a portfolio demo project &#8212; not a real company or live product.</text>
+</svg>

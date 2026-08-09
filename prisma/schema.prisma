@@ -1,0 +1,156 @@
+// Data model for the entities confirmed so far in planning.
+// This is a work-in-progress schema — see README.md for what's built vs. conceptual.
+// Everything here is synthetic-data-only by design; see the safety section in README.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// The Bearing tenant — a paying customer workspace, distinct from the Customers they manage.
+model Workspace {
+  id                 String   @id @default(cuid())
+  name               String
+  logoUrl            String?
+  brandPrimaryColor  String?
+  brandAccentColor   String?
+  currency           String   @default("GBP")
+  dateFormat         String   @default("DD/MM/YYYY")
+  language           String   @default("en-GB")
+  pricingTier        String   @default("starter")
+  seatsIncluded      Int      @default(5)
+  dataVolumeIncluded Int      @default(10000)
+  customTeamStructure Boolean @default(false)
+  createdAt          DateTime @default(now())
+  archivedAt         DateTime?
+
+  users     User[]
+  customers Customer[]
+
+  @@map("workspaces")
+}
+
+// A person inside a Workspace. Admin is a distinct persona (often technical/ops),
+// independent of the CS role hierarchy — see README.md.
+model User {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  name            String
+  email           String   @unique
+  role            String   // "head_vp_cs" | "cs_manager" | "csm" | custom if customTeamStructure
+  isAdmin         Boolean  @default(false)
+  managerId       String?  // reports-to, enables team roll-up
+  defaultRegion   String?
+  defaultVertical String?
+  defaultProduct  String?
+  themePreference String   @default("light")
+  createdAt       DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  manager   User?     @relation("UserManager", fields: [managerId], references: [id])
+  reports   User[]    @relation("UserManager")
+
+  @@map("users")
+}
+
+// The managed customer record — deliberately NOT called "Account" (see README.md).
+model Customer {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  name           String
+  country        String?
+  region         String?
+  city           String?
+  industry       String?
+  subIndustry    String?
+  tier           String   // "self_serve" | "mid_market" | "enterprise"
+  renewalType    String   @default("auto") // "auto" | "interrupted"
+  interruptedReason String? // "customer_requested" | "contract_defined" | "company_defined"
+  createdAt      DateTime @default(now())
+  archivedAt     DateTime?
+
+  workspace       Workspace        @relation(fields: [workspaceId], references: [id])
+  products        CustomerProduct[]
+  healthSnapshots HealthScoreSnapshot[]
+
+  @@map("customers")
+}
+
+// What the workspace's customer (the vendor) sells. A Customer can hold multiple.
+model Product {
+  id   String @id @default(cuid())
+  name String
+
+  capabilities    Capability[]
+  packages        Package[]
+  customerLinks   CustomerProduct[]
+
+  @@map("products")
+}
+
+// A module/feature within a Product. This is what Adoption actually measures usage of.
+// metricType is the classification rule: does using this more directly generate revenue?
+model Capability {
+  id         String @id @default(cuid())
+  productId  String
+  name       String
+  metricType String // "consumption" | "adoption" — see README.md classification rule
+
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("capabilities")
+}
+
+// A package/tier of a Product (Starter, Pro, Enterprise, etc.) — determines which
+// Capabilities a Customer is actually entitled to.
+model Package {
+  id        String @id @default(cuid())
+  productId String
+  name      String
+
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("packages")
+}
+
+// Junction: which Products a Customer holds, with per-product ARR split and its own
+// lifecycle status — a Customer can be Live on one Product and Onboarding on another.
+model CustomerProduct {
+  id             String   @id @default(cuid())
+  customerId     String
+  productId      String
+  packageId      String?
+  contractualArr Decimal  @default(0)
+  consumptionArr Decimal  @default(0)
+  lifecycleStatus String  @default("onboarding") // "onboarding" | "live" | "churned"
+
+  initialGoLiveDate  DateTime?
+  expectedGoLiveDate DateTime?
+  actualGoLiveDate   DateTime?
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@map("customer_products")
+}
+
+// One row per Health computation — never overwritten, so trends/deltas are possible.
+// This is the load-bearing entity of the whole product (see README.md).
+model HealthScoreSnapshot {
+  id              String   @id @default(cuid())
+  customerId      String
+  computedAt      DateTime @default(now())
+  compositeScore  Int      // 0-100, raw — always the primary value, never hidden behind a tier label alone
+  tierLabel       String?  // derived gloss, not the primary value
+  confidenceLevel String   @default("early_read") // "early_read" | "established"
+  driverValues    Json     // the 14 drivers at this point in time
+  manualOverride  Json?    // { value, reason, overriddenBy } if a CSM has overridden the score
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@map("health_score_snapshots")
+}

@@ -1,0 +1,70 @@
+<svg viewBox="0 0 960 620" xmlns="http://www.w3.org/2000/svg" role="img" font-family="Helvetica, Arial, sans-serif">
+  <title>Mockup: Health screen concept</title>
+  <desc>Illustrative mockup, not a real screenshot. Sidebar navigation, top bar, an executive narrative summary, a distribution row, and an account list with health scores and top drivers.</desc>
+
+  <rect x="0" y="0" width="960" height="620" rx="12" fill="#ffffff" stroke="#e5e5e0"/>
+
+  <rect x="0" y="0" width="190" height="620" fill="#f7f7f5"/>
+  <text x="20" y="34" font-size="15" font-weight="700" fill="#1a1a18">ai-customer-health-platform</text>
+  <text x="20" y="70" font-size="13" fill="#6b6b66">Home</text>
+  <rect x="12" y="82" width="166" height="28" rx="6" fill="#e6f1fb"/>
+  <text x="20" y="100" font-size="13" font-weight="700" fill="#0c447c">Health</text>
+  <text x="20" y="132" font-size="13" fill="#6b6b66">Briefing</text>
+  <text x="20" y="164" font-size="13" fill="#6b6b66">Onboarding</text>
+  <text x="20" y="196" font-size="13" fill="#6b6b66">Adoption</text>
+  <text x="20" y="228" font-size="13" fill="#6b6b66">Expansion</text>
+  <text x="20" y="260" font-size="13" fill="#6b6b66">Renewal</text>
+  <text x="20" y="292" font-size="13" fill="#6b6b66">Segments</text>
+  <line x1="12" y1="312" x2="178" y2="312" stroke="#e5e5e0"/>
+  <text x="20" y="336" font-size="13" fill="#6b6b66">Settings</text>
+
+  <line x1="190" y1="60" x2="960" y2="60" stroke="#e5e5e0"/>
+  <text x="212" y="38" font-size="13" fill="#6b6b66">Demo workspace</text>
+  <text x="800" y="38" font-size="12" fill="#9a9a94">26 Jul 2026</text>
+  <text x="870" y="38" font-size="12" fill="#9a9a94">EN-UK</text>
+
+  <text x="212" y="92" font-size="13" fill="#6b6b66">Health &#183; whole book</text>
+  <rect x="820" y="72" width="52" height="24" rx="6" fill="none" stroke="#e5e5e0"/>
+  <text x="833" y="88" font-size="11" fill="#6b6b66">Risk</text>
+  <rect x="878" y="72" width="62" height="24" rx="6" fill="none" stroke="#e5e5e0"/>
+  <text x="890" y="88" font-size="11" fill="#6b6b66">Urgent</text>
+
+  <rect x="212" y="106" width="728" height="60" rx="10" fill="#f7f7f5"/>
+  <text x="228" y="130" font-size="12.5" fill="#1a1a18">Average health is steady at 71, up 2 points this month. Support friction is the</text>
+  <text x="228" y="148" font-size="12.5" fill="#1a1a18">largest negative driver &#8212; three accounts share the same billing sync bug.</text>
+
+  <g font-size="18" font-weight="700" fill="#1a1a18">
+    <rect x="212" y="182" width="170" height="60" rx="8" fill="#f7f7f5"/>
+    <text x="226" y="204" font-size="11.5" fill="#6b6b66" font-weight="400">Thriving (85+)</text>
+    <text x="226" y="228">24</text>
+
+    <rect x="392" y="182" width="170" height="60" rx="8" fill="#f7f7f5"/>
+    <text x="406" y="204" font-size="11.5" fill="#6b6b66" font-weight="400">Stable (60-84)</text>
+    <text x="406" y="228">41</text>
+
+    <rect x="572" y="182" width="170" height="60" rx="8" fill="#f7f7f5"/>
+    <text x="586" y="204" font-size="11.5" fill="#6b6b66" font-weight="400">Watch (40-59)</text>
+    <text x="586" y="228">11</text>
+
+    <rect x="752" y="182" width="188" height="60" rx="8" fill="#f7f7f5"/>
+    <text x="766" y="204" font-size="11.5" fill="#6b6b66" font-weight="400">Critical (&lt;40)</text>
+    <text x="766" y="228">4</text>
+  </g>
+
+  <line x1="212" y1="270" x2="940" y2="270" stroke="#e5e5e0"/>
+  <text x="212" y="266" font-size="11.5" fill="#6b6b66">Customer</text>
+  <text x="560" y="266" font-size="11.5" fill="#6b6b66">Score</text>
+  <text x="650" y="266" font-size="11.5" fill="#6b6b66">Trend</text>
+  <text x="740" y="266" font-size="11.5" fill="#6b6b66">Top driver</text>
+
+  <text x="212" y="300" font-size="13" fill="#1a1a18">Northwind Traders</text>
+  <text x="560" y="300" font-size="13" font-weight="700" fill="#791f1f">28</text>
+  <text x="650" y="300" font-size="13" fill="#791f1f">&#8595; 12</text>
+  <text x="740" y="300" font-size="12.5" fill="#6b6b66">Support friction</text>
+  <line x1="212" y1="314" x2="940" y2="314" stroke="#e5e5e0"/>
+
+  <text x="212" y="340" font-size="13" fill="#1a1a18">Fenwick Logistics</text>
+  <text x="560" y="340" font-size="13" font-weight="700" fill="#27500a">88</text>
+  <text x="650" y="340" font-size="13" fill="#27500a">&#8593; 4</text>
+  <text x="740" y="340" font-size="12.5" fill="#6b6b66">Consumption growth</text>
+</svg>
