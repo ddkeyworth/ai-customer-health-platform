@@ -1,6 +1,6 @@
 # ai-customer-health-platform
 
-A conceptual exploration of an agentic-AI Customer Success platform – planned and built with Claude Code as a portfolio piece. **This is a prototype, not a production system, and not a real product.** Nothing here is a real company. There is no live deployment yet, no real customer data anywhere, and no outbound contact of any kind.
+A conceptual exploration of an agentic-AI Customer Success platform – planned and built with Claude Code as a portfolio piece. **This is a prototype, not a production system, and not a real product.** Nothing here is a real company. There is no live *public* deployment (see [Stage 2](#stage-2-live-deployment-not-yet-started)), no real customer data anywhere, and no outbound contact beyond the Anthropic API itself.
 
 > No AI reads every account right. It gets you close enough, fast enough, to act. Across onboarding, health, expansion, and renewal.
 
@@ -41,53 +41,63 @@ Every design decision in this repo follows one rule: **anything that would touch
 | Area | Status |
 |---|---|
 | Product definition, requirements, information architecture | Fully planned |
-| Data model (Workspace, User, Customer, Product, Capability, Package, Health snapshot, Competitor config) | Defined in `prisma/schema.prisma` |
-| App shell (navigation, layout) | Built |
-| Individual screens (Home, Health, Briefing, Onboarding, Adoption, Expansion, Renewal, Segments, Settings) | Stubbed – each states clearly what it will do and that it isn't built yet |
-| Health-scoring engine (the actual "special sauce") | **Designed, not implemented** – see below |
-| Agent core / playbooks | Not started |
-| Synthetic data generator | Not started |
+| Data model (Workspace, User, Customer, Product, Capability, Package, Health snapshot, Competitor config, Interaction, Usage, Survey, Event attendance) | Built in `prisma/schema.prisma`, live on a real (free-tier) Postgres instance |
+| App shell (navigation, layout, logo) | Built |
+| Synthetic data generator (`prisma/seed.ts`) | **Built and run for real** – 19 fictional customers, tickets, usage history, surveys, event attendance |
+| Health-scoring engine (the actual "special sauce") | **Built and tested for real** – see below. Computed and stored for all 19 seeded customers via `prisma/compute-health-scores.ts` |
+| `/health` screen | **Wired to real, stored data** – reads `HealthScoreSnapshot`, never recomputes on page load |
+| Other screens (Home, Briefing, Onboarding, Adoption, Expansion, Renewal, Segments, Settings) | Still stubbed – each states clearly what it will do and that it isn't built yet |
+| Agent core / playbooks for the other areas | Not started |
 | Live public deployment | **Not started – deliberately.** See [Stage 2: live deployment](#stage-2-live-deployment-not-yet-started) |
 
-## Health scoring, and why it isn't built yet
+## Health scoring – built, and how it actually works
 
 The easy part of this project is the CRM-adjacent facts – ARR, package, who's assigned. Those aren't the point; a real CRM already shows them. The actual value has to come from genuine insight: a composite score that reasons about context rather than averaging numbers, and a narrative that explains *why*, built from evidence, not a template.
 
-The architecture for that is designed (see `docs/screenshots/health-scoring-architecture.svg`):
+The architecture (see `docs/screenshots/health-scoring-architecture.svg`) is implemented in `src/lib/health/`:
 
-- **Two layers, not one formula.** Layer 1 is deterministic and reproducible: each of the 15 drivers normalized against the account's own history and a peer cohort, not a fixed global threshold. Layer 2 is a **bounded** agentic adjustment on top of that baseline (capped, e.g. +-15 points), with a required, evidence-grounded reason – never a freeform, unexplained number. This keeps every score traceable, and lets a later calibration pass measure whether the adjustment layer actually improves accuracy over the baseline alone.
-- **Evidence-chain narrative.** Every claim the narrative makes has to trace back to a specific input value it was given, not an invented correlation.
+- **Two layers, not one formula.** Layer 1 (`baseline.ts`) is deterministic and reproducible: each of the 15 drivers normalized against the account's own history and a peer cohort, not a fixed global threshold – no AI involved. Layer 2 (`agenticLayer.ts`) is a real Anthropic API call (`claude-sonnet-4-5`, structured tool output) that applies a **bounded** adjustment on top of the baseline (capped at +-15 points), with a required, evidence-grounded reason – never a freeform, unexplained number.
+- **Evidence-chain narrative.** Every claim the narrative makes has to trace back to a specific input value it was given, not an invented correlation. Tested for real: the model has correctly cited exact usage-decline percentages, specific ticket dates and content, and even surfaced a genuine expansion signal ("asked about adding two more seats") that isn't one of the 15 formal drivers at all – reasoning beyond the baseline, not just restating it.
 - **Stage-aware scoring.** A pre-Live account gets a narrow, honest read focused on onboarding pace, not the full 15-driver picture applied to an account that hasn't started yet.
 - **Confidence labeling**, driven by how much data actually backs a score, not the agent's own self-assessment.
-- **A calibration loop.** Real outcomes get tagged after the fact (did a "healthy" account churn anyway?) and surfaced periodically for a human to review and adjust the weighting, not a silently self-tuning system.
+- **A calibration loop is designed but not yet built** – real outcomes tagged after the fact, surfaced periodically for a human to adjust weighting, not a silently self-tuning system. This is the one piece of the architecture still ahead of the code.
 
 Two drivers worth calling out specifically, since they came from a skeptical pass on the model rather than an obvious first draft:
 
-- **Competitor risk is multi-source, split on safety grounds.** Most churn is competitive displacement, not need disappearing, so a workspace admin can configure up to 20 competitors, each with a risk weight (not all competitors are equal threats – see `docs/screenshots/competitor-config-mockup.svg`). Detection for **direct mentions** and **mentions of a competitor's known capabilities** is built for real, via the same Anthropic reasoning call already used for Layer 2 – it only ever scans interaction text already in the system, so there's no new outbound contact and no dependency on a third-party product. Two further signal sources – **job postings** referencing a competitor's stack, and **references on a competitor's own website** – are deliberately **not implemented**. Both would require monitoring genuinely new external sources, which stays concept-only regardless of whether the competitor list is populated, pending explicit sign-off.
-- **Engagement silence.** A noisy, complaining customer is easy to spot; a silent one – no support contact, no event attendance, flat usage, no communication – is often the bigger risk, and a naive per-driver model can actually score a quiet account as *healthier* than it should be, since fewer tickets alone looks like an improvement. This driver checks for sustained absence across multiple channels at once, and is designed to override a falsely-reassuring "quiet = good" reading elsewhere rather than just sit alongside it.
+- **Competitor risk is multi-source, split on safety grounds.** Most churn is competitive displacement, not need disappearing, so a workspace admin can configure up to 20 competitors, each with a risk weight (not all competitors are equal threats – see `docs/screenshots/competitor-config-mockup.svg`; the seed data configures 3). Detection for **direct mentions** and **mentions of a competitor's known capabilities** is built for real, via the same Anthropic reasoning call used for Layer 2 – it only ever scans interaction text already in the system, so there's no new outbound contact and no dependency on a third-party product. Confirmed working against seeded ticket text (e.g. a mention of a competitor's predictive-ETA feature was correctly flagged with the supporting quote). Two further signal sources – **job postings** referencing a competitor's stack, and **references on a competitor's own website** – are deliberately **not implemented**. Both would require monitoring genuinely new external sources, which stays concept-only regardless of whether the competitor list is populated, pending explicit sign-off.
+- **Engagement silence.** A noisy, complaining customer is easy to spot; a silent one – no support contact, no event attendance, flat usage, no communication – is often the bigger risk, and a naive per-driver model can actually score a quiet account as *healthier* than it should be, since fewer tickets alone looks like an improvement. This driver checks for sustained absence across multiple channels at once, and is confirmed (via the handcrafted "Silent Freight Ltd" seed customer) to override a falsely-reassuring "quiet = good" reading rather than just sit alongside it.
 
-None of this is implemented yet, and this repo won't fake it with a placeholder score or a templated sentence dressed up as AI reasoning. That would misrepresent the entire premise of the project.
+**Honest gaps, not glossed over:** four of the 15 drivers (Desired Outcome progress, stakeholder/champion engagement, training consumption, payment/billing health) have no underlying data model yet, so they return `null` rather than a fabricated value – the baseline score is computed only from the 11 drivers that do have real data behind them. In one run of the batch script, a single customer's narrative came back empty (a parsing/response edge case, not investigated further yet) – noted here rather than quietly reset and re-run to hide it.
 
 ## Stage 2: live deployment – not yet started
 
-This repo is code and documentation only. There is no running app anywhere, no public URL, no database with anything in it. A live deployment is a deliberate future step, gated on:
+There is no public URL and no live deployment. The database and Anthropic API key that exist are Dan's own free-tier, spend-capped, local-only credentials (`.env`, gitignored) – nobody else can reach this. A real public deployment is a deliberate future step, gated on:
 
-1. The Health-scoring engine actually being implemented (see above) – no point deploying an app whose flagship feature is a stub.
+1. ~~The Health-scoring engine actually being implemented~~ – **done** (see above).
 2. Rate limiting and usage caps being in place, so a public sign-up flow can't run up hosting or API costs.
-3. A hard spending cap set on the Anthropic API account *before* any real key is wired in.
+3. A hard spending cap set on the Anthropic API account *before* any real key is wired into a public-facing deployment.
+4. The other 8 screens reaching the same "built, not stubbed" state – deploying with only Health working would be a materially incomplete product.
 
 ## Tech stack
 
-Next.js (App Router) + TypeScript, Tailwind CSS, Prisma (pinned to v6 for its simpler schema-only datasource config) targeting Postgres. Auth (when built) will be email/password only – no third-party OAuth, so no real identity provider is ever contacted. Intended hosting: Vercel + a managed Postgres provider (Neon/Supabase), both on free tiers with no payment method attached until a live deployment is deliberately decided.
+Next.js (App Router) + TypeScript, Tailwind CSS, Inter (Google Fonts, open-licensed), Prisma (pinned to v6 for its simpler schema-only datasource config) on Postgres (Neon free tier), Anthropic API for Layer 2 reasoning. Auth (when built) will be email/password only – no third-party OAuth, so no real identity provider is ever contacted. Both the database and the Anthropic key are free-tier/spend-capped with no payment method attached, and are local-only credentials, not deployed anywhere public.
 
 ## Running it locally
 
 ```
 npm install
+```
+
+Create a `.env` file (copy `.env.example`) with your own `DATABASE_URL` (a free Neon/Supabase Postgres instance) and `ANTHROPIC_API_KEY` (spend-capped). Then:
+
+```
+npx prisma db push
+npx tsx prisma/seed.ts
+npx tsx prisma/compute-health-scores.ts
 npm run dev
 ```
 
-Opens at `http://localhost:3000`. There's no database connected yet – the schema exists but nothing reads from or writes to it. This just renders the navigation shell and the stub pages described above.
+Opens at `http://localhost:3000`. `/health` shows real, computed scores for the 19 seeded customers; every other screen is still a stub stating what it will do.
 
 ## License
 
