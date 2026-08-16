@@ -32,6 +32,7 @@ model Workspace {
   customers         Customer[]
   competitorConfigs CompetitorConfig[]
   bookSummaries     BookSummary[]
+  segments          Segment[]
 
   @@map("workspaces")
 }
@@ -300,4 +301,21 @@ model Opportunity {
   customer Customer @relation(fields: [customerId], references: [id])
 
   @@map("opportunities")
+}
+
+// A saved filter (Micro view). criteria is a small flat JSON object of
+// optional keys (industry, region, tier, renewalType, healthBand) - see
+// README.md. This build applies criteria only within the Segments screen
+// itself; re-scoping every other screen to the active segment (the full
+// design) is a bigger change not made yet.
+model Segment {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  criteria    Json
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@map("segments")
 }
