@@ -7,6 +7,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { PrismaClient } from "@prisma/client";
 import { DriverResult } from "./drivers";
+import { noEmDash } from "../text";
 
 const prisma = new PrismaClient();
 const anthropic = new Anthropic();
@@ -113,15 +114,15 @@ export async function computeAgenticLayer(
   // one seeded customer while adjustmentReason still had real content.
   // Fall back to adjustmentReason (it's evidence-grounded too) rather than
   // silently storing an empty narrative.
-  const narrative = parsed.narrative?.trim() || parsed.adjustmentReason?.trim() || null;
-  if (!narrative) {
+  const rawNarrative = parsed.narrative?.trim() || parsed.adjustmentReason?.trim() || null;
+  if (!rawNarrative) {
     throw new Error(`Model returned no narrative and no adjustmentReason for customer ${customerId}.`);
   }
 
   return {
     adjustmentDelta: Math.max(-15, Math.min(15, Math.round(parsed.adjustmentDelta))),
-    adjustmentReason: parsed.adjustmentReason ?? null,
-    narrative,
+    adjustmentReason: parsed.adjustmentReason ? noEmDash(parsed.adjustmentReason) : null,
+    narrative: noEmDash(rawNarrative),
     confidenceLevel: parsed.confidenceLevel,
     competitorMentions: parsed.competitorMentions ?? [],
   };

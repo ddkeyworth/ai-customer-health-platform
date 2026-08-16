@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { DriverResult } from "@/lib/health/drivers";
 import { tierColor } from "@/lib/health/ui";
 
 export const dynamic = "force-dynamic";
@@ -32,20 +31,13 @@ export default async function HealthPage() {
   const bandCounts = { Thriving: 0, Stable: 0, Watch: 0, Critical: 0 } as Record<string, number>;
   for (const r of rows) bandCounts[r.tierLabel ?? "Critical"]++;
 
-  // Executive summary: computed from the data, not a separate LLM call -
-  // keeps this page cheap to load (no API call on render, see README.md).
-  const atRisk = rows.filter((r) => (r.tierLabel === "Watch" || r.tierLabel === "Critical"));
-  const negativeDriverCounts = new Map<string, number>();
-  for (const r of atRisk) {
-    const drivers = r.driverValues as unknown as DriverResult[];
-    for (const d of drivers) {
-      if (d.score !== null && d.score < 50) {
-        negativeDriverCounts.set(d.label, (negativeDriverCounts.get(d.label) ?? 0) + 1);
-      }
-    }
-  }
-  const topNegativeDriver = [...negativeDriverCounts.entries()].sort((a, b) => b[1] - a[1])[0];
-  const avgScore = Math.round(rows.reduce((a, r) => a + r.compositeScore, 0) / rows.length);
+  // Executive summary: a real Anthropic call, computed by a batch script
+  // (prisma/compute-book-summary.ts), not live on this page load - see
+  // src/lib/health/bookSummary.ts and README.md.
+  const bookSummary = await prisma.bookSummary.findFirst({
+    where: { scopeKey: "all" },
+    orderBy: { computedAt: "desc" },
+  });
 
   return (
     <div>
@@ -57,10 +49,12 @@ export default async function HealthPage() {
       </div>
 
       <div className="rounded-xl bg-zinc-50 p-4 mb-5 text-sm text-zinc-800">
-        Average composite score is {avgScore} across {rows.length} customers. {atRisk.length} account
-        {atRisk.length === 1 ? " sits" : "s sit"} in Watch or Critical.
-        {topNegativeDriver && (
-          <> The most common negative driver among them is <strong>{topNegativeDriver[0]}</strong>, appearing in {topNegativeDriver[1]} of {atRisk.length}.</>
+        {bookSummary ? (
+          bookSummary.summary
+        ) : (
+          <span className="text-zinc-500">
+            No executive summary computed yet. Run <code>npx tsx prisma/compute-book-summary.ts</code>.
+          </span>
         )}
       </div>
 

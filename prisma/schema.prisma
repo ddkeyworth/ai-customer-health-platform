@@ -31,6 +31,7 @@ model Workspace {
   users             User[]
   customers         Customer[]
   competitorConfigs CompetitorConfig[]
+  bookSummaries     BookSummary[]
 
   @@map("workspaces")
 }
@@ -257,4 +258,21 @@ model EventAttendance {
   customer Customer @relation(fields: [customerId], references: [id])
 
   @@map("event_attendance")
+}
+
+// Whole-book executive summary - one row per computation, never overwritten
+// (same history pattern as HealthScoreSnapshot). Computed by a batch script
+// (prisma/compute-book-summary.ts), never live on page load - see README.md.
+// scopeKey lets this be reused for a Segment-scoped summary later, not just
+// the whole workspace - "all" for now since Segments isn't built yet.
+model BookSummary {
+  id          String   @id @default(cuid())
+  workspaceId String
+  scopeKey    String   @default("all")
+  computedAt  DateTime @default(now())
+  summary     String
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@map("book_summaries")
 }
