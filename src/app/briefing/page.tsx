@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
+import { resolveActiveSegment } from "@/lib/activeSegment";
 
 export const dynamic = "force-dynamic";
 
@@ -10,10 +11,20 @@ interface Flag {
   impact: number;
 }
 
-export default async function BriefingPage() {
+export default async function BriefingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ segment?: string }>;
+}) {
   const workspace = await getCurrentWorkspace();
+  const { segment: segmentId } = await searchParams;
+  const activeSegment = await resolveActiveSegment(workspace.id, segmentId);
+
   const customerProducts = await prisma.customerProduct.findMany({
-    where: { customer: { workspaceId: workspace.id } },
+    where: {
+      customer: { workspaceId: workspace.id },
+      ...(activeSegment ? { customerId: { in: activeSegment.customerIds } } : {}),
+    },
     include: {
       customer: {
         include: {
@@ -95,7 +106,9 @@ export default async function BriefingPage() {
 
   return (
     <div>
-      <h1 className="text-lg font-medium text-zinc-900 mb-1">Briefing</h1>
+      <h1 className="text-lg font-medium text-zinc-900 mb-1">
+        Briefing{activeSegment ? <span className="text-zinc-400"> &middot; {activeSegment.name}</span> : null}
+      </h1>
       <p className="text-xs text-zinc-400 mb-5">{rows.length} accounts with something to review, ranked by impact</p>
 
       <div className="space-y-2">

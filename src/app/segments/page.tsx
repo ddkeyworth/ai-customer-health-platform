@@ -113,9 +113,11 @@ export default async function SegmentsPage() {
       )}
 
       <p className="mt-6 text-xs text-zinc-400">
-        This build applies a segment&apos;s filter only within this screen. Re-scoping every other area (Home,
-        Health, Onboarding, etc.) to the active segment, and giving each user a default segment from their profile,
-        is the full design and isn&apos;t built yet.
+        Pick a segment from the selector in the top bar to re-scope every area (Home, Health, Onboarding, Adoption,
+        Expansion, Renewal, Briefing) to it - it carries across navigation via the URL. Not yet built: a default
+        segment per user profile (there&apos;s no user session yet to default from), and segment-scoped executive
+        summaries (Health&apos;s narrative stays whole-book-only, to avoid a live per-segment Anthropic call on every
+        page load).
       </p>
     </div>
   );

@@ -1,13 +1,25 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
+import { resolveActiveSegment } from "@/lib/activeSegment";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdoptionPage() {
+export default async function AdoptionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ segment?: string }>;
+}) {
   const workspace = await getCurrentWorkspace();
+  const { segment: segmentId } = await searchParams;
+  const activeSegment = await resolveActiveSegment(workspace.id, segmentId);
+
   const liveProducts = await prisma.customerProduct.findMany({
-    where: { lifecycleStatus: "live", customer: { workspaceId: workspace.id } },
+    where: {
+      lifecycleStatus: "live",
+      customer: { workspaceId: workspace.id },
+      ...(activeSegment ? { customerId: { in: activeSegment.customerIds } } : {}),
+    },
     include: {
       customer: true,
       product: { include: { capabilities: true } },
@@ -40,7 +52,9 @@ export default async function AdoptionPage() {
 
   return (
     <div>
-      <h1 className="text-lg font-medium text-zinc-900 mb-1">Adoption</h1>
+      <h1 className="text-lg font-medium text-zinc-900 mb-1">
+        Adoption{activeSegment ? <span className="text-zinc-400"> &middot; {activeSegment.name}</span> : null}
+      </h1>
       <p className="text-xs text-zinc-400 mb-5">{liveProducts.length} live accounts</p>
 
       <div className="grid grid-cols-2 gap-3 mb-6">

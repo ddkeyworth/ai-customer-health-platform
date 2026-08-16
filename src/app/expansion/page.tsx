@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
+import { resolveActiveSegment } from "@/lib/activeSegment";
 
 export const dynamic = "force-dynamic";
 
@@ -11,10 +12,21 @@ const TYPE_LABELS: Record<string, string> = {
   consumption_growth: "Consumption growth",
 };
 
-export default async function ExpansionPage() {
+export default async function ExpansionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ segment?: string }>;
+}) {
   const workspace = await getCurrentWorkspace();
+  const { segment: segmentId } = await searchParams;
+  const activeSegment = await resolveActiveSegment(workspace.id, segmentId);
+
   const opportunities = await prisma.opportunity.findMany({
-    where: { stage: "open", customer: { workspaceId: workspace.id } },
+    where: {
+      stage: "open",
+      customer: { workspaceId: workspace.id },
+      ...(activeSegment ? { customerId: { in: activeSegment.customerIds } } : {}),
+    },
     include: { customer: true },
     orderBy: { estimatedArr: "desc" },
   });
@@ -30,7 +42,9 @@ export default async function ExpansionPage() {
 
   return (
     <div>
-      <h1 className="text-lg font-medium text-zinc-900 mb-1">Expansion</h1>
+      <h1 className="text-lg font-medium text-zinc-900 mb-1">
+        Expansion{activeSegment ? <span className="text-zinc-400"> &middot; {activeSegment.name}</span> : null}
+      </h1>
       <p className="text-xs text-zinc-400 mb-5">{opportunities.length} open opportunities</p>
 
       <div className="rounded-lg bg-zinc-50 p-3 mb-6 inline-block">

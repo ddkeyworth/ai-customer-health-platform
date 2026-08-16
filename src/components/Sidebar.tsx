@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import Logo from "./Logo";
 
 const NAV_ITEMS = [
@@ -13,6 +16,10 @@ const NAV_ITEMS = [
 ];
 
 export default function Sidebar() {
+  const searchParams = useSearchParams();
+  const segment = searchParams.get("segment");
+  const suffix = segment ? `?segment=${segment}` : "";
+
   return (
     <div className="w-48 shrink-0 bg-zinc-50 border-r border-zinc-200 p-3">
       <div className="px-2 pb-4 text-lg text-zinc-900">
@@ -22,7 +29,7 @@ export default function Sidebar() {
         {NAV_ITEMS.map((item) => (
           <Link
             key={item.href}
-            href={item.href}
+            href={`${item.href}${suffix}`}
             className="rounded-lg px-2.5 py-2 text-sm text-zinc-600 hover:bg-zinc-100"
           >
             {item.label}

@@ -2,13 +2,24 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { tierColor } from "@/lib/health/ui";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
+import { resolveActiveSegment } from "@/lib/activeSegment";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ segment?: string }>;
+}) {
   const workspace = await getCurrentWorkspace();
+  const { segment: segmentId } = await searchParams;
+  const activeSegment = await resolveActiveSegment(workspace.id, segmentId);
+
   const customerProducts = await prisma.customerProduct.findMany({
-    where: { customer: { workspaceId: workspace.id } },
+    where: {
+      customer: { workspaceId: workspace.id },
+      ...(activeSegment ? { customerId: { in: activeSegment.customerIds } } : {}),
+    },
     include: { customer: true },
   });
 
@@ -22,7 +33,10 @@ export default async function Home() {
   }
 
   const snapshots = await prisma.healthScoreSnapshot.findMany({
-    where: { customer: { workspaceId: workspace.id } },
+    where: {
+      customer: { workspaceId: workspace.id },
+      ...(activeSegment ? { customerId: { in: activeSegment.customerIds } } : {}),
+    },
     include: { customer: true },
     orderBy: { computedAt: "desc" },
   });
@@ -37,8 +51,12 @@ export default async function Home() {
 
   return (
     <div>
-      <h1 className="text-lg font-medium text-zinc-900 mb-1">Home</h1>
-      <p className="text-xs text-zinc-400 mb-5">Whole-book overview, {customerProducts.length} customer-product relationships</p>
+      <h1 className="text-lg font-medium text-zinc-900 mb-1">
+        Home{activeSegment ? <span className="text-zinc-400"> &middot; {activeSegment.name}</span> : null}
+      </h1>
+      <p className="text-xs text-zinc-400 mb-5">
+        {activeSegment ? "Segment overview" : "Whole-book overview"}, {customerProducts.length} customer-product relationships
+      </p>
 
       <div className="grid grid-cols-3 gap-3 mb-3">
         <div className="rounded-lg bg-zinc-50 p-3">

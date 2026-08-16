@@ -2,13 +2,24 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { tierColor } from "@/lib/health/ui";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
+import { resolveActiveSegment } from "@/lib/activeSegment";
 
 export const dynamic = "force-dynamic";
 
-export default async function HealthPage() {
+export default async function HealthPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ segment?: string }>;
+}) {
   const workspace = await getCurrentWorkspace();
+  const { segment: segmentId } = await searchParams;
+  const activeSegment = await resolveActiveSegment(workspace.id, segmentId);
+
   const snapshots = await prisma.healthScoreSnapshot.findMany({
-    where: { customer: { workspaceId: workspace.id } },
+    where: {
+      customer: { workspaceId: workspace.id },
+      ...(activeSegment ? { customerId: { in: activeSegment.customerIds } } : {}),
+    },
     include: { customer: true },
     orderBy: { computedAt: "desc" },
   });
@@ -25,7 +36,9 @@ export default async function HealthPage() {
       <div className="max-w-2xl">
         <h1 className="text-lg font-medium text-zinc-900">Health</h1>
         <p className="mt-2 text-sm text-zinc-600">
-          No Health scores computed yet. Run <code>npx tsx prisma/compute-health-scores.ts</code> after seeding.
+          {activeSegment
+            ? `No customers in the "${activeSegment.name}" segment have a Health score yet.`
+            : <>No Health scores computed yet. Run <code>npx tsx prisma/compute-health-scores.ts</code> after seeding.</>}
         </p>
       </div>
     );
@@ -36,23 +49,34 @@ export default async function HealthPage() {
 
   // Executive summary: a real Anthropic call, computed by a batch script
   // (prisma/compute-book-summary.ts), not live on this page load - see
-  // src/lib/health/bookSummary.ts and README.md.
-  const bookSummary = await prisma.bookSummary.findFirst({
-    where: { scopeKey: "all", workspaceId: workspace.id },
-    orderBy: { computedAt: "desc" },
-  });
+  // src/lib/health/bookSummary.ts and README.md. Segment-scoped summaries
+  // aren't precomputed, so the whole-book one is skipped rather than shown
+  // misleadingly against a filtered list - generating one live per segment
+  // would break the "never live on page load" cost rule.
+  const bookSummary = activeSegment
+    ? null
+    : await prisma.bookSummary.findFirst({
+        where: { scopeKey: "all", workspaceId: workspace.id },
+        orderBy: { computedAt: "desc" },
+      });
 
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <h1 className="text-lg font-medium text-zinc-900">Health</h1>
+        <h1 className="text-lg font-medium text-zinc-900">
+          Health{activeSegment ? <span className="text-zinc-400"> &middot; {activeSegment.name}</span> : null}
+        </h1>
         <span className="text-xs text-zinc-400">
           {rows.length} customers &middot; computed {rows[0].computedAt.toLocaleDateString("en-GB")}
         </span>
       </div>
 
       <div className="rounded-xl bg-zinc-50 p-4 mb-5 text-sm text-zinc-800">
-        {bookSummary ? (
+        {activeSegment ? (
+          <span className="text-zinc-500">
+            Executive summaries are only precomputed for the whole book - not yet generated per segment.
+          </span>
+        ) : bookSummary ? (
           bookSummary.summary
         ) : (
           <span className="text-zinc-500">

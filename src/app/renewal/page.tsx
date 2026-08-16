@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { tierColor } from "@/lib/health/ui";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
+import { resolveActiveSegment } from "@/lib/activeSegment";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +21,22 @@ function fmtDate(d: Date | null) {
   return d ? d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-";
 }
 
-export default async function RenewalPage() {
+export default async function RenewalPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ segment?: string }>;
+}) {
   const workspace = await getCurrentWorkspace();
+  const { segment: segmentId } = await searchParams;
+  const activeSegment = await resolveActiveSegment(workspace.id, segmentId);
+
   const rows = await prisma.customerProduct.findMany({
-    where: { lifecycleStatus: "live", renewalDate: { not: null }, customer: { workspaceId: workspace.id } },
+    where: {
+      lifecycleStatus: "live",
+      renewalDate: { not: null },
+      customer: { workspaceId: workspace.id },
+      ...(activeSegment ? { customerId: { in: activeSegment.customerIds } } : {}),
+    },
     include: {
       customer: { include: { healthSnapshots: { orderBy: { computedAt: "desc" }, take: 1 } } },
     },
@@ -45,7 +58,9 @@ export default async function RenewalPage() {
 
   return (
     <div>
-      <h1 className="text-lg font-medium text-zinc-900 mb-1">Renewal</h1>
+      <h1 className="text-lg font-medium text-zinc-900 mb-1">
+        Renewal{activeSegment ? <span className="text-zinc-400"> &middot; {activeSegment.name}</span> : null}
+      </h1>
       <p className="text-xs text-zinc-400 mb-5">{next90.length} accounts renewing in the next 90 days</p>
 
       <div className="grid grid-cols-2 gap-3 mb-6">
