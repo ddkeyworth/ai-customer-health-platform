@@ -9,9 +9,9 @@ A conceptual exploration of an agentic-AI Customer Success platform – planned 
 ![Health scoring architecture](docs/screenshots/health-scoring-architecture.svg)
 ![Customer detail (Health drill-in), real screenshot](docs/screenshots/customer-detail-screenshot.png)
 ![Settings, real screenshot](docs/screenshots/competitor-config-screenshot.png)
-![Positioning concept](docs/screenshots/marketing-concept.svg)
+![Marketing page, real screenshot](docs/screenshots/marketing-screenshot.png)
 
-The four screenshots above are real captures of the actual running app, seeded with the synthetic data described below – not mockups. `health-scoring-architecture.svg` is a diagram, not a screenshot. `marketing-concept.svg` stays an illustrative mockup – no real landing/marketing page exists yet, see [What's real vs. planned](#whats-real-vs-planned) below.
+All five screenshots above are real captures of the actual running app (`/`, `/health`, `/health/[customerId]`, `/settings`, `/marketing`), seeded with the synthetic data described below – not mockups. `health-scoring-architecture.svg` is the one remaining diagram, not a screenshot.
 
 The repo is named descriptively for portfolio discoverability; **"Bearing"** is the working product name used within the app and mockups themselves.
 
@@ -58,6 +58,7 @@ All 9 screens (Home, Health, Briefing, Onboarding, Adoption, Expansion, Renewal,
 | `/segments` | Real saved filters - create/view/delete all genuinely work, capped at 20 per workspace. Picking one from the top-bar selector re-scopes every area (Home, Health, Onboarding, Adoption, Expansion, Renewal, Briefing) to it, carried via the URL - the Micro view from the original design. Health's executive summary stays whole-book-only rather than generating a live per-segment Anthropic call on every page load |
 | `/settings` | Org profile/branding/localisation and competitor risk config are real, writable forms (Server Actions). A data-export allowlist config is also real (which of Bearing's own generated fields would sync to a CRM), same concept-only treatment as Integrations/SSO - no actual export mechanism exists. Team & roles, billing, other integrations, developer/API stay honest "not built yet" |
 | `/briefing` | Real cross-area action queue, consolidated by account and ranked by £ impact, pulled live from Health/Onboarding/Expansion/Renewal. Read-only - no approve/dismiss/snooze state yet |
+| `/marketing` | Real public-facing landing page - positioning line, 5 lifecycle-area cards, illustrative two-axis pricing, and an honest "what's actually real" section. Rendered without the internal dashboard chrome via `AppShell`. Terms/Privacy/Security stay one-line honest placeholders, not real legal documents, per the governing safety principle |
 | Agent core / playbooks for areas beyond Health | Expansion uses rule-based generation; the others are plain data views. A full agentic pass (matching Health's two-layer depth) is the natural next step, not done |
 | Live public deployment | **Not started - deliberately.** See [Stage 2: live deployment](#stage-2-live-deployment-not-yet-started) |
 

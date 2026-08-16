@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
+import AppShell from "@/components/AppShell";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -22,11 +23,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex bg-white text-zinc-900">
-        <Sidebar />
-        <div className="flex flex-1 flex-col min-w-0">
-          <TopBar />
-          <main className="flex-1 p-6">{children}</main>
-        </div>
+        <AppShell sidebar={<Sidebar />} topbar={<TopBar />}>
+          {children}
+        </AppShell>
       </body>
     </html>
   );
