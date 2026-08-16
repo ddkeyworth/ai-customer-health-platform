@@ -6,7 +6,7 @@ This repo's logic was actually executed, not just written and left unverified - 
 
 ## Test 1 - Health scoring engine, Layer 1 + Layer 2
 
-Ran the full pipeline (`prisma/seed.ts` → `prisma/compute-health-scores.ts`) against the four handcrafted seed customers, each built to exercise a specific driver behaviour, then inspected the stored `HealthScoreSnapshot` rows.
+Ran the full pipeline (`prisma/seed.ts` → `prisma/compute-health-scores.ts`) against the four handcrafted seed customers, each built to exercise a specific driver behaviour, then inspected the stored `HealthScoreSnapshot` rows. `prisma/test-baseline.ts` and `prisma/test-full-pipeline.ts` are the small ad-hoc scripts from this pass, kept in the repo as real, runnable spot-checks against the three named handcrafted customers - `npx tsx prisma/test-full-pipeline.ts` reruns this exact verification.
 
 - **Northwind Traders** (handcrafted at-risk): baseline 43 → Layer 2 adjusted -8 → composite 35. The narrative correctly cited the RouteWorks competitor mention with the actual supporting quote from the seeded interaction text.
 - **Fenwick Logistics** (handcrafted thriving): baseline 91 → +5 → 96. Layer 2 caught a genuine expansion signal ("asked about adding two more seats") that isn't one of the 15 formal drivers at all - reasoning beyond the baseline, not just restating it.

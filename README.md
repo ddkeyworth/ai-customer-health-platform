@@ -25,14 +25,14 @@ Most Customer Success tooling is a system of record – a place to manage accoun
 - **Expansion** – Price Increase, Cross-sell, Upsell, and Consumption Growth opportunities, each with a Raised-By and an Owner.
 - **Renewal** – Auto vs. Interrupted renewals, ARR and consumption revenue at risk, and a projected-churn estimate shown honestly as an estimate, not a fact.
 
-Every screen is meant to carry its own synthesized narrative, not just a data table – because a re-skinned CRM view isn't the point. If the reasoning underneath isn't genuinely sound, this whole idea doesn't hold up. See [Health scoring, and why it isn't built yet](#health-scoring-and-why-it-isnt-built-yet).
+Every screen is meant to carry its own synthesized narrative, not just a data table – because a re-skinned CRM view isn't the point. If the reasoning underneath isn't genuinely sound, this whole idea doesn't hold up. See [Health scoring – built, and how it actually works](#health-scoring-built-and-how-it-actually-works).
 
 ## Governing principle: safe by construction, not by promise
 
 Every design decision in this repo follows one rule: **anything that would touch the outside world, real data, or a real compliance claim is shown as a concept only – never operationalized.**
 
 - No real customer or personal data, anywhere, ever. All data is synthetic.
-- No outbound network call except to the Anthropic API for the agent's own reasoning (and only once that's actually built – see below). Any other integration (a real CRM sync, a real email send, a real OAuth login, monitoring job boards or competitor websites) is represented as a UI concept, not a working connection, unless explicitly extended later with deliberate sign-off.
+- No outbound network call except to the Anthropic API for the agent's own reasoning – see [Health scoring](#health-scoring-built-and-how-it-actually-works) below for what that actually does. Any other integration (a real CRM sync, a real email send, a real OAuth login, monitoring job boards or competitor websites) is represented as a UI concept, not a working connection, unless explicitly extended later with deliberate sign-off.
 - No compliance claims that aren't true. No fabricated traction, testimonials, or results anywhere in this repo or its documentation.
 - Every agent action is designed to be a draft a human reviews – nothing is ever sent or executed automatically.
 
@@ -78,7 +78,7 @@ The architecture (see `docs/screenshots/health-scoring-architecture.svg`) is imp
 
 Two drivers worth calling out specifically, since they came from a skeptical pass on the model rather than an obvious first draft:
 
-- **Competitor risk is multi-source, split on safety grounds.** Most churn is competitive displacement, not need disappearing, so a workspace admin can configure up to 20 competitors, each with a risk weight (not all competitors are equal threats – see `docs/screenshots/competitor-config-mockup.svg`; the seed data configures 3). Detection for **direct mentions** and **mentions of a competitor's known capabilities** is built for real, via the same Anthropic reasoning call used for Layer 2 – it only ever scans interaction text already in the system, so there's no new outbound contact and no dependency on a third-party product. Confirmed working against seeded ticket text (e.g. a mention of a competitor's predictive-ETA feature was correctly flagged with the supporting quote). Two further signal sources – **job postings** referencing a competitor's stack, and **references on a competitor's own website** – are deliberately **not implemented**. Both would require monitoring genuinely new external sources, which stays concept-only regardless of whether the competitor list is populated, pending explicit sign-off.
+- **Competitor risk is multi-source, split on safety grounds.** Most churn is competitive displacement, not need disappearing, so a workspace admin can configure up to 20 competitors, each with a risk weight (not all competitors are equal threats – see `docs/screenshots/competitor-config-screenshot.png`; the seed data configures 3). Detection for **direct mentions** and **mentions of a competitor's known capabilities** is built for real, via the same Anthropic reasoning call used for Layer 2 – it only ever scans interaction text already in the system, so there's no new outbound contact and no dependency on a third-party product. Confirmed working against seeded ticket text (e.g. a mention of a competitor's predictive-ETA feature was correctly flagged with the supporting quote). Two further signal sources – **job postings** referencing a competitor's stack, and **references on a competitor's own website** – are deliberately **not implemented**. Both would require monitoring genuinely new external sources, which stays concept-only regardless of whether the competitor list is populated, pending explicit sign-off.
 - **Engagement silence.** A noisy, complaining customer is easy to spot; a silent one – no support contact, no event attendance, flat usage, no communication – is often the bigger risk, and a naive per-driver model can actually score a quiet account as *healthier* than it should be, since fewer tickets alone looks like an improvement. This driver checks for sustained absence across multiple channels at once, and is confirmed (via the handcrafted "Silent Freight Ltd" seed customer) to override a falsely-reassuring "quiet = good" reading rather than just sit alongside it.
 
 **A small but real fix worth naming:** Claude's prose defaults to em dashes fairly often, and this repo holds a strict no-em-dash style rule throughout, including AI-generated text. `src/lib/text.ts` sanitizes every stored narrative/summary; found and fixed after the fact for the handful of records generated before the fix existed.
@@ -92,10 +92,11 @@ A real bug did surface during an earlier skeptical pass over the repo: the tool 
 There is no public URL and no live deployment. The database and Anthropic API key that exist are Dan's own free-tier, spend-capped, local-only credentials (`.env`, gitignored) – nobody else can reach this. A real public deployment is a deliberate future step, gated on:
 
 1. ~~The Health-scoring engine actually being implemented~~ – **done** (see above).
-2. Rate limiting and usage caps being in place, so a public sign-up flow can't run up hosting or API costs.
+2. **Partially done:** a small in-memory rate limiter (`src/lib/rateLimit.ts`) now guards the write-heavy Server Actions. Scoped to what's reachable today, not deployment scale – no shared store across instances, no rate limiting on read traffic. Would need revisiting alongside real auth before going public.
 3. A hard spending cap set on the Anthropic API account *before* any real key is wired into a public-facing deployment.
 4. ~~The other 8 screens reaching real data, not static stubs~~ – **done** (see the table above) - though most are still rule-based or read-only rather than the same agentic depth as Health, which is its own remaining gap, separate from this gate.
 5. Real auth - there currently isn't any. Anyone with the URL sees everything, which is fine for a local-only build and not acceptable for anything public.
+6. Actually deploying - Vercel (app hosting) isn't signed up for yet. Neon (the database) already is, on the same free-tier/spend-capped basis as everything else here.
 
 ## Tech stack
 
