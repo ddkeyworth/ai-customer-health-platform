@@ -2,7 +2,7 @@ import Link from "next/link";
 import Logo from "@/components/Logo";
 
 export const metadata = {
-  title: "Bearing — a portfolio concept for agentic Customer Success",
+  title: "Bearing – a portfolio concept for agentic Customer Success",
   description:
     "No AI reads every account right. It gets you close enough, fast enough, to act. A conceptual CS platform, built as a portfolio piece.",
 };
@@ -14,7 +14,7 @@ const AREAS = [
   },
   {
     name: "Health",
-    copy: "The flagship: a deterministic baseline across 15 real signals, plus a bounded, evidence-grounded AI adjustment — never a freeform score, always traceable back to specific data.",
+    copy: "The flagship: a deterministic baseline across 15 real signals, plus a bounded, evidence-grounded AI adjustment – never a freeform score, always traceable back to specific data.",
   },
   {
     name: "Adoption",
@@ -22,7 +22,7 @@ const AREAS = [
   },
   {
     name: "Expansion",
-    copy: "Opportunities surfaced from real usage signals — seat mentions, package-ceiling breadth, consumption growth — with Raised-by and Owner tracked separately.",
+    copy: "Opportunities surfaced from real usage signals – seat mentions, package-ceiling breadth, consumption growth – with Raised-by and Owner tracked separately.",
   },
   {
     name: "Renewal",
@@ -59,7 +59,7 @@ export default function MarketingPage() {
         <div className="flex items-center gap-3">
           <Logo height="1.1em" />
           <span className="text-[10px] rounded-full bg-zinc-100 text-zinc-500 px-2 py-0.5">
-            Mobile app — coming soon
+            Mobile app – coming soon
           </span>
         </div>
         <nav className="flex items-center gap-4 text-sm text-zinc-600">
@@ -82,7 +82,7 @@ export default function MarketingPage() {
           No AI reads every account right.
         </h1>
         <p className="text-lg text-zinc-600 mb-8">
-          It gets you close enough, fast enough, to act — across onboarding, health, expansion, and renewal.
+          It gets you close enough, fast enough, to act – across onboarding, health, expansion, and renewal.
         </p>
         <Link
           href="/"
@@ -91,7 +91,7 @@ export default function MarketingPage() {
           Explore the live build
         </Link>
         <p className="mt-3 text-xs text-zinc-400">
-          Real scoring engine, real synthetic data — not a static mockup. See{" "}
+          Real scoring engine, real synthetic data – not a static mockup. See{" "}
           <a href="#trust" className="underline">what&apos;s actually real</a> below.
         </p>
       </section>
@@ -111,7 +111,7 @@ export default function MarketingPage() {
       <section id="pricing" className="max-w-5xl mx-auto px-6 py-16 border-t border-zinc-100">
         <h2 className="text-sm font-medium text-zinc-500 mb-1 text-center">Illustrative pricing</h2>
         <p className="text-xs text-zinc-400 mb-8 text-center">
-          Two-axis: seats and tracked-account volume, not seats alone — a CS org with few users but a large book
+          Two-axis: seats and tracked-account volume, not seats alone – a CS org with few users but a large book
           shouldn&apos;t be priced like a seat-only tool. Figures are illustrative, not a real price list.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -132,16 +132,16 @@ export default function MarketingPage() {
       <section id="trust" className="max-w-3xl mx-auto px-6 py-16 border-t border-zinc-100">
         <h2 className="text-sm font-medium text-zinc-500 mb-4">What&apos;s actually real</h2>
         <p className="text-sm text-zinc-600 leading-relaxed mb-3">
-          This is a portfolio project, not a real company or live product. The Health-scoring engine, the 9 app
-          screens, and the data model are genuinely built and run against real (synthetic) seeded data and real
-          Anthropic API calls — see{" "}
+          This is a portfolio project, not a real company or live product. The Health-scoring engine, the 10
+          dashboard screens, and the data model are genuinely built and run against real (synthetic) seeded data and
+          real Anthropic API calls – see{" "}
           <a href="https://github.com/ddkeyworth/ai-customer-health-platform" className="underline">
             the repo&apos;s README and TESTING.md
           </a>{" "}
           for what&apos;s been verified, not just claimed.
         </p>
         <p className="text-sm text-zinc-600 leading-relaxed">
-          There is no live public deployment — this runs locally only. If it were deployed, the stack would be
+          There is no live public deployment – this runs locally only. If it were deployed, the stack would be
           Next.js on Vercel with Postgres on Neon (the same free-tier services already used for local development),
           gated on real auth and rate limiting first.
         </p>
@@ -184,7 +184,7 @@ export default function MarketingPage() {
 
           <div id="legal" className="rounded-xl bg-zinc-50 p-4 text-xs text-zinc-500 leading-relaxed mb-6">
             <p className="mb-2">
-              <span className="font-medium text-zinc-700">Security:</span> design principles only — no real
+              <span className="font-medium text-zinc-700">Security:</span> design principles only – no real
               security audit, certification, or hardened infrastructure exists for this local-only build.
             </p>
             <p className="mb-2">
@@ -199,7 +199,7 @@ export default function MarketingPage() {
           </div>
 
           <p className="text-xs text-zinc-400">
-            &copy; 2026 Bearing. Bearing is a portfolio demo project — not a real company or live product.
+            &copy; 2026 Bearing. Bearing is a portfolio demo project – not a real company or live product.
           </p>
         </div>
       </footer>
