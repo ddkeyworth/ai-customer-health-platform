@@ -38,17 +38,26 @@ Every design decision in this repo follows one rule: **anything that would touch
 
 ## What's real vs. planned
 
+All 9 screens (Home, Health, Briefing, Onboarding, Adoption, Expansion, Renewal, Segments, Settings) are wired to real data - nothing left as a static stub. They're not all equally deep, though - see the per-screen notes below for what's genuinely agentic vs. rule-based vs. read-only.
+
 | Area | Status |
 |---|---|
 | Product definition, requirements, information architecture | Fully planned |
-| Data model (Workspace, User, Customer, Product, Capability, Package, Health snapshot, Competitor config, Interaction, Usage, Survey, Event attendance) | Built in `prisma/schema.prisma`, live on a real (free-tier) Postgres instance |
+| Data model (Workspace, User, Customer, Product, Capability, Package, Health snapshot, Competitor config, Interaction, Usage, Survey, Event attendance, Opportunity, Segment) | Built in `prisma/schema.prisma`, live on a real (free-tier) Postgres instance |
 | App shell (navigation, layout, logo) | Built |
-| Synthetic data generator (`prisma/seed.ts`) | **Built and run for real** – 19 fictional customers, tickets, usage history, surveys, event attendance |
-| Health-scoring engine (the actual "special sauce") | **Built and tested for real** – see below. Computed and stored for all 19 seeded customers via `prisma/compute-health-scores.ts` |
-| `/health` screen | **Wired to real, stored data** – list view, per-customer drill-in (`/health/[customerId]`), and a real LLM-generated executive summary, all reading stored data, none recomputed on page load |
-| Other screens (Home, Briefing, Onboarding, Adoption, Expansion, Renewal, Segments, Settings) | Still stubbed – each states clearly what it will do and that it isn't built yet |
-| Agent core / playbooks for the other areas | Not started |
-| Live public deployment | **Not started – deliberately.** See [Stage 2: live deployment](#stage-2-live-deployment-not-yet-started) |
+| Synthetic data generator (`prisma/seed.ts`) | **Built and run for real** - 19 fictional customers, tickets, usage history, surveys, event attendance, renewal dates |
+| Health-scoring engine (the actual "special sauce") | **Built and tested for real** - see below. Computed and stored for all 19 seeded customers via `prisma/compute-health-scores.ts` |
+| `/health` | List view, per-customer drill-in (`/health/[customerId]`), and a real LLM-generated executive summary - all reading stored data, none recomputed on page load |
+| `/` (Home) | Real Total ARR, Health bands, lifecycle-stage counts, and a "needs attention" list. Deliberately does not show NNAOV/NRR/GRR - those need realized bridge events this build doesn't track yet |
+| `/onboarding` | Real three-date pace tracking and overdue sorting. No date-change event log or cause-tagging yet |
+| `/adoption` | Real capability breadth and per-Capability adoption stats across live accounts |
+| `/expansion` | Real Opportunity model (4 types), seeded by **deterministic rules**, not yet the same agentic reasoning as Health's Layer 2 |
+| `/renewal` | Real renewal dates, Auto/Interrupted status, ARR at risk. Projected churn is a real calculation but explicitly labeled illustrative (reads off the Health band, not a calibrated model) |
+| `/segments` | Real saved filters - create/view/delete all genuinely work. Applies only within this screen; re-scoping every other area to the active segment is the one part of the original design not built |
+| `/settings` | Org profile/branding/localisation and competitor risk config are real, writable forms (Server Actions). Team & roles, billing, other integrations, developer/API, and data export stay honest "not built yet" |
+| `/briefing` | Real cross-area action queue, consolidated by account and ranked by £ impact, pulled live from Health/Onboarding/Expansion/Renewal. Read-only - no approve/dismiss/snooze state yet |
+| Agent core / playbooks for areas beyond Health | Expansion uses rule-based generation; the others are plain data views. A full agentic pass (matching Health's two-layer depth) is the natural next step, not done |
+| Live public deployment | **Not started - deliberately.** See [Stage 2: live deployment](#stage-2-live-deployment-not-yet-started) |
 
 ## Health scoring – built, and how it actually works
 
@@ -79,7 +88,8 @@ There is no public URL and no live deployment. The database and Anthropic API ke
 1. ~~The Health-scoring engine actually being implemented~~ – **done** (see above).
 2. Rate limiting and usage caps being in place, so a public sign-up flow can't run up hosting or API costs.
 3. A hard spending cap set on the Anthropic API account *before* any real key is wired into a public-facing deployment.
-4. The other 8 screens reaching the same "built, not stubbed" state – deploying with only Health working would be a materially incomplete product.
+4. ~~The other 8 screens reaching real data, not static stubs~~ – **done** (see the table above) - though most are still rule-based or read-only rather than the same agentic depth as Health, which is its own remaining gap, separate from this gate.
+5. Real auth - there currently isn't any. Anyone with the URL sees everything, which is fine for a local-only build and not acceptable for anything public.
 
 ## Tech stack
 
@@ -96,12 +106,14 @@ Create a `.env` file (copy `.env.example`) with your own `DATABASE_URL` (a free 
 ```
 npx prisma db push
 npx tsx prisma/seed.ts
+npx tsx prisma/seed-renewal-dates.ts
 npx tsx prisma/compute-health-scores.ts
 npx tsx prisma/compute-book-summary.ts
+npx tsx prisma/generate-opportunities.ts
 npm run dev
 ```
 
-Opens at `http://localhost:3000`. `/health` shows real, computed scores and a real executive summary for the 19 seeded customers, with a full driver breakdown per customer at `/health/[customerId]`; every other screen is still a stub stating what it will do.
+Opens at `http://localhost:3000`. Every screen reads real, seeded/computed data - start at `/health` for the deepest one (full driver breakdown per customer at `/health/[customerId]`, real LLM-generated executive summary), or `/briefing` for the consolidated cross-area view.
 
 ## License
 
