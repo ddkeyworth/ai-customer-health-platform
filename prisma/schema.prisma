@@ -78,16 +78,70 @@ model Customer {
   createdAt      DateTime @default(now())
   archivedAt     DateTime?
 
-  workspace        Workspace              @relation(fields: [workspaceId], references: [id])
-  products         CustomerProduct[]
-  healthSnapshots  HealthScoreSnapshot[]
-  interactions     Interaction[]
-  usageSnapshots   UsageSnapshot[]
-  surveyResponses  SurveyResponse[]
-  eventAttendances EventAttendance[]
-  opportunities    Opportunity[]
+  workspace          Workspace              @relation(fields: [workspaceId], references: [id])
+  products           CustomerProduct[]
+  healthSnapshots    HealthScoreSnapshot[]
+  interactions       Interaction[]
+  usageSnapshots     UsageSnapshot[]
+  surveyResponses    SurveyResponse[]
+  eventAttendances   EventAttendance[]
+  opportunities      Opportunity[]
+  desiredOutcomes    DesiredOutcome[]
+  stakeholders       Stakeholder[]
+  trainingCompletions TrainingCompletion[]
 
   @@map("customers")
+}
+
+// A business result the customer bought the product to achieve (e.g. hours
+// saved, cost avoided) - target set at sale, actual tracked over time.
+// Feeds Desired Outcome progress (driver 4). No underlying data existed for
+// this driver until 2026-08-16 - see README.md "Honest gaps".
+model DesiredOutcome {
+  id          String   @id @default(cuid())
+  customerId  String
+  name        String
+  targetValue Decimal
+  actualValue Decimal  @default(0)
+  unit        String   // e.g. "hours/month", "£ saved", "% automated"
+  createdAt   DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@map("desired_outcomes")
+}
+
+// A named person at the customer org. isChampion marks an internal advocate;
+// lastEngagedAt is the most recent confirmed touchpoint with them
+// specifically (not just any interaction on the account). Feeds
+// Stakeholder/champion engagement (driver 8).
+model Stakeholder {
+  id            String    @id @default(cuid())
+  customerId    String
+  name          String
+  role          String
+  isChampion    Boolean   @default(false)
+  lastEngagedAt DateTime?
+  createdAt     DateTime  @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@map("stakeholders")
+}
+
+// A completed training session - one row per session, attendeeCount rolls up
+// how many people from the customer org attended. Feeds Training consumption
+// (driver 11).
+model TrainingCompletion {
+  id             String   @id @default(cuid())
+  customerId     String
+  courseName     String
+  attendeeCount  Int      @default(1)
+  occurredAt     DateTime
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@map("training_completions")
 }
 
 // What the workspace's customer (the vendor) sells. A Customer can hold multiple.
@@ -149,6 +203,9 @@ model CustomerProduct {
   expectedGoLiveDate DateTime?
   actualGoLiveDate   DateTime?
   renewalDate        DateTime? // when the current contract term is up
+
+  paymentStatus String @default("current") // "current" | "late" | "failed" - feeds Payment/billing health (driver 12)
+  daysPastDue   Int    @default(0) // only meaningful when paymentStatus != "current"
 
   customer Customer @relation(fields: [customerId], references: [id])
   product  Product  @relation(fields: [productId], references: [id])

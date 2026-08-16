@@ -83,8 +83,23 @@ export async function computeBaseline(customerId: string): Promise<BaselineResul
     );
   }
 
-  // 4. Desired Outcome progress - no data source yet in this prototype
-  drivers.push(result("desired_outcome_progress", null, "Not tracked yet - no Desired Outcome model seeded."));
+  // 4. Desired Outcome progress
+  const desiredOutcomes = await prisma.desiredOutcome.findMany({ where: { customerId } });
+  if (desiredOutcomes.length === 0) {
+    drivers.push(result("desired_outcome_progress", null, "No Desired Outcomes tracked for this account."));
+  } else {
+    const pcts = desiredOutcomes.map((o) =>
+      Number(o.targetValue) > 0 ? (Number(o.actualValue) / Number(o.targetValue)) * 100 : 0
+    );
+    const avgPct = pcts.reduce((a, b) => a + b, 0) / pcts.length;
+    drivers.push(
+      result(
+        "desired_outcome_progress",
+        avgPct,
+        `Averaging ${avgPct.toFixed(0)}% of target across ${desiredOutcomes.length} tracked outcome(s).`
+      )
+    );
+  }
 
   // 5 & 6. Ticket volume trend, severity
   const interactions = await prisma.interaction.findMany({ where: { customerId } });
@@ -119,8 +134,34 @@ export async function computeBaseline(customerId: string): Promise<BaselineResul
     drivers.push(result("survey_score", avgNps * 10, `Average NPS ${avgNps.toFixed(1)}/10.`));
   }
 
-  // 8. Champion engagement - no data source yet
-  drivers.push(result("champion_engagement", null, "Not tracked yet - no stakeholder-engagement model seeded."));
+  // 8. Stakeholder/champion engagement
+  const stakeholders = await prisma.stakeholder.findMany({ where: { customerId } });
+  const champions = stakeholders.filter((s) => s.isChampion);
+  if (stakeholders.length === 0) {
+    drivers.push(result("champion_engagement", null, "No stakeholders tracked for this account."));
+  } else if (champions.length === 0) {
+    drivers.push(result("champion_engagement", 30, "No identified champion among tracked stakeholders."));
+  } else {
+    const mostRecentEngaged = champions.reduce<(typeof champions)[number] | null>((latest, c) => {
+      if (!c.lastEngagedAt) return latest;
+      if (!latest || !latest.lastEngagedAt || c.lastEngagedAt > latest.lastEngagedAt) return c;
+      return latest;
+    }, null);
+    if (!mostRecentEngaged) {
+      drivers.push(
+        result("champion_engagement", 35, `Champion identified (${champions[0].name}) but no recorded engagement yet.`)
+      );
+    } else {
+      const daysSince = Math.round((now.getTime() - mostRecentEngaged.lastEngagedAt!.getTime()) / 86400000);
+      drivers.push(
+        result(
+          "champion_engagement",
+          clamp(95 - daysSince * 0.5),
+          `Champion ${mostRecentEngaged.name} last engaged ${daysSince} days ago.`
+        )
+      );
+    }
+  }
 
   // 9. Commercial/contract signal
   if (customer.renewalType === "interrupted") {
@@ -138,9 +179,43 @@ export async function computeBaseline(customerId: string): Promise<BaselineResul
     drivers.push(result("escalation", clamp(95 - criticalCount * 25), `${criticalCount} critical-severity interaction(s).`));
   }
 
-  // 11 & 12. Training consumption, payment health - no data source yet
-  drivers.push(result("training_consumption", null, "Not tracked yet - no training-completion model seeded."));
-  drivers.push(result("payment_health", null, "Not tracked yet - no billing model seeded."));
+  // 11. Training consumption
+  const trainings = await prisma.trainingCompletion.findMany({ where: { customerId } });
+  if (trainings.length === 0) {
+    drivers.push(result("training_consumption", null, "No training completions recorded."));
+  } else {
+    const totalAttendees = trainings.reduce((a, t) => a + t.attendeeCount, 0);
+    const mostRecent = trainings.reduce((max, t) => (t.occurredAt > max ? t.occurredAt : max), trainings[0].occurredAt);
+    const daysSinceLast = Math.round((now.getTime() - mostRecent.getTime()) / 86400000);
+    const recencyScore = clamp(90 - daysSinceLast * 0.3);
+    const volumeScore = clamp(40 + totalAttendees * 8);
+    drivers.push(
+      result(
+        "training_consumption",
+        (recencyScore + volumeScore) / 2,
+        `${trainings.length} session(s), ${totalAttendees} total attendee-completions, most recent ${daysSinceLast} days ago.`
+      )
+    );
+  }
+
+  // 12. Payment/billing health - worst status across every product the customer holds
+  if (customer.products.length === 0) {
+    drivers.push(result("payment_health", null, "No billing data available."));
+  } else {
+    const statusRank: Record<string, number> = { current: 0, late: 1, failed: 2 };
+    const worst = customer.products.reduce((w, p) => (statusRank[p.paymentStatus] > statusRank[w.paymentStatus] ? p : w));
+    if (worst.paymentStatus === "current") {
+      drivers.push(result("payment_health", 90, "All payments current, no billing issues."));
+    } else if (worst.paymentStatus === "late") {
+      drivers.push(
+        result("payment_health", clamp(70 - worst.daysPastDue), `Payment late by ${worst.daysPastDue} days on at least one product.`)
+      );
+    } else {
+      drivers.push(
+        result("payment_health", 10, `A payment has failed on at least one product (${worst.daysPastDue} days past due).`)
+      );
+    }
+  }
 
   // 13. Competitor risk - simple keyword pass here; Layer 2 does the real reasoning
   const competitors = await prisma.competitorConfig.findMany({ where: { workspaceId: customer.workspaceId } });

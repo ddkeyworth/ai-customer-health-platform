@@ -51,13 +51,25 @@ const RANDOM_NAMES = [
 
 async function main() {
   console.log("Clearing existing synthetic data...");
+  // Every table that FKs to Customer or Workspace must be cleared before its
+  // parent - the FK constraints are RESTRICT, not CASCADE. Opportunity was
+  // added later (the Expansion screen build) and missed this list until a
+  // second seed run after real opportunities existed surfaced the bug;
+  // DesiredOutcome/Stakeholder/TrainingCompletion/Segment/BookSummary added
+  // here for the same reason rather than waiting to hit it again.
   await prisma.healthScoreSnapshot.deleteMany();
   await prisma.usageSnapshot.deleteMany();
   await prisma.interaction.deleteMany();
   await prisma.surveyResponse.deleteMany();
   await prisma.eventAttendance.deleteMany();
+  await prisma.opportunity.deleteMany();
+  await prisma.desiredOutcome.deleteMany();
+  await prisma.stakeholder.deleteMany();
+  await prisma.trainingCompletion.deleteMany();
   await prisma.customerProduct.deleteMany();
   await prisma.customer.deleteMany();
+  await prisma.segment.deleteMany();
+  await prisma.bookSummary.deleteMany();
   await prisma.competitorConfig.deleteMany();
   await prisma.package.deleteMany();
   await prisma.capability.deleteMany();
@@ -178,6 +190,10 @@ async function main() {
       usageTrend: "growing" | "flat" | "declining";
       eventCount: number;
       npsScore: number;
+      desiredOutcomePct?: number | null; // % of target achieved; null/undefined = not tracked for this account
+      hasChampion?: boolean;
+      championDaysAgo?: number | null; // null = champion exists but never engaged
+      trainingSessionCount?: number;
     }
   ) {
     const ids = Array.isArray(pkgIds) ? pkgIds : [pkgIds];
@@ -264,6 +280,47 @@ async function main() {
         },
       });
     }
+
+    // Desired Outcome - one tracked business result, target vs. actual
+    if (opts.desiredOutcomePct != null) {
+      await prisma.desiredOutcome.create({
+        data: {
+          customerId,
+          name: pick(["Reduce manual dispatch hours", "Cut carrier-rate lookup time", "Automate customs paperwork"]),
+          targetValue: 100,
+          actualValue: opts.desiredOutcomePct,
+          unit: "% of target",
+        },
+      });
+    }
+
+    // Stakeholders - a non-champion contact plus, sometimes, a champion
+    await prisma.stakeholder.create({
+      data: { customerId, name: pick(["Sam Okoye", "Priya Nair", "Tom Whitfield"]), role: "Ops Coordinator", isChampion: false },
+    });
+    if (opts.hasChampion) {
+      await prisma.stakeholder.create({
+        data: {
+          customerId,
+          name: pick(["Alex Reyes", "Jordan Blake", "Morgan Ellis"]),
+          role: "Ops Director",
+          isChampion: true,
+          lastEngagedAt: opts.championDaysAgo != null ? daysAgo(opts.championDaysAgo) : null,
+        },
+      });
+    }
+
+    // Training completions
+    for (let i = 0; i < (opts.trainingSessionCount ?? 0); i++) {
+      await prisma.trainingCompletion.create({
+        data: {
+          customerId,
+          courseName: pick(["Platform onboarding", "Advanced route optimization", "Admin & reporting"]),
+          attendeeCount: randInt(1, 5),
+          occurredAt: daysAgo(randInt(10, 300)),
+        },
+      });
+    }
   }
 
   console.log("Creating handcrafted customers...");
@@ -294,6 +351,8 @@ async function main() {
       initialGoLiveDate: daysAgo(400),
       expectedGoLiveDate: daysAgo(400),
       actualGoLiveDate: daysAgo(395),
+      paymentStatus: "late",
+      daysPastDue: 45,
     },
   });
   await seedCustomerData(northwind.id, starter.id, {
@@ -302,6 +361,10 @@ async function main() {
     usageTrend: "declining",
     eventCount: 0,
     npsScore: 3,
+    desiredOutcomePct: 35,
+    hasChampion: true,
+    championDaysAgo: 210,
+    trainingSessionCount: 0,
   });
 
   // 2. Thriving: growing consumption, high breadth, happy
@@ -351,6 +414,10 @@ async function main() {
     usageTrend: "growing",
     eventCount: 3,
     npsScore: 9,
+    desiredOutcomePct: 130,
+    hasChampion: true,
+    championDaysAgo: 5,
+    trainingSessionCount: 3,
   });
 
   // 3. Onboarding, slightly behind pace
@@ -386,6 +453,9 @@ async function main() {
     usageTrend: "flat",
     eventCount: 0,
     npsScore: 7,
+    // No Desired Outcome tracked yet - too early in onboarding for a real reading.
+    hasChampion: false,
+    trainingSessionCount: 1,
   });
 
   // 4. Engagement silence: no tickets, no events, flat usage, looks fine on paper
@@ -421,6 +491,10 @@ async function main() {
     usageTrend: "flat",
     eventCount: 0,
     npsScore: 6,
+    desiredOutcomePct: 60,
+    hasChampion: true,
+    championDaysAgo: null, // champion identified, never actually engaged - same "silent" story as the other channels
+    trainingSessionCount: 0,
   });
 
   console.log("Creating randomized peer-cohort customers...");
@@ -446,6 +520,10 @@ async function main() {
       },
     });
 
+    const paymentRoll = lifecycle === "live" ? Math.random() : 1;
+    const paymentStatus = paymentRoll < 0.04 ? "failed" : paymentRoll < 0.18 ? "late" : "current";
+    const daysPastDue = paymentStatus === "failed" ? randInt(30, 90) : paymentStatus === "late" ? randInt(5, 60) : 0;
+
     await prisma.customerProduct.create({
       data: {
         customerId: c.id,
@@ -457,6 +535,8 @@ async function main() {
         initialGoLiveDate: daysAgo(randInt(60, 700)),
         expectedGoLiveDate: daysAgo(randInt(60, 700)),
         actualGoLiveDate: lifecycle === "live" ? daysAgo(randInt(50, 690)) : null,
+        paymentStatus,
+        daysPastDue,
       },
     });
     const pkgIds = [pkg.id];
@@ -480,12 +560,18 @@ async function main() {
       pkgIds.push(warehousePkg.id);
     }
 
+    const hasChampion = Math.random() < 0.55;
+
     await seedCustomerData(c.id, pkgIds, {
       interactionCount: randInt(0, 8),
       competitorMention: Math.random() < 0.15,
       usageTrend: pick(["growing", "flat", "flat", "declining"]),
       eventCount: randInt(0, 3),
       npsScore: randInt(2, 10),
+      desiredOutcomePct: Math.random() < 0.65 ? randInt(25, 145) : null,
+      hasChampion,
+      championDaysAgo: hasChampion && Math.random() < 0.75 ? randInt(1, 150) : null,
+      trainingSessionCount: randInt(0, 3),
     });
   }
 
