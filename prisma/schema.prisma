@@ -140,6 +140,7 @@ model CustomerProduct {
   initialGoLiveDate  DateTime?
   expectedGoLiveDate DateTime?
   actualGoLiveDate   DateTime?
+  renewalDate        DateTime? // when the current contract term is up
 
   customer Customer @relation(fields: [customerId], references: [id])
   product  Product  @relation(fields: [productId], references: [id])
