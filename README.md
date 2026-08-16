@@ -4,14 +4,14 @@ A conceptual exploration of an agentic-AI Customer Success platform – planned 
 
 > No AI reads every account right. It gets you close enough, fast enough, to act. Across onboarding, health, expansion, and renewal.
 
-![Home screen concept](docs/screenshots/home-mockup.svg)
-![Health screen concept](docs/screenshots/health-mockup.svg)
+![Home screen, real screenshot](docs/screenshots/home-screenshot.png)
+![Health screen, real screenshot](docs/screenshots/health-screenshot.png)
 ![Health scoring architecture](docs/screenshots/health-scoring-architecture.svg)
-![Customer detail concept](docs/screenshots/customer-detail-mockup.svg)
-![Competitor risk configuration concept](docs/screenshots/competitor-config-mockup.svg)
+![Customer detail (Health drill-in), real screenshot](docs/screenshots/customer-detail-screenshot.png)
+![Settings, real screenshot](docs/screenshots/competitor-config-screenshot.png)
 ![Positioning concept](docs/screenshots/marketing-concept.svg)
 
-All images above are illustrative mockups made while planning this repo, not real screenshots of a working feature – see [What's real vs. planned](#whats-real-vs-planned) below.
+The four screenshots above are real captures of the actual running app, seeded with the synthetic data described below – not mockups. `health-scoring-architecture.svg` is a diagram, not a screenshot. `marketing-concept.svg` stays an illustrative mockup – no real landing/marketing page exists yet, see [What's real vs. planned](#whats-real-vs-planned) below.
 
 The repo is named descriptively for portfolio discoverability; **"Bearing"** is the working product name used within the app and mockups themselves.
 
