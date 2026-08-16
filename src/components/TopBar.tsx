@@ -21,7 +21,7 @@ export default async function TopBar() {
         <span>{today}</span>
         <span>{workspace?.language === "en-GB" || !workspace ? "EN-UK" : workspace.language}</span>
         <div className="h-6 w-6 rounded-full bg-blue-50 text-[10px] font-medium text-blue-800 flex items-center justify-center">
-          DK
+          U
         </div>
       </div>
     </div>

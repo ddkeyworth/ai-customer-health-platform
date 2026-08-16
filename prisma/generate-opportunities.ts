@@ -48,7 +48,10 @@ async function main() {
 
     // Upsell: not on Enterprise and breadth is constrained by package.
     const entitled = cp.product.capabilities.length;
-    const usedIds = new Set(customer.usageSnapshots.map((u) => u.capabilityId));
+    const productCapabilityIds = new Set(cp.product.capabilities.map((c) => c.id));
+    const usedIds = new Set(
+      customer.usageSnapshots.filter((u) => productCapabilityIds.has(u.capabilityId)).map((u) => u.capabilityId)
+    );
     const breadthPct = entitled > 0 ? (usedIds.size / entitled) * 100 : 0;
     if (customer.tier !== "enterprise" && breadthPct >= 80) {
       await prisma.opportunity.create({
