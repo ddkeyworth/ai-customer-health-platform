@@ -37,6 +37,12 @@ export default function Sidebar() {
         ))}
         <div className="my-2 h-px bg-zinc-200" />
         <Link
+          href="/calibration"
+          className="rounded-lg px-2.5 py-2 text-sm text-zinc-600 hover:bg-zinc-100"
+        >
+          Calibration
+        </Link>
+        <Link
           href="/settings"
           className="rounded-lg px-2.5 py-2 text-sm text-zinc-600 hover:bg-zinc-100"
         >

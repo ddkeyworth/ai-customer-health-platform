@@ -66,6 +66,7 @@ async function main() {
   await prisma.desiredOutcome.deleteMany();
   await prisma.stakeholder.deleteMany();
   await prisma.trainingCompletion.deleteMany();
+  await prisma.outcomeEvent.deleteMany();
   await prisma.customerProduct.deleteMany();
   await prisma.customer.deleteMany();
   await prisma.segment.deleteMany();
@@ -574,6 +575,36 @@ async function main() {
       trainingSessionCount: randInt(0, 3),
     });
   }
+
+  console.log("Creating outcome events (for the calibration loop)...");
+  await prisma.outcomeEvent.createMany({
+    data: [
+      {
+        customerId: northwind.id,
+        type: "churned",
+        occurredAt: daysAgo(5),
+        notes: "Did not renew - cited unresolved billing-sync issue and a competitor evaluation.",
+      },
+      {
+        customerId: fenwick.id,
+        type: "expanded",
+        occurredAt: daysAgo(10),
+        notes: "Added seats and upgraded consumption tier following a strong QBR.",
+      },
+      {
+        customerId: harlow.id,
+        type: "renewed",
+        occurredAt: daysAgo(15),
+        notes: "Renewed on schedule despite the early onboarding delay.",
+      },
+      {
+        customerId: silent.id,
+        type: "renewed",
+        occurredAt: daysAgo(20),
+        notes: "Renewed with no CSM intervention - stayed quiet throughout the term.",
+      },
+    ],
+  });
 
   console.log("Done seeding.");
 }

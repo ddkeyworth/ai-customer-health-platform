@@ -89,6 +89,7 @@ model Customer {
   desiredOutcomes    DesiredOutcome[]
   stakeholders       Stakeholder[]
   trainingCompletions TrainingCompletion[]
+  outcomeEvents      OutcomeEvent[]
 
   @@map("customers")
 }
@@ -142,6 +143,24 @@ model TrainingCompletion {
   customer Customer @relation(fields: [customerId], references: [id])
 
   @@map("training_completions")
+}
+
+// A real, realized outcome for a Customer - churned, renewed, or expanded.
+// Feeds the calibration loop (/calibration): compares the Health score that
+// existed AT THE TIME of the outcome against what actually happened, so a
+// human can see where the score's implied prediction held up and where it
+// didn't. Deliberately not a self-adjusting system - see README.md.
+model OutcomeEvent {
+  id         String   @id @default(cuid())
+  customerId String
+  type       String   // "churned" | "renewed" | "expanded"
+  occurredAt DateTime
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@map("outcome_events")
 }
 
 // What the workspace's customer (the vendor) sells. A Customer can hold multiple.
