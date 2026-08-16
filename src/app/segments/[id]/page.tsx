@@ -3,13 +3,15 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { customersMatchingCriteria, SegmentCriteria } from "@/lib/segments";
 import { tierColor } from "@/lib/health/ui";
+import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 
 export const dynamic = "force-dynamic";
 
 export default async function SegmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const workspace = await getCurrentWorkspace();
   const segment = await prisma.segment.findUnique({ where: { id } });
-  if (!segment) notFound();
+  if (!segment || segment.workspaceId !== workspace.id) notFound();
 
   const criteria = segment.criteria as SegmentCriteria;
   const customers = await customersMatchingCriteria(segment.workspaceId, criteria);

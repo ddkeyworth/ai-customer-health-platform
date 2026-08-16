@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +12,9 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default async function ExpansionPage() {
+  const workspace = await getCurrentWorkspace();
   const opportunities = await prisma.opportunity.findMany({
-    where: { stage: "open" },
+    where: { stage: "open", customer: { workspaceId: workspace.id } },
     include: { customer: true },
     orderBy: { estimatedArr: "desc" },
   });

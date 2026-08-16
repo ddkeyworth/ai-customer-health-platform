@@ -30,7 +30,9 @@ export async function computeBaseline(customerId: string): Promise<BaselineResul
     },
   });
 
-  const customerProduct = customer.products[0]; // this prototype seeds one product per customer
+  // Onboarding pace looks at whichever product (if any) is still onboarding -
+  // a customer can hold more than one product, and the others may already be live.
+  const customerProduct = customer.products.find((p) => p.lifecycleStatus === "onboarding") ?? customer.products[0];
   const now = new Date();
   const drivers: DriverResult[] = [];
 
@@ -158,8 +160,11 @@ export async function computeBaseline(customerId: string): Promise<BaselineResul
     );
   }
 
-  // 14. Capability breadth/stickiness
-  const entitled = customerProduct?.package?.product.capabilities ?? [];
+  // 14. Capability breadth/stickiness - across every product the customer holds
+  const entitledIds = new Set(
+    customer.products.flatMap((p) => p.package?.product.capabilities.map((c) => c.id) ?? [])
+  );
+  const entitled = [...entitledIds];
   const usedCapIds = new Set(usage.map((u) => u.capabilityId));
   if (entitled.length === 0) {
     drivers.push(result("capability_breadth", null, "No package/entitlement data."));

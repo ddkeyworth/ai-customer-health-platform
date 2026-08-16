@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { tierColor } from "@/lib/health/ui";
+import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +21,9 @@ function fmtDate(d: Date | null) {
 }
 
 export default async function RenewalPage() {
+  const workspace = await getCurrentWorkspace();
   const rows = await prisma.customerProduct.findMany({
-    where: { lifecycleStatus: "live", renewalDate: { not: null } },
+    where: { lifecycleStatus: "live", renewalDate: { not: null }, customer: { workspaceId: workspace.id } },
     include: {
       customer: { include: { healthSnapshots: { orderBy: { computedAt: "desc" }, take: 1 } } },
     },

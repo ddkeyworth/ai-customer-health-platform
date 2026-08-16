@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,9 @@ interface Flag {
 }
 
 export default async function BriefingPage() {
+  const workspace = await getCurrentWorkspace();
   const customerProducts = await prisma.customerProduct.findMany({
+    where: { customer: { workspaceId: workspace.id } },
     include: {
       customer: {
         include: {

@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { tierColor } from "@/lib/health/ui";
+import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
+  const workspace = await getCurrentWorkspace();
   const customerProducts = await prisma.customerProduct.findMany({
+    where: { customer: { workspaceId: workspace.id } },
     include: { customer: true },
   });
 
@@ -19,6 +22,7 @@ export default async function Home() {
   }
 
   const snapshots = await prisma.healthScoreSnapshot.findMany({
+    where: { customer: { workspaceId: workspace.id } },
     include: { customer: true },
     orderBy: { computedAt: "desc" },
   });

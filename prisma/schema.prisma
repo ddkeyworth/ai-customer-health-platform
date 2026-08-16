@@ -33,6 +33,7 @@ model Workspace {
   competitorConfigs CompetitorConfig[]
   bookSummaries     BookSummary[]
   segments          Segment[]
+  products          Product[]
 
   @@map("workspaces")
 }
@@ -89,10 +90,15 @@ model Customer {
 }
 
 // What the workspace's customer (the vendor) sells. A Customer can hold multiple.
+// workspaceId was missing entirely until a security review caught it - Product
+// had no tenant linkage at all, so nothing built on top of it (Capability,
+// Package) could be scoped either. See src/lib/currentWorkspace.ts.
 model Product {
-  id   String @id @default(cuid())
-  name String
+  id          String @id @default(cuid())
+  workspaceId String
+  name        String
 
+  workspace       Workspace         @relation(fields: [workspaceId], references: [id])
   capabilities    Capability[]
   packages        Package[]
   customerLinks   CustomerProduct[]

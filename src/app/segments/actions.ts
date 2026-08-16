@@ -2,11 +2,15 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 
 export async function createSegment(formData: FormData) {
-  const workspace = await prisma.workspace.findFirstOrThrow();
+  const workspace = await getCurrentWorkspace();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
+
+  const existingCount = await prisma.segment.count({ where: { workspaceId: workspace.id } });
+  if (existingCount >= 20) return;
 
   const criteria: Record<string, string> = {};
   for (const key of ["industry", "region", "tier", "renewalType", "healthBand"]) {
@@ -21,6 +25,7 @@ export async function createSegment(formData: FormData) {
 }
 
 export async function deleteSegment(id: string) {
-  await prisma.segment.delete({ where: { id } });
+  const workspace = await getCurrentWorkspace();
+  await prisma.segment.deleteMany({ where: { id, workspaceId: workspace.id } });
   revalidatePath("/segments");
 }

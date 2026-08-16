@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdoptionPage() {
+  const workspace = await getCurrentWorkspace();
   const liveProducts = await prisma.customerProduct.findMany({
-    where: { lifecycleStatus: "live" },
+    where: { lifecycleStatus: "live", customer: { workspaceId: workspace.id } },
     include: {
       customer: true,
       product: { include: { capabilities: true } },
@@ -13,8 +15,8 @@ export default async function AdoptionPage() {
     },
   });
 
-  const capabilities = await prisma.capability.findMany();
-  const usage = await prisma.usageSnapshot.findMany();
+  const capabilities = await prisma.capability.findMany({ where: { product: { workspaceId: workspace.id } } });
+  const usage = await prisma.usageSnapshot.findMany({ where: { customer: { workspaceId: workspace.id } } });
 
   // Per-capability: how many live customers have any usage recorded at all.
   const capStats = capabilities.map((cap) => {

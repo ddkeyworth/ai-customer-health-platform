@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { tierColor } from "@/lib/health/ui";
+import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 
 export const dynamic = "force-dynamic";
 
 export default async function HealthPage() {
+  const workspace = await getCurrentWorkspace();
   const snapshots = await prisma.healthScoreSnapshot.findMany({
+    where: { customer: { workspaceId: workspace.id } },
     include: { customer: true },
     orderBy: { computedAt: "desc" },
   });
@@ -35,7 +38,7 @@ export default async function HealthPage() {
   // (prisma/compute-book-summary.ts), not live on this page load - see
   // src/lib/health/bookSummary.ts and README.md.
   const bookSummary = await prisma.bookSummary.findFirst({
-    where: { scopeKey: "all" },
+    where: { scopeKey: "all", workspaceId: workspace.id },
     orderBy: { computedAt: "desc" },
   });
 

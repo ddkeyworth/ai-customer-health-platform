@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { DriverResult } from "@/lib/health/drivers";
 import { tierColor, driverBarColor } from "@/lib/health/ui";
+import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 
 export const dynamic = "force-dynamic";
 
@@ -12,12 +13,13 @@ export default async function CustomerHealthPage({
   params: Promise<{ customerId: string }>;
 }) {
   const { customerId } = await params;
+  const workspace = await getCurrentWorkspace();
 
   const customer = await prisma.customer.findUnique({
     where: { id: customerId },
     include: { products: { include: { product: true, package: true } } },
   });
-  if (!customer) notFound();
+  if (!customer || customer.workspaceId !== workspace.id) notFound();
 
   const snapshot = await prisma.healthScoreSnapshot.findFirst({
     where: { customerId },
@@ -57,6 +59,14 @@ export default async function CustomerHealthPage({
         <span className="text-xs text-zinc-400">
           {snapshot.confidenceLevel === "early_read" ? "Early read" : "Established"}
         </span>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-6">
+        {customer.products.map((p) => (
+          <span key={p.id} className="text-xs px-2 py-1 rounded-lg bg-zinc-50 text-zinc-600">
+            {p.product.name} &middot; {p.package?.name ?? "no package"}
+          </span>
+        ))}
       </div>
 
       <div className="rounded-xl bg-zinc-50 p-4 mb-6 text-sm text-zinc-800">{snapshot.narrative}</div>

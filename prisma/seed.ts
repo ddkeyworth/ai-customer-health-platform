@@ -86,9 +86,9 @@ async function main() {
     },
   });
 
-  console.log("Creating product and capabilities...");
+  console.log("Creating products and capabilities...");
   const product = await prisma.product.create({
-    data: { name: "Meridian Freight" },
+    data: { workspaceId: workspace.id, name: "Meridian Freight" },
   });
 
   const capNames: [string, string][] = [
@@ -118,6 +118,38 @@ async function main() {
     data: { productId: product.id, name: "Enterprise" },
   });
 
+  // Second product, so customers can hold more than one - some accounts
+  // below deliberately have two CustomerProduct rows (one per product).
+  const warehouseProduct = await prisma.product.create({
+    data: { workspaceId: workspace.id, name: "Meridian Warehouse" },
+  });
+
+  const warehouseCapNames: [string, string][] = [
+    ["Inventory sync", "adoption"],
+    ["Pick & pack", "adoption"],
+    ["Returns processing", "adoption"],
+    ["Slotting optimization", "consumption"],
+  ];
+  const warehouseCapabilities = [];
+  for (const [name, metricType] of warehouseCapNames) {
+    warehouseCapabilities.push(
+      await prisma.capability.create({
+        data: { productId: warehouseProduct.id, name, metricType },
+      })
+    );
+  }
+  const [invSync, pickPack] = warehouseCapabilities;
+
+  const warehouseStarter = await prisma.package.create({
+    data: { productId: warehouseProduct.id, name: "Starter" },
+  });
+  const warehousePro = await prisma.package.create({
+    data: { productId: warehouseProduct.id, name: "Pro" },
+  });
+  const warehouseEnterprise = await prisma.package.create({
+    data: { productId: warehouseProduct.id, name: "Enterprise" },
+  });
+
   console.log("Creating competitor config...");
   await prisma.competitorConfig.createMany({
     data: [
@@ -132,11 +164,14 @@ async function main() {
     [starter.id]: [tracking, driverApp],
     [pro.id]: [tracking, driverApp, routing, payments],
     [enterprise.id]: capabilities,
+    [warehouseStarter.id]: [invSync],
+    [warehousePro.id]: [invSync, pickPack],
+    [warehouseEnterprise.id]: warehouseCapabilities,
   };
 
   async function seedCustomerData(
     customerId: string,
-    pkgId: string,
+    pkgIds: string | string[],
     opts: {
       interactionCount: number;
       competitorMention: boolean;
@@ -145,7 +180,8 @@ async function main() {
       npsScore: number;
     }
   ) {
-    const entitled = packageCapabilities[pkgId];
+    const ids = Array.isArray(pkgIds) ? pkgIds : [pkgIds];
+    const entitled = ids.flatMap((id) => packageCapabilities[id]);
 
     // Usage history: 6 months, one snapshot per capability per month
     for (const cap of entitled) {
@@ -295,7 +331,21 @@ async function main() {
       actualGoLiveDate: daysAgo(690),
     },
   });
-  await seedCustomerData(fenwick.id, enterprise.id, {
+  // Multi-product: a thriving account that has expanded into a second product.
+  await prisma.customerProduct.create({
+    data: {
+      customerId: fenwick.id,
+      productId: warehouseProduct.id,
+      packageId: warehousePro.id,
+      contractualArr: 52000,
+      consumptionArr: 9000,
+      lifecycleStatus: "live",
+      initialGoLiveDate: daysAgo(220),
+      expectedGoLiveDate: daysAgo(220),
+      actualGoLiveDate: daysAgo(210),
+    },
+  });
+  await seedCustomerData(fenwick.id, [enterprise.id, warehousePro.id], {
     interactionCount: 4,
     competitorMention: false,
     usageTrend: "growing",
@@ -409,8 +459,28 @@ async function main() {
         actualGoLiveDate: lifecycle === "live" ? daysAgo(randInt(50, 690)) : null,
       },
     });
+    const pkgIds = [pkg.id];
 
-    await seedCustomerData(c.id, pkg.id, {
+    // ~30% of live accounts have also expanded into the second product.
+    if (lifecycle === "live" && Math.random() < 0.3) {
+      const warehousePkg = tier === "enterprise" ? warehouseEnterprise : tier === "mid_market" ? warehousePro : warehouseStarter;
+      await prisma.customerProduct.create({
+        data: {
+          customerId: c.id,
+          productId: warehouseProduct.id,
+          packageId: warehousePkg.id,
+          contractualArr: randInt(5, 60) * 1000,
+          consumptionArr: randInt(0, 15) * 1000,
+          lifecycleStatus: "live",
+          initialGoLiveDate: daysAgo(randInt(30, 400)),
+          expectedGoLiveDate: daysAgo(randInt(30, 400)),
+          actualGoLiveDate: daysAgo(randInt(20, 390)),
+        },
+      });
+      pkgIds.push(warehousePkg.id);
+    }
+
+    await seedCustomerData(c.id, pkgIds, {
       interactionCount: randInt(0, 8),
       competitorMention: Math.random() < 0.15,
       usageTrend: pick(["growing", "flat", "flat", "declining"]),
