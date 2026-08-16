@@ -82,6 +82,7 @@ model Customer {
   usageSnapshots   UsageSnapshot[]
   surveyResponses  SurveyResponse[]
   eventAttendances EventAttendance[]
+  opportunities    Opportunity[]
 
   @@map("customers")
 }
@@ -275,4 +276,27 @@ model BookSummary {
   workspace Workspace @relation(fields: [workspaceId], references: [id])
 
   @@map("book_summaries")
+}
+
+// Expansion opportunity. Four types decided in planning: Price Increase,
+// Cross-sell, Upsell, Consumption Growth - see README.md. raisedBy and
+// owner are deliberately separate fields: raisedBy is whoever/whatever
+// surfaced it (can be "Agent"), owner is who's actually responsible for
+// working it (a person, Sales or CSM). Defaults (not enforced): Consumption
+// Growth -> CSM, the other three -> Sales, both fully overridable.
+model Opportunity {
+  id            String   @id @default(cuid())
+  customerId    String
+  type          String   // "price_increase" | "cross_sell" | "upsell" | "consumption_growth"
+  raisedBy      String   // "Agent" or a person's name
+  owner         String   // a person's name
+  ownerRole     String   // "sales" | "csm"
+  stage         String   @default("open") // "open" | "won" | "lost"
+  estimatedArr  Decimal
+  reasoning     String   // why the agent/person thinks this is a real opportunity
+  createdAt     DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@map("opportunities")
 }
