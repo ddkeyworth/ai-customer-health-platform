@@ -40,12 +40,14 @@ Every design decision in this repo follows one rule: **anything that would touch
 
 All 9 screens (Home, Health, Briefing, Onboarding, Adoption, Expansion, Renewal, Segments, Settings) are wired to real data - nothing left as a static stub. They're not all equally deep, though - see the per-screen notes below for what's genuinely agentic vs. rule-based vs. read-only.
 
+**This has actually been run, not just written.** See [`TESTING.md`](TESTING.md) for the log: real Anthropic API calls against handcrafted seed customers with known-good expected behaviour, a real cross-tenant security gap found and fixed, a real bug the multi-product data exposed, and an honest account of a browser-automation false negative during testing that turned out not to be a real bug.
+
 | Area | Status |
 |---|---|
 | Product definition, requirements, information architecture | Fully planned |
 | Data model (Workspace, User, Customer, Product, Capability, Package, Health snapshot, Competitor config, Interaction, Usage, Survey, Event attendance, Opportunity, Segment) | Built in `prisma/schema.prisma`, live on a real (free-tier) Postgres instance |
 | App shell (navigation, layout, logo) | Built |
-| Synthetic data generator (`prisma/seed.ts`) | **Built and run for real** - 19 fictional customers, tickets, usage history, surveys, event attendance, renewal dates |
+| Synthetic data generator (`prisma/seed.ts`) | **Built and run for real** - 19 fictional customers across 2 products, tickets, usage history, surveys, event attendance, renewal dates |
 | Health-scoring engine (the actual "special sauce") | **Built and tested for real** - see below. Computed and stored for all 19 seeded customers via `prisma/compute-health-scores.ts` |
 | `/health` | List view, per-customer drill-in (`/health/[customerId]`), and a real LLM-generated executive summary - all reading stored data, none recomputed on page load |
 | `/` (Home) | Real Total ARR, Health bands, lifecycle-stage counts, and a "needs attention" list. Deliberately does not show NNAOV/NRR/GRR - those need realized bridge events this build doesn't track yet |
@@ -53,8 +55,8 @@ All 9 screens (Home, Health, Briefing, Onboarding, Adoption, Expansion, Renewal,
 | `/adoption` | Real capability breadth and per-Capability adoption stats across live accounts |
 | `/expansion` | Real Opportunity model (4 types), seeded by **deterministic rules**, not yet the same agentic reasoning as Health's Layer 2 |
 | `/renewal` | Real renewal dates, Auto/Interrupted status, ARR at risk. Projected churn is a real calculation but explicitly labeled illustrative (reads off the Health band, not a calibrated model) |
-| `/segments` | Real saved filters - create/view/delete all genuinely work. Applies only within this screen; re-scoping every other area to the active segment is the one part of the original design not built |
-| `/settings` | Org profile/branding/localisation and competitor risk config are real, writable forms (Server Actions). Team & roles, billing, other integrations, developer/API, and data export stay honest "not built yet" |
+| `/segments` | Real saved filters - create/view/delete all genuinely work, capped at 20 per workspace. Applies only within this screen; re-scoping every other area to the active segment is the one part of the original design not built |
+| `/settings` | Org profile/branding/localisation and competitor risk config are real, writable forms (Server Actions). A data-export allowlist config is also real (which of Bearing's own generated fields would sync to a CRM), same concept-only treatment as Integrations/SSO - no actual export mechanism exists. Team & roles, billing, other integrations, developer/API stay honest "not built yet" |
 | `/briefing` | Real cross-area action queue, consolidated by account and ranked by £ impact, pulled live from Health/Onboarding/Expansion/Renewal. Read-only - no approve/dismiss/snooze state yet |
 | Agent core / playbooks for areas beyond Health | Expansion uses rule-based generation; the others are plain data views. A full agentic pass (matching Health's two-layer depth) is the natural next step, not done |
 | Live public deployment | **Not started - deliberately.** See [Stage 2: live deployment](#stage-2-live-deployment-not-yet-started) |

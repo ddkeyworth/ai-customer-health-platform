@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
+import { withinRateLimit } from "@/lib/rateLimit";
+import { EXPORT_FIELD_KEYS } from "@/lib/exportFields";
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 const CURRENCY_CODE = /^[A-Z]{3}$/;
@@ -11,6 +13,7 @@ const ALLOWED_LANGUAGES = ["en-GB", "en-US"];
 
 export async function updateWorkspace(formData: FormData) {
   const workspace = await getCurrentWorkspace();
+  if (!withinRateLimit(`updateWorkspace:${workspace.id}`, 10, 60_000)) return;
 
   const name = String(formData.get("name") ?? "").trim().slice(0, 80);
   if (!name) return;
@@ -39,6 +42,8 @@ export async function updateWorkspace(formData: FormData) {
 
 export async function addCompetitor(formData: FormData) {
   const workspace = await getCurrentWorkspace();
+  if (!withinRateLimit(`addCompetitor:${workspace.id}`, 20, 60_000)) return;
+
   const existing = await prisma.competitorConfig.count({ where: { workspaceId: workspace.id } });
   if (existing >= 20) return;
 
@@ -57,5 +62,18 @@ export async function addCompetitor(formData: FormData) {
 export async function deleteCompetitor(id: string) {
   const workspace = await getCurrentWorkspace();
   await prisma.competitorConfig.deleteMany({ where: { id, workspaceId: workspace.id } });
+  revalidatePath("/settings");
+}
+
+export async function updateExportAllowlist(formData: FormData) {
+  const workspace = await getCurrentWorkspace();
+  if (!withinRateLimit(`updateExportAllowlist:${workspace.id}`, 10, 60_000)) return;
+
+  const selected = formData.getAll("field").map(String).filter((key) => EXPORT_FIELD_KEYS.includes(key as (typeof EXPORT_FIELD_KEYS)[number]));
+
+  await prisma.workspace.update({
+    where: { id: workspace.id },
+    data: { exportAllowlist: selected },
+  });
   revalidatePath("/settings");
 }

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { updateWorkspace, addCompetitor, deleteCompetitor } from "./actions";
+import { updateWorkspace, addCompetitor, deleteCompetitor, updateExportAllowlist } from "./actions";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
+import { EXPORT_FIELDS } from "@/lib/exportFields";
 
 export const dynamic = "force-dynamic";
 
@@ -138,10 +139,37 @@ export default async function SettingsPage() {
         Health screen). Job-posting and competitor-website monitoring stay concept-only - see README.md.
       </p>
 
+      <h2 className="text-sm font-medium text-zinc-900 mb-3">Data export allowlist (concept)</h2>
+      <div className="rounded-xl bg-zinc-50 p-4 mb-2">
+        <form action={updateExportAllowlist} className="space-y-2">
+          {EXPORT_FIELDS.map((f) => (
+            <label key={f.key} className="flex items-center gap-2 text-sm text-zinc-800">
+              <input
+                type="checkbox"
+                name="field"
+                value={f.key}
+                defaultChecked={workspace.exportAllowlist.includes(f.key)}
+                className="rounded border-zinc-300"
+              />
+              {f.label}
+            </label>
+          ))}
+          <button type="submit" className="rounded-lg bg-zinc-900 text-white text-sm px-3 py-1.5 mt-2">
+            Save
+          </button>
+        </form>
+      </div>
+      <p className="text-xs text-zinc-400 mb-8">
+        Configuration only - no export mechanism is built. This records which of Bearing&apos;s own generated fields
+        (not data pulled in from elsewhere) an org would want pushed back to their CRM if a real export pipeline
+        existed later. Same &quot;show the concept, don&apos;t connect&quot; treatment as Integrations and SSO.
+      </p>
+
       <h2 className="text-sm font-medium text-zinc-900 mb-3">Not built yet</h2>
       <p className="text-sm text-zinc-600">
         Team &amp; roles, billing (illustrative), other integrations (concept-only connectors), developer/API
-        (concept-only), consumption/outcome metric configuration, and data export.
+        (concept-only), consumption/outcome metric configuration, and the actual export mechanism (the allowlist
+        above only records intent).
       </p>
     </div>
   );

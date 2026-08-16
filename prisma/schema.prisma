@@ -25,6 +25,7 @@ model Workspace {
   seatsIncluded      Int      @default(5)
   dataVolumeIncluded Int      @default(10000)
   customTeamStructure Boolean @default(false)
+  exportAllowlist    String[] @default([])
   createdAt          DateTime @default(now())
   archivedAt         DateTime?
 
