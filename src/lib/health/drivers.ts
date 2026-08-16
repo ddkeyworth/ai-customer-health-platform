@@ -1,8 +1,9 @@
-// The 15 Health drivers. Not every one has a real data source yet in this
-// prototype - see README.md's "Health scoring" section. A driver with no
-// underlying data contributes nothing to the score rather than being
-// faked with a plausible-looking default; that's the honest choice, even
-// though it makes the baseline weaker than the full design calls for.
+// The 15 Health drivers - all have a real data source. A driver still
+// returns null for a specific account with no underlying data of that kind
+// (e.g. no Desired Outcome tracked, no champion identified) and contributes
+// nothing to that account's score rather than being faked with a
+// plausible-looking default; that's the honest choice, per-account, not a
+// blanket gap in the model.
 
 export type DriverKey =
   | "onboarding_pace"

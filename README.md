@@ -45,7 +45,7 @@ All 9 screens (Home, Health, Briefing, Onboarding, Adoption, Expansion, Renewal,
 | Area | Status |
 |---|---|
 | Product definition, requirements, information architecture | Fully planned |
-| Data model (Workspace, User, Customer, Product, Capability, Package, Health snapshot, Competitor config, Interaction, Usage, Survey, Event attendance, Opportunity, Segment) | Built in `prisma/schema.prisma`, live on a real (free-tier) Postgres instance |
+| Data model (Workspace, User, Customer, Product, Capability, Package, Health snapshot, Competitor config, Interaction, Usage, Survey, Event attendance, Opportunity, Segment, Desired Outcome, Stakeholder, Training completion) | Built in `prisma/schema.prisma`, live on a real (free-tier) Postgres instance |
 | App shell (navigation, layout, logo) | Built |
 | Synthetic data generator (`prisma/seed.ts`) | **Built and run for real** - 19 fictional customers across 2 products, tickets, usage history, surveys, event attendance, renewal dates |
 | Health-scoring engine (the actual "special sauce") | **Built and tested for real** - see below. Computed and stored for all 19 seeded customers via `prisma/compute-health-scores.ts` |

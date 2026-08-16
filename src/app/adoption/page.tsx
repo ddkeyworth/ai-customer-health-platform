@@ -108,9 +108,10 @@ export default async function AdoptionPage() {
       </table>
 
       <p className="mt-6 text-xs text-zinc-400">
-        Usage-depth and consumption trend per account (growing/flat/declining) are already computed for Health - see
-        the driver breakdown on each account&apos;s Health page. Desired Outcomes aren&apos;t modeled yet, so progress
-        against &quot;why the customer bought this&quot; can&apos;t be shown here.
+        Usage-depth and consumption trend per account (growing/flat/declining), plus Desired Outcome progress
+        (against &quot;why the customer bought this&quot;), are already computed for Health - see the driver
+        breakdown on each account&apos;s Health page. Not yet shown here on Adoption itself, alongside the other
+        Health-only drivers (champion engagement, training, payment health).
       </p>
     </div>
   );
