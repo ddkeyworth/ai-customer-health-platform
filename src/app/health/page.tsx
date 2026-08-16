@@ -1,20 +1,9 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { DriverResult } from "@/lib/health/drivers";
+import { tierColor } from "@/lib/health/ui";
 
 export const dynamic = "force-dynamic";
-
-function tierColor(tier: string | null) {
-  switch (tier) {
-    case "Thriving":
-      return "bg-green-50 text-green-800";
-    case "Stable":
-      return "bg-blue-50 text-blue-800";
-    case "Watch":
-      return "bg-amber-50 text-amber-800";
-    default:
-      return "bg-red-50 text-red-800";
-  }
-}
 
 export default async function HealthPage() {
   const snapshots = await prisma.healthScoreSnapshot.findMany({
@@ -97,7 +86,11 @@ export default async function HealthPage() {
         <tbody>
           {rows.map((r) => (
             <tr key={r.id} className="border-b border-zinc-100 align-top">
-              <td className="py-3 pr-3 text-zinc-900 whitespace-nowrap">{r.customer.name}</td>
+              <td className="py-3 pr-3 whitespace-nowrap">
+                <Link href={`/health/${r.customerId}`} className="text-zinc-900 hover:underline">
+                  {r.customer.name}
+                </Link>
+              </td>
               <td className="py-3 pr-3 font-medium text-zinc-900">{r.compositeScore}</td>
               <td className="py-3 pr-3">
                 <span className={`text-xs px-2 py-0.5 rounded ${tierColor(r.tierLabel)}`}>{r.tierLabel}</span>
