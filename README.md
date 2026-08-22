@@ -45,7 +45,7 @@ All 10 dashboard screens (Home, Health, Briefing, Onboarding, Adoption, Expansio
 | Area | Status |
 |---|---|
 | Product definition, requirements, information architecture | Fully planned |
-| Data model (Workspace, User, Customer, Product, Capability, Package, Health snapshot, Competitor config, Interaction, Usage, Survey, Event attendance, Opportunity, Segment, Desired Outcome, Stakeholder, Training completion, Outcome event) | Built in `prisma/schema.prisma`, live on a real (free-tier) Postgres instance |
+| Data model (Workspace, User, Customer, Product, Capability, Package, Health snapshot, Competitor config, Interaction, Usage, Survey, Event attendance, Opportunity, Segment, Desired Outcome, Stakeholder, Training completion, Outcome event, Session) | Built in `prisma/schema.prisma`, live on a real (free-tier) Postgres instance |
 | App shell (navigation, layout, logo) | Built |
 | Synthetic data generator (`prisma/seed.ts`) | **Built and run for real** - 19 fictional customers across 2 products, tickets, usage history, surveys, event attendance, renewal dates |
 | Health-scoring engine (the actual "special sauce") | **Built and tested for real** - see below. Computed and stored for all 19 seeded customers via `prisma/compute-health-scores.ts` |
@@ -60,6 +60,7 @@ All 10 dashboard screens (Home, Health, Briefing, Onboarding, Adoption, Expansio
 | `/briefing` | Real cross-area action queue, consolidated by account and ranked by £ impact, pulled live from Health/Onboarding/Expansion/Renewal. Read-only - no approve/dismiss/snooze state yet |
 | `/marketing` | Real public-facing landing page - positioning line, 5 lifecycle-area cards, illustrative two-axis pricing, and an honest "what's actually real" section. Rendered without the internal dashboard chrome via `AppShell`. Terms/Privacy/Security stay one-line honest placeholders, not real legal documents, per the governing safety principle |
 | `/calibration` | Real calibration loop - every recorded `OutcomeEvent` (churned/renewed/expanded) compared against the Health score on file, classified as confirmed/missed/worth-reviewing. Not a true point-in-time backtest (one snapshot per customer, not a real historical series); nothing here adjusts driver weighting automatically - see the page's own footnote |
+| `/login`, `/signup` | Real email/password authentication (bcrypt + database-backed sessions) - see [Authentication](#authentication). Signup creates a genuine new, empty, isolated workspace, not a new user in the shared demo one |
 | Agent core / playbooks for areas beyond Health | Expansion uses rule-based generation; the others are plain data views. A full agentic pass (matching Health's two-layer depth) is the natural next step, not done |
 | Live public deployment | **Not started - deliberately.** See [Stage 2: live deployment](#stage-2-live-deployment-not-yet-started) |
 
@@ -92,15 +93,30 @@ A real bug did surface during an earlier skeptical pass over the repo: the tool 
 There is no public URL and no live deployment. The database and Anthropic API key that exist are Dan's own free-tier, spend-capped, local-only credentials (`.env`, gitignored) – nobody else can reach this. A real public deployment is a deliberate future step, gated on:
 
 1. ~~The Health-scoring engine actually being implemented~~ – **done** (see above).
-2. **Partially done:** a small in-memory rate limiter (`src/lib/rateLimit.ts`) now guards the write-heavy Server Actions. Scoped to what's reachable today, not deployment scale – no shared store across instances, no rate limiting on read traffic. Would need revisiting alongside real auth before going public.
+2. **Partially done:** a small in-memory rate limiter (`src/lib/rateLimit.ts`) now guards the write-heavy Server Actions, and login/signup specifically (10 attempts/15min, 5 signups/hour, by email). Scoped to what's reachable today, not deployment scale – no shared store across instances, no rate limiting on read traffic.
 3. A hard spending cap set on the Anthropic API account *before* any real key is wired into a public-facing deployment.
 4. ~~The other 8 screens reaching real data, not static stubs~~ – **done** (see the table above) - though most are still rule-based or read-only rather than the same agentic depth as Health, which is its own remaining gap, separate from this gate.
-5. Real auth - there currently isn't any. Anyone with the URL sees everything, which is fine for a local-only build and not acceptable for anything public.
+5. ~~Real auth~~ – **done**, see [Authentication](#authentication) below.
 6. Actually deploying - Vercel (app hosting) isn't signed up for yet. Neon (the database) already is, on the same free-tier/spend-capped basis as everything else here.
+
+## Authentication
+
+Real email/password auth, hand-rolled rather than a library (Auth.js's Prisma adapter expects its own schema shape, which would fight this app's already-custom `User` model). Full reasoning and code in `src/lib/auth.ts`; the short version:
+
+- **Passwords:** bcrypt, cost factor 12.
+- **Sessions, not stateless JWTs:** a `Session` row in Postgres per login, referenced by a long random token in an httpOnly/sameSite=lax/secure-in-production cookie. A session can be genuinely revoked (logout deletes the row, not just the cookie) - confirmed by checking the database directly after logout, not just the redirect.
+- **Fixed 7-day expiry, no silent renewal.**
+- **Checked twice, not once:** `src/proxy.ts` (Next.js 16's replacement for `middleware.ts`, now Node.js runtime by default) validates the session against the database - expired or forged tokens are rejected before a protected page even starts rendering. `getCurrentWorkspace()` validates it again independently at the page level, as defense-in-depth for any request path that might reach a page without going through the proxy.
+- **Real multi-tenancy, not a shared demo account:** signing up creates a brand-new, empty `Workspace` and its first admin `User` - not a new user added to the existing seeded workspace. This is the only choice that actually exercises the workspace-isolation work done earlier (see below) - confirmed live: a fresh signup sees zero customers, zero ARR, and no trace of any other workspace's data.
+- **Login errors are deliberately generic** ("Invalid email or password" for both a wrong password and a nonexistent email) - distinguishing them would let an attacker enumerate valid accounts.
+
+**Demo login** (seeded, not a secret - only ever holds synthetic data on a free-tier local database): `priya.chandra@meridian-ops.example` / `demo-password-123`. Or sign up for a fresh, empty workspace of your own at `/signup`.
+
+**Verified live** (see `TESTING.md` for the full log): login success and failure, logout genuinely deleting the session row (checked the database directly, not just the client-side redirect), a real signup producing a workspace with zero visibility into the seeded demo data, and every dashboard page rendering a graceful empty state (not a crash) for that fresh workspace.
 
 ## Tech stack
 
-Next.js (App Router) + TypeScript, Tailwind CSS, Inter (Google Fonts, open-licensed), Prisma (pinned to v6 for its simpler schema-only datasource config) on Postgres (Neon free tier), Anthropic API for Layer 2 reasoning. Auth (when built) will be email/password only – no third-party OAuth, so no real identity provider is ever contacted. Both the database and the Anthropic key are free-tier/spend-capped with no payment method attached, and are local-only credentials, not deployed anywhere public.
+Next.js (App Router) + TypeScript, Tailwind CSS, Inter (Google Fonts, open-licensed), Prisma (pinned to v6 for its simpler schema-only datasource config) on Postgres (Neon free tier), Anthropic API for Layer 2 reasoning, bcrypt + hand-rolled database-backed sessions for auth (see [Authentication](#authentication)) – email/password only, no third-party OAuth, so no real identity provider is ever contacted. Both the database and the Anthropic key are free-tier/spend-capped with no payment method attached, and are local-only credentials, not deployed anywhere public.
 
 ## Running it locally
 
@@ -120,7 +136,7 @@ npx tsx prisma/generate-opportunities.ts
 npm run dev
 ```
 
-Opens at `http://localhost:3000`. Every screen reads real, seeded/computed data - start at `/health` for the deepest one (full driver breakdown per customer at `/health/[customerId]`, real LLM-generated executive summary), or `/briefing` for the consolidated cross-area view.
+Opens at `http://localhost:3000`, which redirects to `/login` - every dashboard route requires a real session now. Log in with the seeded demo account (`priya.chandra@meridian-ops.example` / `demo-password-123`, see [Authentication](#authentication)) to see the full synthetic dataset, or sign up at `/signup` for a fresh, empty workspace of your own. Once logged in, every screen reads real, seeded/computed data - start at `/health` for the deepest one (full driver breakdown per customer at `/health/[customerId]`, real LLM-generated executive summary), or `/briefing` for the consolidated cross-area view.
 
 ## License
 

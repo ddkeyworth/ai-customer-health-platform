@@ -19,9 +19,10 @@ export default function AppShell({
   children: ReactNode;
 }) {
   const pathname = usePathname();
-  const isMarketing = pathname?.startsWith("/marketing");
+  const isChromeless =
+    pathname?.startsWith("/marketing") || pathname?.startsWith("/login") || pathname?.startsWith("/signup");
 
-  if (isMarketing) return <div className="w-full">{children}</div>;
+  if (isChromeless) return <div className="w-full">{children}</div>;
 
   return (
     <>

@@ -93,6 +93,23 @@ Added `/marketing` and a shell-switching `AppShell` client component so the publ
 
 `npx tsc --noEmit` and `npm run lint` both clean.
 
+## Test 13 - Real authentication: login, logout, signup isolation, and a real DB outage caught along the way
+
+Added `User.passwordHash`, a `Session` model, `src/lib/auth.ts` (bcrypt + database-backed sessions, chosen over Auth.js - its Prisma adapter expects its own schema shape, which would fight this app's already-custom `User` model), `/login`, `/signup`, a logout Server Action, and `src/proxy.ts` (Next.js 16 renamed `middleware.ts` to `proxy.ts` and made the Node.js runtime the default - which means it can now do the real, authoritative session check itself, not just a cheap cookie-presence check).
+
+**A real migration correctness bug caught before it could bite anyone:** `seed.ts`'s reset step used to unconditionally `deleteMany()` every `Workspace`/`User` in the database. That was harmless when only one workspace could ever exist, but real signups now create their own workspaces - re-running the demo seed script would have silently wiped any real signup data on every reseed. Fixed by scoping the whole reset to the one named demo workspace ("Meridian Ops"), found by name, leaving every other workspace untouched.
+
+**Verified live, the full cycle, not just the happy path:**
+
+- **Unauthenticated access is blocked correctly:** `curl` against `/`, `/health` before logging in both returned `307 -> /login`; `/marketing` and `/login` themselves returned `200` (correctly public).
+- **Login works** with the seeded demo account (`priya.chandra@meridian-ops.example` / `demo-password-123`) - landed on Home with the real 19-customer dataset. One real transient failure hit here first: Neon (serverless Postgres, auto-suspends when idle) returned "Can't reach database server" on the very first attempt after a period of no activity - not a bug in the auth code, confirmed by an identical retry succeeding immediately after.
+- **Wrong password shows the correct generic error** ("Invalid email or password") - no crash, and deliberately the same message a nonexistent email would produce, so a failed attempt can't be used to enumerate valid accounts.
+- **Logout is a real revocation, not just a client-side redirect:** after logging out, queried the database directly (`prisma.session.count()`) and confirmed 0 session rows remained - the server-side session was actually deleted, not just the cookie cleared.
+- **Signup produces genuine tenant isolation:** signed up as "Jordan Test" / "Acme Testing Co" and landed on a Home page reading "0 customer-product relationships," £0 everywhere, and confirmed via `document.body.innerText.includes('Northwind')` returning `false` - zero visibility into the seeded demo workspace's data. Every other page (Health, Segments, Settings, Calibration, Adoption, Briefing) rendered its correct empty state for the new workspace with no crash. Cleaned up the test workspace afterward.
+- **`proxy.ts`'s upgrade to a real database check verified**, not just assumed from reading the code: re-ran the full unauthenticated-redirect and login checks after the `middleware.ts` → `proxy.ts` migration, confirmed identical behavior, and confirmed the deprecation warning ("The middleware file convention is deprecated") no longer appears in the dev server log.
+
+`npx tsc --noEmit` and `npm run lint` both clean throughout.
+
 ## Test 12 - Calibration loop: real outcomes checked against the Health score on file
 
 Added `OutcomeEvent` (churned/renewed/expanded, with real notes) and `/calibration`, which joins every outcome against the customer's latest `HealthScoreSnapshot` and classifies it: `confirmed` (the score's implied read matched what happened), `missed` (a healthy score, but the account churned), or `review` (a risk score, but the account did well anyway - deliberately not auto-labeled a scoring error, since a Watch/Critical account renewing could just as easily mean a successful save-play).

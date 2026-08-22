@@ -46,6 +46,7 @@ model User {
   workspaceId     String
   name            String
   email           String   @unique
+  passwordHash    String   // bcrypt, cost 12 - see src/lib/auth.ts
   role            String   // "head_vp_cs" | "cs_manager" | "csm" | custom if customTeamStructure
   isAdmin         Boolean  @default(false)
   managerId       String?  // reports-to, enables team roll-up
@@ -58,8 +59,25 @@ model User {
   workspace Workspace @relation(fields: [workspaceId], references: [id])
   manager   User?     @relation("UserManager", fields: [managerId], references: [id])
   reports   User[]    @relation("UserManager")
+  sessions  Session[]
 
   @@map("users")
+}
+
+// A server-side, revocable login session - deliberately not a stateless JWT,
+// so a compromised or logged-out session can actually be killed rather than
+// just expiring on its own. The session token itself is the id (a long
+// random string), set as an httpOnly/secure/sameSite cookie - see
+// src/lib/auth.ts. Fixed 7-day expiry, no silent renewal.
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("sessions")
 }
 
 // The managed customer record – deliberately NOT called "Account" (see README.md).

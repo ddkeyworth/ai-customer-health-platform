@@ -8,6 +8,7 @@
 // one-shot seed.
 
 import { PrismaClient } from "@prisma/client";
+import { hashPassword } from "../src/lib/password";
 
 const prisma = new PrismaClient();
 
@@ -49,39 +50,54 @@ const RANDOM_NAMES = [
   "Nettlewood Transport", "Osprey Distribution", "Pinehaven Cargo",
 ];
 
+const DEMO_WORKSPACE_NAME = "Meridian Ops";
+
 async function main() {
-  console.log("Clearing existing synthetic data...");
-  // Every table that FKs to Customer or Workspace must be cleared before its
-  // parent - the FK constraints are RESTRICT, not CASCADE. Opportunity was
-  // added later (the Expansion screen build) and missed this list until a
-  // second seed run after real opportunities existed surfaced the bug;
-  // DesiredOutcome/Stakeholder/TrainingCompletion/Segment/BookSummary added
-  // here for the same reason rather than waiting to hit it again.
-  await prisma.healthScoreSnapshot.deleteMany();
-  await prisma.usageSnapshot.deleteMany();
-  await prisma.interaction.deleteMany();
-  await prisma.surveyResponse.deleteMany();
-  await prisma.eventAttendance.deleteMany();
-  await prisma.opportunity.deleteMany();
-  await prisma.desiredOutcome.deleteMany();
-  await prisma.stakeholder.deleteMany();
-  await prisma.trainingCompletion.deleteMany();
-  await prisma.outcomeEvent.deleteMany();
-  await prisma.customerProduct.deleteMany();
-  await prisma.customer.deleteMany();
-  await prisma.segment.deleteMany();
-  await prisma.bookSummary.deleteMany();
-  await prisma.competitorConfig.deleteMany();
-  await prisma.package.deleteMany();
-  await prisma.capability.deleteMany();
-  await prisma.product.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.workspace.deleteMany();
+  console.log("Clearing existing demo data (Meridian Ops only - real signups are never touched)...");
+  // Real auth now means real signups create their own workspaces - an
+  // unscoped deleteMany() here would silently wipe every workspace on every
+  // reseed, not just the demo one. Scoped to the one named demo workspace,
+  // found by name since this script doesn't know its id ahead of a run.
+  const existingDemo = await prisma.workspace.findFirst({ where: { name: DEMO_WORKSPACE_NAME } });
+  if (existingDemo) {
+    const wsId = existingDemo.id;
+    const customerIds = (await prisma.customer.findMany({ where: { workspaceId: wsId }, select: { id: true } })).map(
+      (c) => c.id
+    );
+    const productIds = (await prisma.product.findMany({ where: { workspaceId: wsId }, select: { id: true } })).map(
+      (p) => p.id
+    );
+    const userIds = (await prisma.user.findMany({ where: { workspaceId: wsId }, select: { id: true } })).map(
+      (u) => u.id
+    );
+
+    await prisma.healthScoreSnapshot.deleteMany({ where: { customerId: { in: customerIds } } });
+    await prisma.usageSnapshot.deleteMany({ where: { customerId: { in: customerIds } } });
+    await prisma.interaction.deleteMany({ where: { customerId: { in: customerIds } } });
+    await prisma.surveyResponse.deleteMany({ where: { customerId: { in: customerIds } } });
+    await prisma.eventAttendance.deleteMany({ where: { customerId: { in: customerIds } } });
+    await prisma.opportunity.deleteMany({ where: { customerId: { in: customerIds } } });
+    await prisma.desiredOutcome.deleteMany({ where: { customerId: { in: customerIds } } });
+    await prisma.stakeholder.deleteMany({ where: { customerId: { in: customerIds } } });
+    await prisma.trainingCompletion.deleteMany({ where: { customerId: { in: customerIds } } });
+    await prisma.outcomeEvent.deleteMany({ where: { customerId: { in: customerIds } } });
+    await prisma.customerProduct.deleteMany({ where: { customerId: { in: customerIds } } });
+    await prisma.customer.deleteMany({ where: { workspaceId: wsId } });
+    await prisma.segment.deleteMany({ where: { workspaceId: wsId } });
+    await prisma.bookSummary.deleteMany({ where: { workspaceId: wsId } });
+    await prisma.competitorConfig.deleteMany({ where: { workspaceId: wsId } });
+    await prisma.package.deleteMany({ where: { productId: { in: productIds } } });
+    await prisma.capability.deleteMany({ where: { productId: { in: productIds } } });
+    await prisma.product.deleteMany({ where: { workspaceId: wsId } });
+    await prisma.session.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma.user.deleteMany({ where: { workspaceId: wsId } });
+    await prisma.workspace.delete({ where: { id: wsId } });
+  }
 
   console.log("Creating workspace...");
   const workspace = await prisma.workspace.create({
     data: {
-      name: "Meridian Ops",
+      name: DEMO_WORKSPACE_NAME,
       currency: "GBP",
       pricingTier: "growth",
       seatsIncluded: 20,
@@ -89,11 +105,16 @@ async function main() {
     },
   });
 
+  // Demo login for reviewers - a real bcrypt hash of a plainly-documented,
+  // non-secret password (see README.md). Fine to publish: this account only
+  // ever holds synthetic data on a free-tier, spend-capped local database.
+  const demoPasswordHash = await hashPassword("demo-password-123");
   await prisma.user.create({
     data: {
       workspaceId: workspace.id,
       name: "Priya Chandra",
       email: "priya.chandra@meridian-ops.example",
+      passwordHash: demoPasswordHash,
       role: "head_vp_cs",
       isAdmin: false,
     },
