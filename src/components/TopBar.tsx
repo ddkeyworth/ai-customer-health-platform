@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { logout } from "@/app/logout/actions";
@@ -38,7 +39,9 @@ export default async function TopBar() {
       <div className="flex items-center gap-3">
         <div className="h-5 w-5 rounded bg-zinc-300" aria-hidden />
         <span className="text-sm text-zinc-600">{workspace.name} workspace</span>
-        <SegmentSelector segments={segments} />
+        <Suspense fallback={null}>
+          <SegmentSelector segments={segments} />
+        </Suspense>
       </div>
       <div className="flex items-center gap-4 text-xs text-zinc-400">
         <span>{today}</span>

@@ -135,3 +135,15 @@ After Test 13's build, the auth code was reread specifically looking for what an
 **Known limitations, stated rather than silently left out:** there is no password-reset flow (a portfolio-scale trade-off, not an oversight - would need real email sending, which is out of scope by design); expired sessions are only cleaned up lazily, on next use, not by a scheduled sweep of the whole table; and `/login`/`/signup` remain reachable by an already-logged-in user rather than redirecting them straight to Home. None of these are security holes, just polish left for a future pass.
 
 `npx tsc --noEmit` and `npm run lint` both clean throughout.
+
+## Test 15 - A real production-build failure, only caught by actually running `npm run build`
+
+Before Vercel deployment, ran `npm run build` for the first time in this project (`npm run dev` had been the only thing run all along, and dev mode doesn't prerender pages the same way). It failed: `useSearchParams() should be wrapped in a suspense boundary at page "/404"`.
+
+**Real cause:** `Sidebar` and `SegmentSelector` are both client components that call `useSearchParams()` directly, and both render unconditionally from the root layout on every page - including Next.js's own built-in `/_not-found` page, which the production build tries to statically prerender. Prerendering a client hook that reads the URL without a `Suspense` boundary is exactly what Next.js's static-generation step rejects; `next dev` never hits this path, so it stayed invisible until a real build was attempted.
+
+**Fixed** by wrapping `<Sidebar />` (in `src/app/layout.tsx`) and `<SegmentSelector />` (in `src/components/TopBar.tsx`) each in their own `<Suspense fallback={null}>`. Re-ran `npm run build` - succeeded, all 16 routes correctly listed as dynamic (`ƒ`, server-rendered per request, consistent with every page needing a session check).
+
+**Verified live, not just by a clean build:** re-ran the full login flow in the browser afterward - Sidebar and the workspace's real data (Meridian Ops, 24 customer-product relationships, real Health bands) rendered exactly as before, no flash of a missing sidebar from the `null` Suspense fallback in practice.
+
+`npx tsc --noEmit` and `npm run lint` both clean.
