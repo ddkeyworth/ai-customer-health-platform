@@ -147,3 +147,20 @@ Before Vercel deployment, ran `npm run build` for the first time in this project
 **Verified live, not just by a clean build:** re-ran the full login flow in the browser afterward - Sidebar and the workspace's real data (Meridian Ops, 24 customer-product relationships, real Health bands) rendered exactly as before, no flash of a missing sidebar from the `null` Suspense fallback in practice.
 
 `npx tsc --noEmit` and `npm run lint` both clean.
+
+## Test 16 - Live deployment on Vercel, verified against the real public URL, not just the build
+
+Deployed to Vercel (`ai-customer-health-platform.vercel.app`), Neon (database, switched to its pooled connection string first - a direct connection can exhaust Neon's connection limit once Vercel's serverless functions open several concurrent connections, unlike a single long-running local dev process).
+
+**A real gotcha caught before it was mistaken for a bug:** the URL Vercel returns right after deploying is a per-deployment preview URL, and Vercel puts its own login wall (Vercel Authentication/SSO) in front of those by default - every route on it, including the public `/marketing` page, redirected to `vercel.com/sso-api`. That's Vercel's own access control, not this app's - confirmed by finding the real, unprotected production domain (`https://ai-customer-health-platform.vercel.app`, no random deployment hash in it) and getting a clean `200` on `/marketing` there instead.
+
+**Verified against the real production domain, the same checks as Test 13's local run:**
+
+- Unauthenticated `/` and `/health` both correctly `307`'d to `/login`; `/marketing`, `/login`, `/signup` all returned `200`.
+- Logged in with the seeded demo account - landed on Home with the real 24 customer-product relationships, matching local exactly.
+- Logged out, then requested `/health` directly again - redirected straight back to `/login`, confirming the session cookie was genuinely cleared server-side on the live deployment, not just locally.
+- Signed up fresh ("Vercel Verify Co") - landed on Home showing 0 customer-product relationships and £0 everywhere, no trace of the demo data, confirming workspace isolation holds under the real deployment too. Cleaned up the test workspace from the database afterward via a one-off script, deleted after use (same pattern as every other throwaway test workspace this project has created).
+
+**A concern raised and checked, not just asserted:** could a stranger using the live site ever cause an Anthropic API call, and so spend against the account owner's key? Traced both files that import the Anthropic SDK (`src/lib/health/agenticLayer.ts`, `src/lib/health/bookSummary.ts`) to their only callers - `prisma/compute-health-scores.ts`, `prisma/compute-book-summary.ts`, `prisma/seed.ts` - all one-off scripts run manually from a local terminal, never from a Server Action or page render. `src/app/health/page.tsx` only reads an already-computed `BookSummary` row from the database. No code path reachable from a live request calls the Anthropic API, confirmed by reading the actual call graph rather than assuming the architecture holds.
+
+`npx tsc --noEmit` and `npm run lint` both clean.

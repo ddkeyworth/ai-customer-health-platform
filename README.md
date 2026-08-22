@@ -1,6 +1,6 @@
 # ai-customer-health-platform
 
-A conceptual exploration of an agentic-AI Customer Success platform – planned and built with Claude Code as a portfolio piece. **This is a prototype, not a production system, and not a real product.** Nothing here is a real company. There is no live *public* deployment (see [Stage 2](#stage-2-live-deployment-not-yet-started)), no real customer data anywhere, and no outbound contact beyond the Anthropic API itself.
+A conceptual exploration of an agentic-AI Customer Success platform – planned and built with Claude Code as a portfolio piece. **This is a prototype, not a production system, and not a real product.** Nothing here is a real company. It is live at [ai-customer-health-platform.vercel.app](https://ai-customer-health-platform.vercel.app) (see [Stage 2](#stage-2-live-deployment)) – demo login below, or sign up for your own isolated workspace – with no real customer data anywhere, and no outbound contact beyond the Anthropic API itself.
 
 > No AI reads every account right. It gets you close enough, fast enough, to act. Across onboarding, health, expansion, and renewal.
 
@@ -62,7 +62,7 @@ All 10 dashboard screens (Home, Health, Briefing, Onboarding, Adoption, Expansio
 | `/calibration` | Real calibration loop - every recorded `OutcomeEvent` (churned/renewed/expanded) compared against the Health score on file, classified as confirmed/missed/worth-reviewing. Not a true point-in-time backtest (one snapshot per customer, not a real historical series); nothing here adjusts driver weighting automatically - see the page's own footnote |
 | `/login`, `/signup` | Real email/password authentication (bcrypt + database-backed sessions) - see [Authentication](#authentication). Signup creates a genuine new, empty, isolated workspace, not a new user in the shared demo one |
 | Agent core / playbooks for areas beyond Health | Expansion uses rule-based generation; the others are plain data views. A full agentic pass (matching Health's two-layer depth) is the natural next step, not done |
-| Live public deployment | **Not started - deliberately.** See [Stage 2: live deployment](#stage-2-live-deployment-not-yet-started) |
+| Live public deployment | **Done.** [ai-customer-health-platform.vercel.app](https://ai-customer-health-platform.vercel.app) - see [Stage 2: live deployment](#stage-2-live-deployment) |
 
 ## Health scoring – built, and how it actually works
 
@@ -88,16 +88,16 @@ Two drivers worth calling out specifically, since they came from a skeptical pas
 
 A real bug did surface during an earlier skeptical pass over the repo: the tool schema marks `narrative` "required", but that only forces the field to exist, not to be non-empty, and one customer's narrative came back as an empty string while `adjustmentReason` still held real, grounded reasoning. Fixed with a fallback (`agenticLayer.ts` now falls back to `adjustmentReason`, and throws rather than silently storing nothing if both are empty) and re-run for that customer.
 
-## Stage 2: live deployment – not yet started
+## Stage 2: live deployment
 
-There is no public URL and no live deployment. The database and Anthropic API key that exist are Dan's own free-tier, spend-capped, local-only credentials (`.env`, gitignored) – nobody else can reach this. A real public deployment is a deliberate future step, gated on:
+**Live at [ai-customer-health-platform.vercel.app](https://ai-customer-health-platform.vercel.app) (2026-08-22).** Hosted on Vercel, database on Neon (both free-tier, spend-capped) – no server for anyone to manage. All 6 gates that were tracked before going live:
 
 1. ~~The Health-scoring engine actually being implemented~~ – **done** (see above).
-2. **Partially done:** a small in-memory rate limiter (`src/lib/rateLimit.ts`) now guards the write-heavy Server Actions, and login/signup specifically (10 attempts/15min, 5 signups/hour, by email). Scoped to what's reachable today, not deployment scale – no shared store across instances, no rate limiting on read traffic.
-3. A hard spending cap set on the Anthropic API account *before* any real key is wired into a public-facing deployment.
+2. **Partially done, deliberately:** a small in-memory rate limiter (`src/lib/rateLimit.ts`) guards the write-heavy Server Actions, and login/signup specifically (10 attempts/15min, 5 signups/hour, by email). Scoped to what's reachable at this traffic level, not deployment scale – it's per-instance, not shared across Vercel's serverless functions, so it protects less as real concurrent traffic grows. A shared store (Redis/Vercel KV) is the next real step here, tracked as its own outstanding item rather than blocking the initial deploy.
+3. ~~A hard spending cap set on the Anthropic API account~~ – **done**, confirmed before deploying.
 4. ~~The other 8 screens reaching real data, not static stubs~~ – **done** (see the table above) - though most are still rule-based or read-only rather than the same agentic depth as Health, which is its own remaining gap, separate from this gate.
 5. ~~Real auth~~ – **done**, see [Authentication](#authentication) below.
-6. Actually deploying - Vercel (app hosting) isn't signed up for yet. Neon (the database) already is, on the same free-tier/spend-capped basis as everything else here.
+6. ~~Actually deploying~~ – **done**. One real deployment issue caught along the way: `npm run build` (never run before this point - only `npm run dev` had been) failed on a `useSearchParams()`/`Suspense` requirement that dev mode never surfaces. Fixed and verified in `TESTING.md`. Also note for anyone repeating this: Vercel gives every deployment a protected, per-deployment preview URL (gated behind Vercel's own login) in addition to the real public production domain - use the latter for anything meant to be publicly reachable.
 
 ## Authentication
 
