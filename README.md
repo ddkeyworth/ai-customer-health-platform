@@ -93,7 +93,7 @@ A real bug did surface during an earlier skeptical pass over the repo: the tool 
 **Live at [ai-customer-health-platform.vercel.app](https://ai-customer-health-platform.vercel.app) (2026-08-22).** Hosted on Vercel, database on Neon (both free-tier, spend-capped) – no server for anyone to manage. All 6 gates that were tracked before going live:
 
 1. ~~The Health-scoring engine actually being implemented~~ – **done** (see above).
-2. ~~Deployment-scale rate limiting~~ – **done**. `src/lib/rateLimit.ts` (guards login/signup - 10 attempts/15min, 5 signups/hour, by email - and the write-heavy Settings/Segments Server Actions) now uses a real shared store, Upstash Redis via Vercel's Storage marketplace integration, once `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` are configured - counts are shared across every serverless function instance, not reset per cold start. Falls back to the original per-process in-memory `Map` when those aren't set (e.g. local `npm run dev`), so running the app locally never needs its own Redis instance.
+2. ~~Deployment-scale rate limiting~~ – **done**. `src/lib/rateLimit.ts` (guards login/signup - 10 attempts/15min, 5 signups/hour, by email - and the write-heavy Settings/Segments Server Actions) is backed by this app's own Postgres (`RateLimitBucket`, a single atomic `INSERT ... ON CONFLICT` per check) rather than a separate paid Redis service - counts are genuinely shared across every serverless function instance, using infrastructure that's already free and already configured everywhere, no new account needed.
 3. ~~A hard spending cap set on the Anthropic API account~~ – **done**, confirmed before deploying.
 4. ~~The other 8 screens reaching real data, not static stubs~~ – **done** (see the table above) - though most are still rule-based or read-only rather than the same agentic depth as Health, which is its own remaining gap, separate from this gate.
 5. ~~Real auth~~ – **done**, see [Authentication](#authentication) below.
@@ -145,7 +145,7 @@ Everything else (workspace scoping as exercised through the actual pages, the ma
 
 ## Tech stack
 
-Next.js (App Router) + TypeScript, Tailwind CSS, Inter (Google Fonts, open-licensed), Prisma (pinned to v6 for its simpler schema-only datasource config) on Postgres (Neon free tier), Anthropic API for Layer 2 reasoning, bcrypt + hand-rolled database-backed sessions for auth (see [Authentication](#authentication)) – email/password only, no third-party OAuth, so no real identity provider is ever contacted. Upstash Redis (free tier, via Vercel's Storage marketplace) for deployment-scale rate limiting, with an in-memory fallback when it isn't configured. Both the database and the Anthropic key are free-tier/spend-capped with no payment method attached, and are local-only credentials, not deployed anywhere public.
+Next.js (App Router) + TypeScript, Tailwind CSS, Inter (Google Fonts, open-licensed), Prisma (pinned to v6 for its simpler schema-only datasource config) on Postgres (Neon free tier), Anthropic API for Layer 2 reasoning, bcrypt + hand-rolled database-backed sessions for auth (see [Authentication](#authentication)) – email/password only, no third-party OAuth, so no real identity provider is ever contacted. Deployment-scale rate limiting runs on the same Postgres database rather than a separate paid service (see [Stage 2](#stage-2-live-deployment)). Both the database and the Anthropic key are free-tier/spend-capped with no payment method attached, and are local-only credentials, not deployed anywhere public.
 
 ## Running it locally
 

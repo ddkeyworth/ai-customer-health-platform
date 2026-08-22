@@ -86,6 +86,19 @@ model Session {
   @@map("sessions")
 }
 
+// Deployment-scale rate limiting - see src/lib/rateLimit.ts. Uses this app's
+// own Postgres (already free-tier, already configured everywhere) instead
+// of a separate paid Redis service. One row per rate-limited key (e.g.
+// "login:someone@example.com"); count/resetAt form a fixed-window counter,
+// reset atomically via a single INSERT ... ON CONFLICT statement.
+model RateLimitBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@map("rate_limit_buckets")
+}
+
 // The managed customer record – deliberately NOT called "Account" (see README.md).
 model Customer {
   id             String   @id @default(cuid())
