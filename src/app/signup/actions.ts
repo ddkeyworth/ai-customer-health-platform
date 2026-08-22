@@ -17,7 +17,7 @@ export async function signup(formData: FormData) {
   if (!EMAIL_PATTERN.test(email)) redirect("/signup?error=invalid_email");
   if (password.length < 8) redirect("/signup?error=weak_password");
 
-  if (!withinRateLimit(`signup:${email}`, 5, 60 * 60_000)) {
+  if (!(await withinRateLimit(`signup:${email}`, 5, 60 * 60_000))) {
     redirect("/signup?error=rate_limited");
   }
 

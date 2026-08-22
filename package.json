@@ -11,6 +11,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",
     "@prisma/client": "^6.19.3",
+    "@upstash/redis": "^1.38.2",
     "bcryptjs": "^3.0.3",
     "next": "16.3.0",
     "react": "19.2.8",

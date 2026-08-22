@@ -7,7 +7,7 @@ import { withinRateLimit } from "@/lib/rateLimit";
 
 export async function createSegment(formData: FormData) {
   const workspace = await getCurrentWorkspace();
-  if (!withinRateLimit(`createSegment:${workspace.id}`, 20, 60_000)) return;
+  if (!(await withinRateLimit(`createSegment:${workspace.id}`, 20, 60_000))) return;
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;

@@ -191,3 +191,17 @@ The standing gap flagged in Test 13 (only the Health engine and, since then, aut
 All four pass, alongside the two pre-existing scripts (`test-auth.ts`, `test-workspace-secret.ts`) - six assert-based regression scripts total now cover auth, secret encryption, settings validation, calibration classification, segment matching, and cross-tenant isolation. The marketing page and the Onboarding/Adoption/Expansion/Renewal screens still have no script-based coverage - they're read-only views over stored data with little pure logic of their own to assert against, so remain interactive-only per the earlier tests in this log; flagged here rather than silently left out.
 
 `npx tsc --noEmit`, `npm run lint`, and `npm run build` all clean. The Settings and Calibration pages were re-verified live in the browser after the extraction to confirm the refactor changed nothing user-visible.
+
+## Test 19 - Deployment-scale rate limiting: a real shared store, with a working local fallback
+
+The in-memory rate limiter was always honestly documented as per-instance, not deployment-scale - fine before a real deployment existed, a real gap once one did. `src/lib/rateLimit.ts` now uses Upstash Redis (via Vercel's Storage marketplace integration) when `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` are set - an atomic `INCR` per key, with `EXPIRE` set only on the first increment of a window so a burst of concurrent requests can't each reset it. When those env vars aren't set (local `npm run dev`), it falls back to the original in-memory `Map` unchanged, so running the app locally never needs its own Redis instance just to work.
+
+`withinRateLimit()` became async (a real Redis call, not just a memory read), so every call site (`login`, `signup`, and four Settings/Segments actions) needed `await` added - a mechanical change, verified it didn't silently drop the check anywhere by grepping for every call site before and after.
+
+**`prisma/test-rate-limit.ts`** (assert-based) exercises the real function's in-memory branch, the same one local development always uses: allows calls up to the limit, blocks the next one, confirms a different key has its own independent count, and - the one that actually needs a real clock, not just logic - confirms a short window genuinely expires and allows a fresh request afterward rather than blocking forever.
+
+**Verified live in the browser** after the change: logged in (exercises the `login` action's rate-limit check), then submitted the Settings org-profile form (exercises `updateWorkspace`'s) - both succeeded with no console errors, confirming the now-async check works correctly through real Server Actions, not just in isolation.
+
+**Honest about what's not tested:** the Redis-backed branch itself has no automated test, since asserting against it would need a real Upstash store and consume its (free-tier but still real) quota just to run a test suite - it's exercised for real once actually deployed with a store connected, the same "prove it live, not just in code" standard as everything else in this log.
+
+`npx tsc --noEmit`, `npm run lint`, and `npm run build` all clean.

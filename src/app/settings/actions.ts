@@ -17,7 +17,7 @@ import {
 
 export async function updateWorkspace(formData: FormData) {
   const workspace = await getCurrentWorkspace();
-  if (!withinRateLimit(`updateWorkspace:${workspace.id}`, 10, 60_000)) return;
+  if (!(await withinRateLimit(`updateWorkspace:${workspace.id}`, 10, 60_000))) return;
 
   const name = String(formData.get("name") ?? "").trim().slice(0, 80);
   if (!name) return;
@@ -46,7 +46,7 @@ export async function updateWorkspace(formData: FormData) {
 
 export async function addCompetitor(formData: FormData) {
   const workspace = await getCurrentWorkspace();
-  if (!withinRateLimit(`addCompetitor:${workspace.id}`, 20, 60_000)) return;
+  if (!(await withinRateLimit(`addCompetitor:${workspace.id}`, 20, 60_000))) return;
 
   const existing = await prisma.competitorConfig.count({ where: { workspaceId: workspace.id } });
   if (existing >= 20) return;
@@ -70,7 +70,7 @@ export async function deleteCompetitor(id: string) {
 
 export async function updateAnthropicApiKey(formData: FormData) {
   const workspace = await getCurrentWorkspace();
-  if (!withinRateLimit(`updateAnthropicApiKey:${workspace.id}`, 5, 60_000)) return;
+  if (!(await withinRateLimit(`updateAnthropicApiKey:${workspace.id}`, 5, 60_000))) return;
 
   const apiKey = String(formData.get("apiKey") ?? "").trim();
   if (!ANTHROPIC_KEY_PATTERN.test(apiKey)) return;
@@ -96,7 +96,7 @@ export async function clearAnthropicApiKey() {
 
 export async function updateExportAllowlist(formData: FormData) {
   const workspace = await getCurrentWorkspace();
-  if (!withinRateLimit(`updateExportAllowlist:${workspace.id}`, 10, 60_000)) return;
+  if (!(await withinRateLimit(`updateExportAllowlist:${workspace.id}`, 10, 60_000))) return;
 
   const selected = formData.getAll("field").map(String).filter((key) => EXPORT_FIELD_KEYS.includes(key as (typeof EXPORT_FIELD_KEYS)[number]));
 

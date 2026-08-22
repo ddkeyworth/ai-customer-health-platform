@@ -93,7 +93,7 @@ A real bug did surface during an earlier skeptical pass over the repo: the tool 
 **Live at [ai-customer-health-platform.vercel.app](https://ai-customer-health-platform.vercel.app) (2026-08-22).** Hosted on Vercel, database on Neon (both free-tier, spend-capped) – no server for anyone to manage. All 6 gates that were tracked before going live:
 
 1. ~~The Health-scoring engine actually being implemented~~ – **done** (see above).
-2. **Partially done, deliberately:** a small in-memory rate limiter (`src/lib/rateLimit.ts`) guards the write-heavy Server Actions, and login/signup specifically (10 attempts/15min, 5 signups/hour, by email). Scoped to what's reachable at this traffic level, not deployment scale – it's per-instance, not shared across Vercel's serverless functions, so it protects less as real concurrent traffic grows. A shared store (Redis/Vercel KV) is the next real step here, tracked as its own outstanding item rather than blocking the initial deploy.
+2. ~~Deployment-scale rate limiting~~ – **done**. `src/lib/rateLimit.ts` (guards login/signup - 10 attempts/15min, 5 signups/hour, by email - and the write-heavy Settings/Segments Server Actions) now uses a real shared store, Upstash Redis via Vercel's Storage marketplace integration, once `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` are configured - counts are shared across every serverless function instance, not reset per cold start. Falls back to the original per-process in-memory `Map` when those aren't set (e.g. local `npm run dev`), so running the app locally never needs its own Redis instance.
 3. ~~A hard spending cap set on the Anthropic API account~~ – **done**, confirmed before deploying.
 4. ~~The other 8 screens reaching real data, not static stubs~~ – **done** (see the table above) - though most are still rule-based or read-only rather than the same agentic depth as Health, which is its own remaining gap, separate from this gate.
 5. ~~Real auth~~ – **done**, see [Authentication](#authentication) below.
@@ -129,7 +129,7 @@ A workspace can store its own Anthropic API key in Settings, encrypted at rest (
 
 ## Test coverage
 
-Six assert-based regression scripts (each throws and exits non-zero on failure, rather than printing output for a human to eyeball), all under `prisma/` and run via `npx tsx prisma/<name>.ts`:
+Seven assert-based regression scripts (each throws and exits non-zero on failure, rather than printing output for a human to eyeball), all under `prisma/` and run via `npx tsx prisma/<name>.ts`:
 
 | Script | Covers |
 |---|---|
@@ -139,12 +139,13 @@ Six assert-based regression scripts (each throws and exits non-zero on failure, 
 | `test-calibration.ts` | Every (outcome type &times; Health tier) classification the Calibration screen can produce |
 | `test-segments.ts` | Segment-criteria matching against the real seeded data - single and combined criteria, no false matches |
 | `test-workspace-scoping.ts` | Cross-tenant isolation - creates a real throwaway second workspace and confirms its data never leaks into another workspace's queries, the actual IDOR guard, not just reasoned about |
+| `test-rate-limit.ts` | The in-memory rate-limiter fallback - blocks over the limit, independent keys don't interfere, and a window correctly expires rather than blocking forever |
 
 Everything else (workspace scoping as exercised through the actual pages, the marketing page, Onboarding/Adoption/Expansion/Renewal) is still verified interactively only, logged in `TESTING.md` - a stated, known gap, not silently left implicit.
 
 ## Tech stack
 
-Next.js (App Router) + TypeScript, Tailwind CSS, Inter (Google Fonts, open-licensed), Prisma (pinned to v6 for its simpler schema-only datasource config) on Postgres (Neon free tier), Anthropic API for Layer 2 reasoning, bcrypt + hand-rolled database-backed sessions for auth (see [Authentication](#authentication)) – email/password only, no third-party OAuth, so no real identity provider is ever contacted. Both the database and the Anthropic key are free-tier/spend-capped with no payment method attached, and are local-only credentials, not deployed anywhere public.
+Next.js (App Router) + TypeScript, Tailwind CSS, Inter (Google Fonts, open-licensed), Prisma (pinned to v6 for its simpler schema-only datasource config) on Postgres (Neon free tier), Anthropic API for Layer 2 reasoning, bcrypt + hand-rolled database-backed sessions for auth (see [Authentication](#authentication)) – email/password only, no third-party OAuth, so no real identity provider is ever contacted. Upstash Redis (free tier, via Vercel's Storage marketplace) for deployment-scale rate limiting, with an in-memory fallback when it isn't configured. Both the database and the Anthropic key are free-tier/spend-capped with no payment method attached, and are local-only credentials, not deployed anywhere public.
 
 ## Running it locally
 

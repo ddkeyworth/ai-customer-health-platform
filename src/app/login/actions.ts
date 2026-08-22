@@ -22,7 +22,7 @@ export async function login(formData: FormData) {
 
   // Rate-limited by the submitted email, not IP (none reliably available in
   // this dev setup) - bounds brute-force guessing against any one account.
-  if (!withinRateLimit(`login:${email}`, 10, 15 * 60_000)) {
+  if (!(await withinRateLimit(`login:${email}`, 10, 15 * 60_000))) {
     redirect("/login?error=rate_limited");
   }
 
