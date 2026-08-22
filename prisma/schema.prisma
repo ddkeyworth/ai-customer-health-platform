@@ -26,6 +26,7 @@ model Workspace {
   dataVolumeIncluded Int      @default(10000)
   customTeamStructure Boolean @default(false)
   exportAllowlist    String[] @default([])
+  isDemoSeed         Boolean  @default(false) // marks the one seed.ts-created workspace
   createdAt          DateTime @default(now())
   archivedAt         DateTime?
 

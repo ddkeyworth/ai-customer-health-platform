@@ -30,19 +30,34 @@ export async function signup(formData: FormData) {
   // is the whole point of the signup flow: two people signing up get two
   // genuinely isolated workspaces, exercising the workspaceId scoping
   // built earlier rather than leaving it untestable.
-  const workspace = await prisma.workspace.create({
-    data: { name: workspaceName },
-  });
-  const user = await prisma.user.create({
-    data: {
-      workspaceId: workspace.id,
-      name,
-      email,
-      passwordHash,
-      role: "head_vp_cs",
-      isAdmin: true,
-    },
-  });
+  //
+  // The findUnique check above isn't atomic with this create - two
+  // concurrent signups for the same email could both pass it. Wrapped in a
+  // transaction (so a failed user create doesn't leave an orphaned empty
+  // workspace behind) and the email's unique-constraint violation (P2002)
+  // is caught explicitly, so a genuine race still fails gracefully with the
+  // same "email taken" message rather than a raw 500 error.
+  let user;
+  try {
+    user = await prisma.$transaction(async (tx) => {
+      const workspace = await tx.workspace.create({ data: { name: workspaceName } });
+      return tx.user.create({
+        data: {
+          workspaceId: workspace.id,
+          name,
+          email,
+          passwordHash,
+          role: "head_vp_cs",
+          isAdmin: true,
+        },
+      });
+    });
+  } catch (err) {
+    if (err && typeof err === "object" && "code" in err && err.code === "P2002") {
+      redirect("/signup?error=email_taken");
+    }
+    throw err;
+  }
 
   await createSessionCookie(user.id);
   redirect("/");

@@ -53,12 +53,15 @@ const RANDOM_NAMES = [
 const DEMO_WORKSPACE_NAME = "Meridian Ops";
 
 async function main() {
-  console.log("Clearing existing demo data (Meridian Ops only - real signups are never touched)...");
+  console.log("Clearing existing demo data (the flagged demo workspace only - real signups are never touched)...");
   // Real auth now means real signups create their own workspaces - an
   // unscoped deleteMany() here would silently wipe every workspace on every
-  // reseed, not just the demo one. Scoped to the one named demo workspace,
-  // found by name since this script doesn't know its id ahead of a run.
-  const existingDemo = await prisma.workspace.findFirst({ where: { name: DEMO_WORKSPACE_NAME } });
+  // reseed, not just the demo one. Scoped by the isDemoSeed flag, not by
+  // name - workspace names aren't unique, so a real signup happening to be
+  // named "Meridian Ops" (coincidentally or deliberately) would otherwise
+  // either get destroyed by a reseed, or worse, get treated as the demo
+  // workspace and have its real data mixed into what this script manages.
+  const existingDemo = await prisma.workspace.findFirst({ where: { isDemoSeed: true } });
   if (existingDemo) {
     const wsId = existingDemo.id;
     const customerIds = (await prisma.customer.findMany({ where: { workspaceId: wsId }, select: { id: true } })).map(
@@ -102,6 +105,7 @@ async function main() {
       pricingTier: "growth",
       seatsIncluded: 20,
       dataVolumeIncluded: 100000,
+      isDemoSeed: true,
     },
   });
 

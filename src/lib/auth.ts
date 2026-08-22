@@ -22,6 +22,7 @@
 //     any request path that reaches a page without going through the proxy.
 
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { SESSION_COOKIE } from "@/lib/sessionCookie";
@@ -44,7 +45,11 @@ export async function createSessionCookie(userId: string): Promise<void> {
   });
 }
 
-export async function getSessionUser() {
+// Wrapped in React's cache() so multiple calls within one request (proxy.ts
+// already checked separately, but TopBar and each page's own
+// getCurrentWorkspace() both call this too) share one result instead of
+// each issuing its own database round-trip for the same session token.
+export const getSessionUser = cache(async () => {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -61,7 +66,7 @@ export async function getSessionUser() {
   }
 
   return session.user;
-}
+});
 
 export async function destroySessionCookie(): Promise<void> {
   const cookieStore = await cookies();
