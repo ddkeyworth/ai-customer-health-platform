@@ -27,6 +27,11 @@ model Workspace {
   customTeamStructure Boolean @default(false)
   exportAllowlist    String[] @default([])
   isDemoSeed         Boolean  @default(false) // marks the one seed.ts-created workspace
+  // Bring-your-own Anthropic key (see Settings) - encrypted at rest (AES-256-GCM,
+  // src/lib/workspaceSecret.ts), never the plaintext value. anthropicApiKeyLast4
+  // is safe to store in the clear purely for a masked "ending in ****1234" display.
+  anthropicApiKeyEncrypted String?
+  anthropicApiKeyLast4     String?
   createdAt          DateTime @default(now())
   archivedAt         DateTime?
 

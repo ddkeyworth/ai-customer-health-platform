@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { withinRateLimit } from "@/lib/rateLimit";
 import { EXPORT_FIELD_KEYS } from "@/lib/exportFields";
+import { encryptSecret } from "@/lib/workspaceSecret";
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 const CURRENCY_CODE = /^[A-Z]{3}$/;
@@ -62,6 +63,34 @@ export async function addCompetitor(formData: FormData) {
 export async function deleteCompetitor(id: string) {
   const workspace = await getCurrentWorkspace();
   await prisma.competitorConfig.deleteMany({ where: { id, workspaceId: workspace.id } });
+  revalidatePath("/settings");
+}
+
+const ANTHROPIC_KEY_PATTERN = /^sk-ant-[A-Za-z0-9_-]{20,}$/;
+
+export async function updateAnthropicApiKey(formData: FormData) {
+  const workspace = await getCurrentWorkspace();
+  if (!withinRateLimit(`updateAnthropicApiKey:${workspace.id}`, 5, 60_000)) return;
+
+  const apiKey = String(formData.get("apiKey") ?? "").trim();
+  if (!ANTHROPIC_KEY_PATTERN.test(apiKey)) return;
+
+  await prisma.workspace.update({
+    where: { id: workspace.id },
+    data: {
+      anthropicApiKeyEncrypted: encryptSecret(apiKey),
+      anthropicApiKeyLast4: apiKey.slice(-4),
+    },
+  });
+  revalidatePath("/settings");
+}
+
+export async function clearAnthropicApiKey() {
+  const workspace = await getCurrentWorkspace();
+  await prisma.workspace.update({
+    where: { id: workspace.id },
+    data: { anthropicApiKeyEncrypted: null, anthropicApiKeyLast4: null },
+  });
   revalidatePath("/settings");
 }
 
