@@ -2,10 +2,9 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { tierColor } from "@/lib/health/ui";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
+import { judge } from "@/lib/calibration";
 
 export const dynamic = "force-dynamic";
-
-const RISK_BANDS = ["Watch", "Critical"];
 
 const TYPE_LABELS: Record<string, string> = {
   churned: "Churned",
@@ -15,21 +14,6 @@ const TYPE_LABELS: Record<string, string> = {
 
 function fmtDate(d: Date) {
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-function judge(type: string, tierLabel: string | null) {
-  if (!tierLabel) return { verdict: "n/a", label: "No score on file" } as const;
-  const wasRisk = RISK_BANDS.includes(tierLabel);
-
-  if (type === "churned") {
-    return wasRisk
-      ? ({ verdict: "confirmed", label: "Score flagged risk, account churned" } as const)
-      : ({ verdict: "missed", label: "Score read healthy, account churned anyway" } as const);
-  }
-  // renewed or expanded - a positive outcome
-  return wasRisk
-    ? ({ verdict: "review", label: "Score flagged risk, account did well anyway" } as const)
-    : ({ verdict: "confirmed", label: "Score read healthy, account did well" } as const);
 }
 
 const VERDICT_STYLE: Record<string, string> = {

@@ -6,11 +6,14 @@ import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { withinRateLimit } from "@/lib/rateLimit";
 import { EXPORT_FIELD_KEYS } from "@/lib/exportFields";
 import { encryptSecret } from "@/lib/workspaceSecret";
-
-const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
-const CURRENCY_CODE = /^[A-Z]{3}$/;
-const ALLOWED_DATE_FORMATS = ["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD"];
-const ALLOWED_LANGUAGES = ["en-GB", "en-US"];
+import {
+  HEX_COLOR,
+  CURRENCY_CODE,
+  ALLOWED_DATE_FORMATS,
+  ALLOWED_LANGUAGES,
+  ANTHROPIC_KEY_PATTERN,
+  clampRiskWeight,
+} from "@/lib/settingsValidation";
 
 export async function updateWorkspace(formData: FormData) {
   const workspace = await getCurrentWorkspace();
@@ -51,8 +54,7 @@ export async function addCompetitor(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim().slice(0, 80);
   if (!name) return;
 
-  const riskWeightRaw = Number(formData.get("riskWeight"));
-  const riskWeight = Number.isFinite(riskWeightRaw) ? Math.min(5, Math.max(1, Math.round(riskWeightRaw))) : 3;
+  const riskWeight = clampRiskWeight(Number(formData.get("riskWeight")));
 
   await prisma.competitorConfig.create({
     data: { workspaceId: workspace.id, name, riskWeight },
@@ -65,8 +67,6 @@ export async function deleteCompetitor(id: string) {
   await prisma.competitorConfig.deleteMany({ where: { id, workspaceId: workspace.id } });
   revalidatePath("/settings");
 }
-
-const ANTHROPIC_KEY_PATTERN = /^sk-ant-[A-Za-z0-9_-]{20,}$/;
 
 export async function updateAnthropicApiKey(formData: FormData) {
   const workspace = await getCurrentWorkspace();
