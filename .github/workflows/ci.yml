@@ -38,6 +38,13 @@ jobs:
           node-version: "20"
       - name: Install dependencies
         run: npm ci
+      - name: Generate Prisma Client
+        # Explicit, not relying on @prisma/client's own postinstall hook -
+        # confirmed by reproducing this workflow's exact steps in a genuinely
+        # fresh clone that relying on the implicit postinstall left the
+        # generated client incomplete, cascading into dozens of unrelated
+        # "implicitly has an 'any' type" errors in the Type-check step below.
+        run: npx prisma generate
       - name: Type-check
         run: npx tsc --noEmit
       - name: Lint
