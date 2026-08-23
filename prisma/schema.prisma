@@ -41,6 +41,7 @@ model Workspace {
   bookSummaries     BookSummary[]
   segments          Segment[]
   products          Product[]
+  capabilityRunConfigs CapabilityRunConfig[]
 
   @@map("workspaces")
 }
@@ -97,6 +98,27 @@ model RateLimitBucket {
   resetAt DateTime
 
   @@map("rate_limit_buckets")
+}
+
+// How often a workspace's own agentic capability (Health, Onboarding, etc.)
+// recomputes - see src/lib/capabilityRuns.ts. Defaults to "on_demand" (never
+// runs automatically) when no row exists for a workspace/capability pair, so
+// a workspace does nothing at all - and spends nothing - until it explicitly
+// opts in to a schedule or clicks Run Now. "capability" is a plain string,
+// not an enum, checked against an allowlist in code (ALLOWED_CAPABILITIES in
+// capabilityRuns.ts) - same pattern as ALLOWED_DATE_FORMATS/ALLOWED_LANGUAGES
+// in settingsValidation.ts, so adding a new capability later is a one-line
+// code change, not a migration.
+model CapabilityRunConfig {
+  workspaceId String
+  capability  String
+  schedule    String    @default("on_demand") // "on_demand" | "daily" | "weekly"
+  lastRunAt   DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@id([workspaceId, capability])
+  @@map("capability_run_configs")
 }
 
 // The managed customer record – deliberately NOT called "Account" (see README.md).

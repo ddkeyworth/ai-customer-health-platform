@@ -9,8 +9,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { noEmDash } from "../text";
 
-const anthropic = new Anthropic();
-
 const SUMMARY_TOOL = {
   name: "record_book_summary",
   description: "Record a synthesized executive summary across the given set of customers' Health reads.",
@@ -27,7 +25,8 @@ const SUMMARY_TOOL = {
   },
 };
 
-export async function computeBookSummary(customerIds: string[]): Promise<string> {
+export async function computeBookSummary(customerIds: string[], apiKey: string): Promise<string> {
+  const anthropic = new Anthropic({ apiKey });
   const snapshots = await prisma.healthScoreSnapshot.findMany({
     where: { customerId: { in: customerIds } },
     include: { customer: true },

@@ -1,45 +1,25 @@
-// One-off batch: computes and stores a HealthScoreSnapshot for every
-// Customer. Deliberately NOT run live on every page load - that would
-// mean an Anthropic API call every time someone views the Health page.
-// Re-run this manually whenever the seed data changes. See README.md.
-
+// CLI entry point - real logic lives in src/lib/health/computeHealthScores.ts
+// so it can also be imported by src/lib/capabilityRuns.ts (Run Now / the
+// daily cron) without this file's own main() running as a side effect.
+//
+// Usage: npx tsx prisma/compute-health-scores.ts [workspaceId]
+// With no argument, processes every workspace that has an Anthropic key
+// configured in Settings, one after another.
 import { PrismaClient } from "@prisma/client";
-import { computeBaseline } from "../src/lib/health/baseline";
-import { computeAgenticLayer } from "../src/lib/health/agenticLayer";
+import { computeHealthScoresForWorkspace } from "../src/lib/health/computeHealthScores";
 
 const prisma = new PrismaClient();
 
-function tierLabelFor(score: number): string {
-  if (score >= 85) return "Thriving";
-  if (score >= 60) return "Stable";
-  if (score >= 40) return "Watch";
-  return "Critical";
-}
-
 async function main() {
-  const customers = await prisma.customer.findMany();
-  console.log(`Computing Health scores for ${customers.length} customers...`);
+  const argWorkspaceId = process.argv[2];
 
-  for (const customer of customers) {
-    const { baselineScore, drivers } = await computeBaseline(customer.id);
-    const agentic = await computeAgenticLayer(customer.id, baselineScore, drivers);
-    const compositeScore = Math.max(0, Math.min(100, baselineScore + agentic.adjustmentDelta));
-
-    await prisma.healthScoreSnapshot.create({
-      data: {
-        customerId: customer.id,
-        baselineScore,
-        adjustmentDelta: agentic.adjustmentDelta,
-        adjustmentReason: agentic.adjustmentReason,
-        compositeScore,
-        tierLabel: tierLabelFor(compositeScore),
-        confidenceLevel: agentic.confidenceLevel,
-        driverValues: drivers as unknown as object,
-        narrative: agentic.narrative,
-      },
-    });
-
-    console.log(`  ${customer.name}: baseline ${baselineScore}, adjustment ${agentic.adjustmentDelta}, composite ${compositeScore}`);
+  if (argWorkspaceId) {
+    await computeHealthScoresForWorkspace(argWorkspaceId);
+  } else {
+    const workspaces = await prisma.workspace.findMany({ where: { anthropicApiKeyEncrypted: { not: null } } });
+    for (const ws of workspaces) {
+      await computeHealthScoresForWorkspace(ws.id);
+    }
   }
 
   console.log("Done.");

@@ -10,7 +10,6 @@ import { DriverResult } from "./drivers";
 import { noEmDash } from "../text";
 
 const prisma = new PrismaClient();
-const anthropic = new Anthropic();
 
 const ADJUSTMENT_TOOL = {
   name: "record_health_adjustment",
@@ -65,8 +64,10 @@ export interface AgenticResult {
 export async function computeAgenticLayer(
   customerId: string,
   baselineScore: number,
-  drivers: DriverResult[]
+  drivers: DriverResult[],
+  apiKey: string
 ): Promise<AgenticResult> {
+  const anthropic = new Anthropic({ apiKey });
   const customer = await prisma.customer.findUniqueOrThrow({
     where: { id: customerId },
     include: { products: true },

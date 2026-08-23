@@ -33,6 +33,11 @@ export async function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
+// /api/* is excluded here - it's machine-callable, not browser-page traffic,
+// and each route owns its own auth strategy (e.g. run-capabilities checks
+// CRON_SECRET, since Vercel's cron invocation carries no session cookie at
+// all to check). This was the exact gap flagged in the comment above before
+// an API route actually existed to expose it.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|icon.svg).*)"],
 };
