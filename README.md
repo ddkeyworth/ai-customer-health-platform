@@ -156,6 +156,8 @@ Nine assert-based regression scripts (each throws and exits non-zero on failure,
 
 Everything else (workspace scoping as exercised through the actual pages, the marketing page, and the rest of Onboarding/Adoption/Expansion/Renewal beyond the pace calculation above) is still verified interactively only, logged in `TESTING.md` - a stated, known gap, not silently left implicit.
 
+**CI:** `.github/workflows/ci.yml` runs `tsc`, `lint`, `build`, and the full assert-based suite above on every push - the same pattern already used on [ai-inbound-triage-agent](https://github.com/ddkeyworth/ai-inbound-triage-agent) and [exampleco-ai-test](https://github.com/ddkeyworth/exampleco-ai-test). Needs `DATABASE_URL` and `SECRET_ENCRYPTION_KEY` added as repo secrets to actually run - not `ANTHROPIC_API_KEY`, since nothing in the suite calls the real API.
+
 ## Tech stack
 
 Next.js (App Router) + TypeScript, Tailwind CSS, Inter (Google Fonts, open-licensed), Prisma (pinned to v6 for its simpler schema-only datasource config) on Postgres (Neon free tier), Anthropic API for Layer 2 reasoning, bcrypt + hand-rolled database-backed sessions for auth (see [Authentication](#authentication)) – email/password only, no third-party OAuth, so no real identity provider is ever contacted. Deployment-scale rate limiting runs on the same Postgres database rather than a separate paid service (see [Stage 2](#stage-2-live-deployment)). A daily Vercel Cron job drives scheduled capability runs (see [Automation](#automation)). Both the database and the Anthropic key are free-tier/spend-capped with no payment method attached, and are local-only credentials, not deployed anywhere public.

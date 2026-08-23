@@ -1,0 +1,52 @@
+name: CI
+
+# Type-checks, lints, builds, and runs the assert-based regression suite
+# on every push - so a regression fails the build automatically, matching
+# the pattern already used on ddkeyworth/ai-inbound-triage-agent and
+# ddkeyworth/exampleco-ai-test.
+#
+# Requires two repo secrets under Settings -> Secrets and variables ->
+# Actions - this workflow will fail until they're set, since Claude Code
+# cannot add repo secrets on your behalf:
+#   DATABASE_URL          - a Postgres connection string (the test scripts
+#                            hit a real database, same as running them
+#                            locally; none of them call the Anthropic API)
+#   SECRET_ENCRYPTION_KEY  - see .env.example for how to generate one
+#
+# Deliberately does NOT include ANTHROPIC_API_KEY - no script in the
+# assert-based suite calls the real API (prisma/test-full-pipeline.ts
+# does, but that's a separate, manual verification tool, not part of
+# this suite - see TESTING.md).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SECRET_ENCRYPTION_KEY: ${{ secrets.SECRET_ENCRYPTION_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        run: npm ci
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+      - name: Run assert-based regression suite
+        run: |
+          for f in test-auth test-workspace-secret test-settings-validation test-calibration test-segments test-workspace-scoping test-rate-limit test-capability-runs test-onboarding-pace; do
+            echo "=== $f ==="
+            npx tsx prisma/$f.ts
+          done
