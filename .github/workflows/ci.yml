@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
       - name: Install dependencies
         run: npm ci
       - name: Generate Prisma Client
@@ -43,14 +43,23 @@ jobs:
         # confirmed by reproducing this workflow's exact steps in a genuinely
         # fresh clone that relying on the implicit postinstall left the
         # generated client incomplete, cascading into dozens of unrelated
-        # "implicitly has an 'any' type" errors in the Type-check step below.
+        # "implicitly has an 'any' type" errors.
         run: npx prisma generate
-      - name: Type-check
-        run: npx tsc --noEmit
       - name: Lint
         run: npm run lint
       - name: Build
+        # Runs before the standalone Type-check step below, not after - Next.js
+        # generates .next/types (needed for LayoutProps<"/"> in layout.tsx) as
+        # part of building, and next build already runs its own type-check
+        # internally. A real, reproduced failure: running tsc --noEmit before
+        # this step fails with "Cannot find name 'LayoutProps'" in a genuinely
+        # fresh checkout, since that type only exists once .next/types has
+        # been generated at least once - invisible locally since a dev machine
+        # that's already run npm run build has that folder sitting there
+        # (gitignored, never committed) from a previous build.
         run: npm run build
+      - name: Type-check
+        run: npx tsc --noEmit
       - name: Run assert-based regression suite
         run: |
           for f in test-auth test-workspace-secret test-settings-validation test-calibration test-segments test-workspace-scoping test-rate-limit test-capability-runs test-onboarding-pace; do
