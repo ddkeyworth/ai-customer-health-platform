@@ -140,7 +140,7 @@ Every capability that costs real money (today: Health scoring) is configurable p
 
 ## Test coverage
 
-Eight assert-based regression scripts (each throws and exits non-zero on failure, rather than printing output for a human to eyeball), all under `prisma/` and run via `npx tsx prisma/<name>.ts`:
+Nine assert-based regression scripts (each throws and exits non-zero on failure, rather than printing output for a human to eyeball), all under `prisma/` and run via `npx tsx prisma/<name>.ts`:
 
 | Script | Covers |
 |---|---|
@@ -152,8 +152,9 @@ Eight assert-based regression scripts (each throws and exits non-zero on failure
 | `test-workspace-scoping.ts` | Cross-tenant isolation - creates a real throwaway second workspace and confirms its data never leaks into another workspace's queries, the actual IDOR guard, not just reasoned about |
 | `test-rate-limit.ts` | The rate limiter - blocks over the limit, independent keys don't interfere, a window correctly expires, and a concurrency test proving the atomic upsert prevents a race from over-counting |
 | `test-capability-runs.ts` | `isDue()`'s schedule math (on_demand/daily/weekly against every relevant time boundary) and that `runCapability()` refuses to run for a workspace with no key configured |
+| `test-onboarding-pace.ts` | The days-overdue calculation shared by Onboarding and Briefing - no date, a past date, a future date, and the exact-today boundary |
 
-Everything else (workspace scoping as exercised through the actual pages, the marketing page, Onboarding/Adoption/Expansion/Renewal) is still verified interactively only, logged in `TESTING.md` - a stated, known gap, not silently left implicit.
+Everything else (workspace scoping as exercised through the actual pages, the marketing page, and the rest of Onboarding/Adoption/Expansion/Renewal beyond the pace calculation above) is still verified interactively only, logged in `TESTING.md` - a stated, known gap, not silently left implicit.
 
 ## Tech stack
 

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { tierColor } from "@/lib/health/ui";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { resolveActiveSegment } from "@/lib/activeSegment";
+import { computeDaysOverdue } from "@/lib/onboarding/pace";
 
 export const dynamic = "force-dynamic";
 
@@ -32,12 +33,7 @@ export default async function OnboardingPage({
   });
 
   const now = new Date();
-  const withPace = rows.map((r) => {
-    const daysOverdue = r.expectedGoLiveDate
-      ? Math.round((now.getTime() - r.expectedGoLiveDate.getTime()) / 86400000)
-      : null;
-    return { ...r, daysOverdue };
-  });
+  const withPace = rows.map((r) => ({ ...r, daysOverdue: computeDaysOverdue(r.expectedGoLiveDate, now) }));
   withPace.sort((a, b) => (b.daysOverdue ?? -9999) - (a.daysOverdue ?? -9999));
 
   const totalNewLogoArr = rows.reduce((a, r) => a + Number(r.contractualArr), 0);

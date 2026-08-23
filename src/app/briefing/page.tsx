@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { resolveActiveSegment } from "@/lib/activeSegment";
+import { computeDaysOverdue } from "@/lib/onboarding/pace";
 
 export const dynamic = "force-dynamic";
 
@@ -36,34 +37,39 @@ export default async function BriefingPage({
   });
 
   const now = new Date();
+
+  // Grouped by customer first, not iterated flat - Health and Expansion are
+  // customer-level facts (one snapshot, one opportunity list per customer),
+  // not per-product ones. Iterating customerProducts directly and pushing a
+  // Health/Expansion flag inside that loop meant a customer with more than
+  // one product got the identical flag duplicated once per extra product.
+  // Onboarding and Renewal genuinely do vary by product, so those stay
+  // inside the per-product loop.
+  const productsByCustomer = new Map<string, typeof customerProducts>();
+  for (const cp of customerProducts) {
+    const list = productsByCustomer.get(cp.customerId) ?? [];
+    list.push(cp);
+    productsByCustomer.set(cp.customerId, list);
+  }
+
   const byCustomer = new Map<string, { name: string; flags: Flag[] }>();
 
-  for (const cp of customerProducts) {
-    const c = cp.customer;
+  for (const [customerId, cps] of productsByCustomer) {
+    const c = cps[0].customer;
     const flags: Flag[] = [];
     const snap = c.healthSnapshots[0];
-    const totalArr = Number(cp.contractualArr) + Number(cp.consumptionArr);
+    const totalArrAllProducts = cps.reduce((a, cp) => a + Number(cp.contractualArr) + Number(cp.consumptionArr), 0);
 
-    // Health risk.
+    // Health risk - once per customer, impact is the whole relationship's ARR.
     if (snap && (snap.tierLabel === "Watch" || snap.tierLabel === "Critical")) {
       flags.push({
         area: "Health",
         headline: `${snap.tierLabel} (score ${snap.compositeScore})`,
-        impact: totalArr,
+        impact: totalArrAllProducts,
       });
     }
 
-    // Onboarding overdue.
-    if (cp.lifecycleStatus === "onboarding" && cp.expectedGoLiveDate && cp.expectedGoLiveDate < now) {
-      const daysOverdue = Math.round((now.getTime() - cp.expectedGoLiveDate.getTime()) / 86400000);
-      flags.push({
-        area: "Onboarding",
-        headline: `${daysOverdue} days overdue on go-live`,
-        impact: Number(cp.contractualArr),
-      });
-    }
-
-    // Expansion opportunities.
+    // Expansion opportunities - once per customer.
     if (c.opportunities.length > 0) {
       const arr = c.opportunities.reduce((a, o) => a + Number(o.estimatedArr), 0);
       flags.push({
@@ -73,24 +79,34 @@ export default async function BriefingPage({
       });
     }
 
-    // Renewal risk: within 45 days and interrupted or at-risk.
-    if (cp.renewalDate) {
-      const daysToRenewal = Math.round((cp.renewalDate.getTime() - now.getTime()) / 86400000);
-      const atRisk = c.renewalType === "interrupted" || (snap && (snap.tierLabel === "Watch" || snap.tierLabel === "Critical"));
-      if (daysToRenewal >= 0 && daysToRenewal <= 45 && atRisk) {
+    for (const cp of cps) {
+      const totalArr = Number(cp.contractualArr) + Number(cp.consumptionArr);
+
+      // Onboarding overdue - per product.
+      if (cp.lifecycleStatus === "onboarding" && cp.expectedGoLiveDate && cp.expectedGoLiveDate < now) {
+        const daysOverdue = computeDaysOverdue(cp.expectedGoLiveDate, now);
         flags.push({
-          area: "Renewal",
-          headline: `Renews in ${daysToRenewal} days, ${c.renewalType === "interrupted" ? "interrupted" : "Health at risk"}`,
-          impact: totalArr,
+          area: "Onboarding",
+          headline: `${daysOverdue} days overdue on go-live`,
+          impact: Number(cp.contractualArr),
         });
+      }
+
+      // Renewal risk: within 45 days and interrupted or at-risk - per product.
+      if (cp.renewalDate) {
+        const daysToRenewal = Math.round((cp.renewalDate.getTime() - now.getTime()) / 86400000);
+        const atRisk = c.renewalType === "interrupted" || (snap && (snap.tierLabel === "Watch" || snap.tierLabel === "Critical"));
+        if (daysToRenewal >= 0 && daysToRenewal <= 45 && atRisk) {
+          flags.push({
+            area: "Renewal",
+            headline: `Renews in ${daysToRenewal} days, ${c.renewalType === "interrupted" ? "interrupted" : "Health at risk"}`,
+            impact: totalArr,
+          });
+        }
       }
     }
 
-    if (flags.length > 0) {
-      const existing = byCustomer.get(c.id);
-      if (existing) existing.flags.push(...flags);
-      else byCustomer.set(c.id, { name: c.name, flags });
-    }
+    if (flags.length > 0) byCustomer.set(customerId, { name: c.name, flags });
   }
 
   const rows = [...byCustomer.entries()]
