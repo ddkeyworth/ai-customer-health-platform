@@ -4,6 +4,7 @@ A conceptual exploration of an agentic-AI Customer Success platform – planned 
 
 > No AI reads every account right. It gets you close enough, fast enough, to act. Across onboarding, health, expansion, and renewal.
 
+![Login screen, real screenshot](docs/screenshots/login-screenshot.png)
 ![Home screen, real screenshot](docs/screenshots/home-screenshot.png)
 ![Health screen, real screenshot](docs/screenshots/health-screenshot.png)
 ![Health scoring architecture](docs/screenshots/health-scoring-architecture.svg)
@@ -11,7 +12,7 @@ A conceptual exploration of an agentic-AI Customer Success platform – planned 
 ![Settings, real screenshot](docs/screenshots/competitor-config-screenshot.png)
 ![Marketing page, real screenshot](docs/screenshots/marketing-screenshot.png)
 
-All five screenshots above are real captures of the actual running app (`/`, `/health`, `/health/[customerId]`, `/settings`, `/marketing`), seeded with the synthetic data described below – not mockups. `health-scoring-architecture.svg` is the one remaining diagram, not a screenshot.
+All six screenshots above are real captures of the actual running app (`/login`, `/`, `/health`, `/health/[customerId]`, `/settings`, `/marketing`), taken against the live production deployment with the synthetic data described below – not mockups. `health-scoring-architecture.svg` is the one remaining diagram, not a screenshot. Regenerate them anytime with `npm run screenshots` (`scripts/capture-screenshots.mjs`, Puppeteer-driven).
 
 The repo is named descriptively for portfolio discoverability; **"Bearing"** is the working product name used within the app and mockups themselves.
 
