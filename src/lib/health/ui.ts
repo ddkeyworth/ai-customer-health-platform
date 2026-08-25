@@ -14,6 +14,19 @@ export function tierColor(tier: string | null) {
   }
 }
 
+export function tierBorderColor(tier: string | null) {
+  switch (tier) {
+    case "Thriving":
+      return "border-green-500";
+    case "Stable":
+      return "border-blue-500";
+    case "Watch":
+      return "border-amber-500";
+    default:
+      return "border-red-500";
+  }
+}
+
 export function driverBarColor(score: number | null) {
   if (score === null) return "bg-zinc-200";
   if (score >= 85) return "bg-green-500";

@@ -122,20 +122,20 @@ export default async function BriefingPage({
 
   return (
     <div>
-      <h1 className="text-lg font-medium text-zinc-900 mb-1">
+      <h1 className="text-2xl font-semibold text-zinc-900 mb-1">
         Briefing{activeSegment ? <span className="text-zinc-400"> &middot; {activeSegment.name}</span> : null}
       </h1>
-      <p className="text-xs text-zinc-400 mb-5">{rows.length} accounts with something to review, ranked by impact</p>
+      <p className="text-sm text-zinc-500 mb-6">{rows.length} accounts with something to review, ranked by impact</p>
 
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {rows.map((r) => (
           <Link
             key={r.id}
             href={`/health/${r.id}`}
-            className="block rounded-lg bg-zinc-50 px-4 py-3 hover:bg-zinc-100"
+            className="block rounded-xl bg-white border border-zinc-200 shadow-sm px-4 py-3 hover:border-[#378ADD]/40 transition-colors"
           >
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-sm text-zinc-900">{r.name}</span>
+              <span className="text-sm text-zinc-900 font-medium">{r.name}</span>
               <span className="text-xs text-zinc-500">£{Math.round(r.totalImpact).toLocaleString("en-GB")}</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -149,7 +149,7 @@ export default async function BriefingPage({
         ))}
       </div>
 
-      <p className="mt-6 text-xs text-zinc-400">
+      <p className="mt-6 text-xs text-zinc-500">
         Consolidated by account, ranked by combined £ impact - not a raw per-signal activity feed. Pulled live from
         Health, Onboarding, Expansion, and Renewal (all real, already-computed data), not a separate stored item with
         its own review/dismiss state - approve/dismiss/snooze and the on-demand refresh the design calls for

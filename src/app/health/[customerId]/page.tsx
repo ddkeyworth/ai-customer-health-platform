@@ -32,7 +32,7 @@ export default async function CustomerHealthPage({
         <Link href="/health" className="text-sm text-zinc-500 hover:underline">
           &larr; Back to Health
         </Link>
-        <h1 className="text-lg font-medium text-zinc-900 mt-3">{customer.name}</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 mt-3">{customer.name}</h1>
         <p className="mt-2 text-sm text-zinc-600">No Health score computed yet for this customer.</p>
       </div>
     );
@@ -48,8 +48,8 @@ export default async function CustomerHealthPage({
       </Link>
 
       <div className="flex items-center justify-between mt-3 mb-1">
-        <h1 className="text-lg font-medium text-zinc-900">{customer.name}</h1>
-        <span className="text-2xl font-medium text-zinc-900">{snapshot.compositeScore}</span>
+        <h1 className="text-2xl font-semibold text-zinc-900">{customer.name}</h1>
+        <span className="text-3xl font-semibold text-[#0C447C]">{snapshot.compositeScore}</span>
       </div>
       <div className="flex items-center gap-2 mb-5">
         <span className={`text-xs px-2 py-0.5 rounded ${tierColor(snapshot.tierLabel)}`}>{snapshot.tierLabel}</span>
@@ -63,22 +63,24 @@ export default async function CustomerHealthPage({
 
       <div className="flex flex-wrap gap-2 mb-6">
         {customer.products.map((p) => (
-          <span key={p.id} className="text-xs px-2 py-1 rounded-lg bg-zinc-50 text-zinc-600">
+          <span key={p.id} className="text-xs px-2 py-1 rounded-lg bg-zinc-100 border border-zinc-200 text-zinc-700">
             {p.product.name} &middot; {p.package?.name ?? "no package"}
           </span>
         ))}
       </div>
 
-      <div className="rounded-xl bg-zinc-50 p-4 mb-6 text-sm text-zinc-800">{snapshot.narrative}</div>
+      <div className="rounded-xl bg-[#378ADD]/5 border border-[#378ADD]/20 p-4 mb-6 text-sm text-zinc-800">
+        {snapshot.narrative}
+      </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-6 text-sm">
-        <div className="rounded-lg bg-zinc-50 p-3">
+      <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+        <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <p className="text-xs text-zinc-500 mb-1">Baseline (Layer 1, deterministic)</p>
-          <p className="text-lg font-medium text-zinc-900">{snapshot.baselineScore}</p>
+          <p className="text-xl font-semibold text-zinc-900">{snapshot.baselineScore}</p>
         </div>
-        <div className="rounded-lg bg-zinc-50 p-3">
+        <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <p className="text-xs text-zinc-500 mb-1">Agentic adjustment (Layer 2)</p>
-          <p className="text-lg font-medium text-zinc-900">
+          <p className="text-xl font-semibold text-zinc-900">
             {snapshot.adjustmentDelta >= 0 ? "+" : ""}
             {snapshot.adjustmentDelta}
           </p>

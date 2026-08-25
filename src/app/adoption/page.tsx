@@ -52,51 +52,53 @@ export default async function AdoptionPage({
 
   return (
     <div>
-      <h1 className="text-lg font-medium text-zinc-900 mb-1">
+      <h1 className="text-2xl font-semibold text-zinc-900 mb-1">
         Adoption{activeSegment ? <span className="text-zinc-400"> &middot; {activeSegment.name}</span> : null}
       </h1>
-      <p className="text-xs text-zinc-400 mb-5">{liveProducts.length} live accounts</p>
+      <p className="text-sm text-zinc-500 mb-6">{liveProducts.length} live accounts</p>
 
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="rounded-lg bg-zinc-50 p-3">
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <p className="text-xs text-zinc-500">Average capability breadth</p>
-          <p className="text-xl font-medium text-zinc-900">{avgBreadth}%</p>
+          <p className="text-2xl font-semibold text-zinc-900 mt-1">{avgBreadth}%</p>
         </div>
-        <div className="rounded-lg bg-zinc-50 p-3">
+        <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <p className="text-xs text-zinc-500">Accounts below 50% breadth</p>
-          <p className="text-xl font-medium text-zinc-900">{rows.filter((r) => r.breadthPct < 50).length}</p>
+          <p className="text-2xl font-semibold text-zinc-900 mt-1">{rows.filter((r) => r.breadthPct < 50).length}</p>
         </div>
       </div>
 
       <p className="text-xs text-zinc-500 mb-2">By Capability, across live accounts</p>
-      <div className="grid grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-5 gap-4 mb-6">
         {capStats.map((c) => (
-          <div key={c.id} className="rounded-lg bg-zinc-50 p-3">
+          <div key={c.id} className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
             <p className="text-xs text-zinc-500">{c.name}</p>
-            <p className="text-lg font-medium text-zinc-900">
+            <p className="text-2xl font-semibold text-zinc-900 mt-1">
               {c.usedByLive}/{c.liveTotal}
             </p>
-            <p className="text-[10px] text-zinc-400">{c.metricType}</p>
+            <p className="text-[10px] text-zinc-500">{c.metricType}</p>
           </div>
         ))}
       </div>
 
       <p className="text-xs text-zinc-500 mb-2">By account, lowest breadth first</p>
+      <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4 overflow-x-auto">
       <table className="w-full text-sm">
+
         <thead>
           <tr className="text-left text-zinc-500 border-b border-zinc-200">
-            <th className="pb-2 font-medium">Customer</th>
-            <th className="pb-2 font-medium">Package</th>
-            <th className="pb-2 font-medium">Capabilities used</th>
-            <th className="pb-2 font-medium">Breadth</th>
-            <th className="pb-2 font-medium">Consumption ARR</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Customer</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Package</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Capabilities used</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Breadth</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Consumption ARR</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.cp.id} className="border-b border-zinc-100">
               <td className="py-3 pr-3 whitespace-nowrap">
-                <Link href={`/health/${r.cp.customerId}`} className="text-zinc-900 hover:underline">
+                <Link href={`/health/${r.cp.customerId}`} className="text-zinc-900 font-medium hover:text-[#378ADD] hover:underline">
                   {r.cp.customer.name}
                 </Link>
               </td>
@@ -120,8 +122,9 @@ export default async function AdoptionPage({
           ))}
         </tbody>
       </table>
+      </div>
 
-      <p className="mt-6 text-xs text-zinc-400">
+      <p className="mt-6 text-xs text-zinc-500">
         Usage-depth and consumption trend per account (growing/flat/declining), plus Desired Outcome progress
         (against &quot;why the customer bought this&quot;), are already computed for Health - see the driver
         breakdown on each account&apos;s Health page. Not yet shown here on Adoption itself, alongside the other

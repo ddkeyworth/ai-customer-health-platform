@@ -35,19 +35,21 @@ export default async function TopBar() {
     .toUpperCase();
 
   return (
-    <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-3">
+    <div className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-3">
       <div className="flex items-center gap-3">
-        <div className="h-5 w-5 rounded bg-zinc-300" aria-hidden />
-        <span className="text-sm text-zinc-600">{workspace.name} workspace</span>
+        <svg viewBox="-9 -38 18 76" width="14" height="14" aria-hidden>
+          <polygon points="0,-38 9,0 0,38 -9,0" fill="#378ADD" />
+        </svg>
+        <span className="text-sm font-medium text-zinc-700">{workspace.name} workspace</span>
         <Suspense fallback={null}>
           <SegmentSelector segments={segments} />
         </Suspense>
       </div>
-      <div className="flex items-center gap-4 text-xs text-zinc-400">
+      <div className="flex items-center gap-4 text-xs text-zinc-500">
         <span>{today}</span>
         <span>{workspace.language === "en-GB" ? "EN-UK" : workspace.language}</span>
-        <span className="text-zinc-600">{user.name}</span>
-        <div className="h-6 w-6 rounded-full bg-blue-50 text-[10px] font-medium text-blue-800 flex items-center justify-center">
+        <span className="text-zinc-700">{user.name}</span>
+        <div className="h-6 w-6 rounded-full bg-[#0C447C]/10 text-[10px] font-medium text-[#0C447C] flex items-center justify-center">
           {initials || "U"}
         </div>
         <form action={logout}>

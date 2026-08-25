@@ -28,16 +28,16 @@ export default async function SegmentsPage() {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-lg font-medium text-zinc-900 mb-1">Segments</h1>
-      <p className="text-xs text-zinc-400 mb-5">
+      <h1 className="text-2xl font-semibold text-zinc-900 mb-1">Segments</h1>
+      <p className="text-sm text-zinc-500 mb-6">
         {segments.length} of {SEGMENT_CAP} saved segments
       </p>
 
       <div className="space-y-2 mb-6">
         {segments.length === 0 && <p className="text-sm text-zinc-500">No segments saved yet.</p>}
         {segments.map((s) => (
-          <div key={s.id} className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2">
-            <Link href={`/segments/${s.id}`} className="text-sm text-zinc-900 hover:underline">
+          <div key={s.id} className="flex items-center justify-between rounded-xl bg-white border border-zinc-200 shadow-sm px-3 py-2">
+            <Link href={`/segments/${s.id}`} className="text-sm text-zinc-900 font-medium hover:text-[#378ADD] hover:underline">
               {s.name}
             </Link>
             <div className="flex items-center gap-3">
@@ -58,29 +58,29 @@ export default async function SegmentsPage() {
           Limit of {SEGMENT_CAP} segments reached. Remove one above to save a new one.
         </p>
       ) : (
-        <form action={createSegment} className="space-y-3 rounded-xl bg-zinc-50 p-4">
+        <form action={createSegment} className="space-y-3 rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <div>
             <label className="block text-xs text-zinc-500 mb-1">Name</label>
-            <input name="name" required maxLength={80} className="w-full rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm" />
+            <input name="name" required maxLength={80} className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent" />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-xs text-zinc-500 mb-1">Industry</label>
-              <select name="industry" className="w-full rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm">
+              <select name="industry" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
                 <option value="">Any</option>
                 {industries.map((i) => i.industry && <option key={i.industry} value={i.industry}>{i.industry}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs text-zinc-500 mb-1">Region</label>
-              <select name="region" className="w-full rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm">
+              <select name="region" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
                 <option value="">Any</option>
                 {regions.map((r) => r.region && <option key={r.region} value={r.region}>{r.region}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs text-zinc-500 mb-1">Tier</label>
-              <select name="tier" className="w-full rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm">
+              <select name="tier" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
                 <option value="">Any</option>
                 {tiers.map((t) => t.tier && <option key={t.tier} value={t.tier}>{t.tier}</option>)}
               </select>
@@ -89,7 +89,7 @@ export default async function SegmentsPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-zinc-500 mb-1">Renewal type</label>
-              <select name="renewalType" className="w-full rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm">
+              <select name="renewalType" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
                 <option value="">Any</option>
                 <option value="auto">Auto</option>
                 <option value="interrupted">Interrupted</option>
@@ -97,7 +97,7 @@ export default async function SegmentsPage() {
             </div>
             <div>
               <label className="block text-xs text-zinc-500 mb-1">Health band</label>
-              <select name="healthBand" className="w-full rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm">
+              <select name="healthBand" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
                 <option value="">Any</option>
                 <option value="Thriving">Thriving</option>
                 <option value="Stable">Stable</option>
@@ -106,13 +106,13 @@ export default async function SegmentsPage() {
               </select>
             </div>
           </div>
-          <button type="submit" className="rounded-lg bg-zinc-900 text-white text-sm px-3 py-1.5">
+          <button type="submit" className="rounded-lg bg-[#0C447C] hover:bg-[#0a3a69] transition-colors text-white text-sm px-3 py-1.5">
             Save segment
           </button>
         </form>
       )}
 
-      <p className="mt-6 text-xs text-zinc-400">
+      <p className="mt-6 text-xs text-zinc-500">
         Pick a segment from the selector in the top bar to re-scope every area (Home, Health, Onboarding, Adoption,
         Expansion, Renewal, Briefing) to it - it carries across navigation via the URL. Not yet built: a default
         segment per user profile (there&apos;s no user session yet to default from), and segment-scoped executive

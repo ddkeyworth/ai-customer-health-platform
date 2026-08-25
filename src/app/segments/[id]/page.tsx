@@ -21,22 +21,24 @@ export default async function SegmentDetailPage({ params }: { params: Promise<{ 
       <Link href="/segments" className="text-sm text-zinc-500 hover:underline">
         &larr; Back to Segments
       </Link>
-      <h1 className="text-lg font-medium text-zinc-900 mt-3 mb-1">{segment.name}</h1>
-      <p className="text-xs text-zinc-400 mb-5">
+      <h1 className="text-2xl font-semibold text-zinc-900 mt-3 mb-1">{segment.name}</h1>
+      <p className="text-sm text-zinc-500 mb-6">
         {customers.length} matching customers &middot;{" "}
         {Object.entries(criteria)
           .map(([k, v]) => `${k}: ${v}`)
           .join(", ") || "no filters"}
       </p>
 
+      <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4 overflow-x-auto">
       <table className="w-full text-sm">
+
         <thead>
           <tr className="text-left text-zinc-500 border-b border-zinc-200">
-            <th className="pb-2 font-medium">Customer</th>
-            <th className="pb-2 font-medium">Industry</th>
-            <th className="pb-2 font-medium">Region</th>
-            <th className="pb-2 font-medium">Tier</th>
-            <th className="pb-2 font-medium">Health</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Customer</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Industry</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Region</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Tier</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Health</th>
           </tr>
         </thead>
         <tbody>
@@ -45,7 +47,7 @@ export default async function SegmentDetailPage({ params }: { params: Promise<{ 
             return (
               <tr key={c.id} className="border-b border-zinc-100">
                 <td className="py-3 pr-3 whitespace-nowrap">
-                  <Link href={`/health/${c.id}`} className="text-zinc-900 hover:underline">
+                  <Link href={`/health/${c.id}`} className="text-zinc-900 font-medium hover:text-[#378ADD] hover:underline">
                     {c.name}
                   </Link>
                 </td>
@@ -64,6 +66,7 @@ export default async function SegmentDetailPage({ params }: { params: Promise<{ 
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

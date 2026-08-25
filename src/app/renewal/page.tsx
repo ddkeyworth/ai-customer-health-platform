@@ -58,31 +58,33 @@ export default async function RenewalPage({
 
   return (
     <div>
-      <h1 className="text-lg font-medium text-zinc-900 mb-1">
+      <h1 className="text-2xl font-semibold text-zinc-900 mb-1">
         Renewal{activeSegment ? <span className="text-zinc-400"> &middot; {activeSegment.name}</span> : null}
       </h1>
-      <p className="text-xs text-zinc-400 mb-5">{next90.length} accounts renewing in the next 90 days</p>
+      <p className="text-sm text-zinc-500 mb-6">{next90.length} accounts renewing in the next 90 days</p>
 
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="rounded-lg bg-zinc-50 p-3">
-          <p className="text-xs text-zinc-500">Projected churn, next 90 days ($, estimate)</p>
-          <p className="text-xl font-medium text-zinc-900">£{Math.round(projectedChurnArr).toLocaleString("en-GB")}</p>
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
+          <p className="text-xs text-zinc-500">Projected churn, next 90 days (&pound;, estimate)</p>
+          <p className="text-2xl font-semibold text-zinc-900 mt-1">£{Math.round(projectedChurnArr).toLocaleString("en-GB")}</p>
         </div>
-        <div className="rounded-lg bg-zinc-50 p-3">
+        <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <p className="text-xs text-zinc-500">Projected churn (accounts, estimate)</p>
-          <p className="text-xl font-medium text-zinc-900">{projectedChurnUnits}</p>
+          <p className="text-2xl font-semibold text-zinc-900 mt-1">{projectedChurnUnits}</p>
         </div>
       </div>
 
+      <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4 overflow-x-auto">
       <table className="w-full text-sm">
+
         <thead>
           <tr className="text-left text-zinc-500 border-b border-zinc-200">
-            <th className="pb-2 font-medium">Customer</th>
-            <th className="pb-2 font-medium">Renewal date</th>
-            <th className="pb-2 font-medium">Type</th>
-            <th className="pb-2 font-medium">Base ARR at risk</th>
-            <th className="pb-2 font-medium">Consumption ARR at risk</th>
-            <th className="pb-2 font-medium">Health</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Customer</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Renewal date</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Type</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Base ARR at risk</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Consumption ARR at risk</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Health</th>
           </tr>
         </thead>
         <tbody>
@@ -91,7 +93,7 @@ export default async function RenewalPage({
             return (
               <tr key={r.id} className="border-b border-zinc-100">
                 <td className="py-3 pr-3 whitespace-nowrap">
-                  <Link href={`/health/${r.customerId}`} className="text-zinc-900 hover:underline">
+                  <Link href={`/health/${r.customerId}`} className="text-zinc-900 font-medium hover:text-[#378ADD] hover:underline">
                     {r.customer.name}
                   </Link>
                 </td>
@@ -119,8 +121,9 @@ export default async function RenewalPage({
           })}
         </tbody>
       </table>
+      </div>
 
-      <p className="mt-6 text-xs text-zinc-400">
+      <p className="mt-6 text-xs text-zinc-500">
         Projected churn is illustrative, not a validated model - likelihood is read straight off the Health band
         (Critical 60%, Watch 30%, Stable 10%, Thriving 2%), not from the calibration loop the real design calls for
         (not built yet). Gross Renewal Rate isn&apos;t shown - it needs realized won/lost renewal outcomes over time,

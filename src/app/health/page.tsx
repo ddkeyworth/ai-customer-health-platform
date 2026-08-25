@@ -34,7 +34,7 @@ export default async function HealthPage({
   if (rows.length === 0) {
     return (
       <div className="max-w-2xl">
-        <h1 className="text-lg font-medium text-zinc-900">Health</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900">Health</h1>
         <p className="mt-2 text-sm text-zinc-600">
           {activeSegment
             ? `No customers in the "${activeSegment.name}" segment have a Health score yet.`
@@ -62,16 +62,16 @@ export default async function HealthPage({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <h1 className="text-lg font-medium text-zinc-900">
-          Health{activeSegment ? <span className="text-zinc-400"> &middot; {activeSegment.name}</span> : null}
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-semibold text-zinc-900">
+          Health{activeSegment ? <span className="text-zinc-400 font-normal"> &middot; {activeSegment.name}</span> : null}
         </h1>
-        <span className="text-xs text-zinc-400">
+        <span className="text-xs text-zinc-500">
           {rows.length} customers &middot; computed {rows[0].computedAt.toLocaleDateString("en-GB")}
         </span>
       </div>
 
-      <div className="rounded-xl bg-zinc-50 p-4 mb-5 text-sm text-zinc-800">
+      <div className="rounded-xl bg-[#378ADD]/5 border border-[#378ADD]/20 p-4 mb-6 text-sm text-zinc-800">
         {activeSegment ? (
           <span className="text-zinc-500">
             Executive summaries are only precomputed for the whole book - not yet generated per segment.
@@ -85,30 +85,32 @@ export default async function HealthPage({
         )}
       </div>
 
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-4 gap-4 mb-6">
         {(["Thriving", "Stable", "Watch", "Critical"] as const).map((band) => (
-          <div key={band} className="rounded-lg bg-zinc-50 p-3">
+          <div key={band} className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
             <p className="text-xs text-zinc-500">{band}</p>
-            <p className="text-xl font-medium text-zinc-900">{bandCounts[band]}</p>
+            <p className="text-2xl font-semibold text-zinc-900 mt-1">{bandCounts[band]}</p>
           </div>
         ))}
       </div>
 
+      <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4 overflow-x-auto">
       <table className="w-full text-sm">
+
         <thead>
           <tr className="text-left text-zinc-500 border-b border-zinc-200">
-            <th className="pb-2 font-medium">Customer</th>
-            <th className="pb-2 font-medium">Score</th>
-            <th className="pb-2 font-medium">Band</th>
-            <th className="pb-2 font-medium">Adjustment</th>
-            <th className="pb-2 font-medium">Narrative</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Customer</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Score</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Band</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Adjustment</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Narrative</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.id} className="border-b border-zinc-100 align-top">
               <td className="py-3 pr-3 whitespace-nowrap">
-                <Link href={`/health/${r.customerId}`} className="text-zinc-900 hover:underline">
+                <Link href={`/health/${r.customerId}`} className="text-zinc-900 font-medium hover:text-[#378ADD] hover:underline">
                   {r.customer.name}
                 </Link>
               </td>
@@ -125,8 +127,9 @@ export default async function HealthPage({
           ))}
         </tbody>
       </table>
+      </div>
 
-      <p className="mt-6 text-xs text-zinc-400">
+      <p className="mt-6 text-xs text-zinc-500">
         Every score above was computed for real: a deterministic baseline (see <code>src/lib/health/baseline.ts</code>) plus a
         bounded, evidence-grounded Anthropic adjustment (see <code>src/lib/health/agenticLayer.ts</code>), stored in{" "}
         <code>HealthScoreSnapshot</code>. All customers and data are synthetic. See README.md.

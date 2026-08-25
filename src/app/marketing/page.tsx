@@ -57,7 +57,7 @@ export default function MarketingPage() {
     <div className="min-h-screen bg-white text-zinc-900">
       <header className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 max-w-5xl mx-auto">
         <div className="flex items-center gap-3">
-          <Logo height="1.1em" />
+          <Logo height="1.1em" className="text-[#0C447C]" />
           <span className="text-[10px] rounded-full bg-zinc-100 text-zinc-500 px-2 py-0.5">
             Mobile app – coming soon
           </span>
@@ -71,14 +71,14 @@ export default function MarketingPage() {
           >
             Docs
           </a>
-          <Link href="/" className="rounded-lg bg-zinc-900 text-white px-3 py-1.5 hover:bg-zinc-800">
+          <Link href="/" className="rounded-lg bg-[#0C447C] hover:bg-[#0a3a69] transition-colors text-white px-3 py-1.5">
             Open the app
           </Link>
         </nav>
       </header>
 
       <section className="max-w-3xl mx-auto text-center px-6 py-20">
-        <h1 className="text-3xl font-medium text-zinc-900 mb-4">
+        <h1 className="text-3xl font-semibold text-zinc-900 mb-4">
           No AI reads every account right.
         </h1>
         <p className="text-lg text-zinc-600 mb-8">
@@ -86,13 +86,13 @@ export default function MarketingPage() {
         </p>
         <Link
           href="/"
-          className="inline-block rounded-lg bg-zinc-900 text-white px-5 py-2.5 text-sm hover:bg-zinc-800"
+          className="inline-block rounded-lg bg-[#0C447C] hover:bg-[#0a3a69] transition-colors text-white px-5 py-2.5 text-sm font-medium"
         >
           Explore the live build
         </Link>
-        <p className="mt-3 text-xs text-zinc-400">
+        <p className="mt-3 text-xs text-zinc-500">
           Real scoring engine, real synthetic data – not a static mockup. See{" "}
-          <a href="#trust" className="underline">what&apos;s actually real</a> below.
+          <a href="#trust" className="text-[#378ADD] hover:underline">what&apos;s actually real</a> below.
         </p>
       </section>
 
@@ -100,8 +100,8 @@ export default function MarketingPage() {
         <h2 className="text-sm font-medium text-zinc-500 mb-6 text-center">One lifecycle, five areas</h2>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           {AREAS.map((a) => (
-            <div key={a.name} className="rounded-xl bg-zinc-50 p-4">
-              <p className="text-sm font-medium text-zinc-900 mb-1.5">{a.name}</p>
+            <div key={a.name} className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
+              <p className="text-sm font-medium text-[#0C447C] mb-1.5">{a.name}</p>
               <p className="text-xs text-zinc-600 leading-relaxed">{a.copy}</p>
             </div>
           ))}
@@ -110,7 +110,7 @@ export default function MarketingPage() {
 
       <section id="pricing" className="max-w-5xl mx-auto px-6 py-16 border-t border-zinc-100">
         <h2 className="text-sm font-medium text-zinc-500 mb-1 text-center">Illustrative pricing</h2>
-        <p className="text-xs text-zinc-400 mb-8 text-center">
+        <p className="text-xs text-zinc-500 mb-8 text-center">
           Two-axis: seats and tracked-account volume, not seats alone – a CS org with few users but a large book
           shouldn&apos;t be priced like a seat-only tool. Figures are illustrative, not a real price list.
         </p>
@@ -118,10 +118,10 @@ export default function MarketingPage() {
           {TIERS.map((t) => (
             <div
               key={t.name}
-              className={`rounded-xl p-5 border ${t.highlighted ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 bg-white"}`}
+              className={`rounded-xl p-5 border shadow-sm ${t.highlighted ? "border-[#0C447C] bg-[#0C447C] text-white" : "border-zinc-200 bg-white"}`}
             >
               <p className="text-sm font-medium mb-1">{t.name}</p>
-              <p className={`text-xs mb-4 ${t.highlighted ? "text-zinc-300" : "text-zinc-500"}`}>{t.blurb}</p>
+              <p className={`text-xs mb-4 ${t.highlighted ? "text-blue-100/80" : "text-zinc-500"}`}>{t.blurb}</p>
               <p className="text-xs mb-1">{t.seats}</p>
               <p className="text-xs">{t.volume}</p>
             </div>
@@ -135,15 +135,18 @@ export default function MarketingPage() {
           This is a portfolio project, not a real company or live product. The Health-scoring engine, the 10
           dashboard screens, and the data model are genuinely built and run against real (synthetic) seeded data and
           real Anthropic API calls – see{" "}
-          <a href="https://github.com/ddkeyworth/ai-customer-health-platform" className="underline">
+          <a href="https://github.com/ddkeyworth/ai-customer-health-platform" className="text-[#378ADD] hover:underline">
             the repo&apos;s README and TESTING.md
           </a>{" "}
           for what&apos;s been verified, not just claimed.
         </p>
         <p className="text-sm text-zinc-600 leading-relaxed">
-          There is no live public deployment – this runs locally only. If it were deployed, the stack would be
-          Next.js on Vercel with Postgres on Neon (the same free-tier services already used for local development),
-          gated on real auth and rate limiting first.
+          Live at{" "}
+          <a href="https://bearing360.vercel.app" className="text-[#378ADD] hover:underline">
+            bearing360.vercel.app
+          </a>{" "}
+          - Next.js on Vercel with Postgres on Neon (both free-tier, spend-capped), gated on real auth and rate
+          limiting. No real customer data anywhere, and no outbound network call beyond the Anthropic API itself.
         </p>
       </section>
 
@@ -182,10 +185,11 @@ export default function MarketingPage() {
             </div>
           </div>
 
-          <div id="legal" className="rounded-xl bg-zinc-50 p-4 text-xs text-zinc-500 leading-relaxed mb-6">
+          <div id="legal" className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4 text-xs text-zinc-500 leading-relaxed mb-6">
             <p className="mb-2">
               <span className="font-medium text-zinc-700">Security:</span> design principles only – no real
-              security audit, certification, or hardened infrastructure exists for this local-only build.
+              security audit, certification, or formal hardening exists beyond the auth/rate-limiting built and
+              documented in the repo.
             </p>
             <p className="mb-2">
               <span className="font-medium text-zinc-700">Terms of Service:</span> not a real service, so there are
@@ -193,12 +197,11 @@ export default function MarketingPage() {
             </p>
             <p>
               <span className="font-medium text-zinc-700">Privacy Policy:</span> every customer, person, and
-              interaction in this build is synthetic. Nothing real is ever collected, because this doesn&apos;t run
-              as a live product.
+              interaction in this build is synthetic. No real personal data is ever entered or collected, by design.
             </p>
           </div>
 
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-zinc-500">
             &copy; 2026 Bearing. Bearing is a portfolio demo project – not a real company or live product.
           </p>
         </div>

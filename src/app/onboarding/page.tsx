@@ -41,34 +41,36 @@ export default async function OnboardingPage({
 
   return (
     <div>
-      <h1 className="text-lg font-medium text-zinc-900 mb-1">
+      <h1 className="text-2xl font-semibold text-zinc-900 mb-1">
         Onboarding{activeSegment ? <span className="text-zinc-400"> &middot; {activeSegment.name}</span> : null}
       </h1>
-      <p className="text-xs text-zinc-400 mb-5">{rows.length} accounts currently onboarding</p>
+      <p className="text-sm text-zinc-500 mb-6">{rows.length} accounts currently onboarding</p>
 
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <div className="rounded-lg bg-zinc-50 p-3">
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <p className="text-xs text-zinc-500">New Logo ARR (onboarding)</p>
-          <p className="text-xl font-medium text-zinc-900">£{totalNewLogoArr.toLocaleString("en-GB")}</p>
+          <p className="text-2xl font-semibold text-zinc-900 mt-1">£{totalNewLogoArr.toLocaleString("en-GB")}</p>
         </div>
-        <div className="rounded-lg bg-zinc-50 p-3">
+        <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <p className="text-xs text-zinc-500">Behind expected go-live</p>
-          <p className="text-xl font-medium text-zinc-900">{overdueCount}</p>
+          <p className="text-2xl font-semibold text-zinc-900 mt-1">{overdueCount}</p>
         </div>
-        <div className="rounded-lg bg-zinc-50 p-3">
+        <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <p className="text-xs text-zinc-500">On pace</p>
-          <p className="text-xl font-medium text-zinc-900">{rows.length - overdueCount}</p>
+          <p className="text-2xl font-semibold text-zinc-900 mt-1">{rows.length - overdueCount}</p>
         </div>
       </div>
 
+      <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4 overflow-x-auto">
       <table className="w-full text-sm">
+
         <thead>
           <tr className="text-left text-zinc-500 border-b border-zinc-200">
-            <th className="pb-2 font-medium">Customer</th>
-            <th className="pb-2 font-medium">Product</th>
-            <th className="pb-2 font-medium">Expected go-live</th>
-            <th className="pb-2 font-medium">Pace</th>
-            <th className="pb-2 font-medium">Health</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Customer</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Product</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Expected go-live</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Pace</th>
+            <th className="pb-2 font-medium text-xs uppercase tracking-wide">Health</th>
           </tr>
         </thead>
         <tbody>
@@ -77,7 +79,7 @@ export default async function OnboardingPage({
             return (
               <tr key={r.id} className="border-b border-zinc-100">
                 <td className="py-3 pr-3 whitespace-nowrap">
-                  <Link href={`/health/${r.customerId}`} className="text-zinc-900 hover:underline">
+                  <Link href={`/health/${r.customerId}`} className="text-zinc-900 font-medium hover:text-[#378ADD] hover:underline">
                     {r.customer.name}
                   </Link>
                 </td>
@@ -106,8 +108,9 @@ export default async function OnboardingPage({
           })}
         </tbody>
       </table>
+      </div>
 
-      <p className="mt-6 text-xs text-zinc-400">
+      <p className="mt-6 text-xs text-zinc-500">
         Dates come from <code>CustomerProduct</code> (initial/expected/actual go-live). No date-change event log or
         cause tagging (customer/company/external) is built yet - the design calls for it, this screen doesn&apos;t
         have it. Health scores link through to the same driver-level detail as the Health screen.

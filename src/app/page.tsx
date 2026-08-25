@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { tierColor } from "@/lib/health/ui";
+import { tierColor, tierBorderColor } from "@/lib/health/ui";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { resolveActiveSegment } from "@/lib/activeSegment";
 
@@ -51,71 +51,77 @@ export default async function Home({
 
   return (
     <div>
-      <h1 className="text-lg font-medium text-zinc-900 mb-1">
-        Home{activeSegment ? <span className="text-zinc-400"> &middot; {activeSegment.name}</span> : null}
+      <h1 className="text-2xl font-semibold text-zinc-900 mb-1">
+        Home{activeSegment ? <span className="text-zinc-400 font-normal"> &middot; {activeSegment.name}</span> : null}
       </h1>
-      <p className="text-xs text-zinc-400 mb-5">
-        {activeSegment ? "Segment overview" : "Whole-book overview"}, {customerProducts.length} customer-product relationships
+      <p className="text-sm text-zinc-500 mb-6">
+        {activeSegment ? "Segment overview" : "Whole-book overview"} &middot; {customerProducts.length} customer-product
+        relationships
       </p>
 
-      <div className="grid grid-cols-3 gap-3 mb-3">
-        <div className="rounded-lg bg-zinc-50 p-3">
-          <p className="text-xs text-zinc-500">Total ARR</p>
-          <p className="text-xl font-medium text-zinc-900">£{totalArr.toLocaleString("en-GB")}</p>
+      <div className="grid grid-cols-3 gap-4 mb-4">
+        <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
+          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Total ARR</p>
+          <p className="text-2xl font-semibold text-[#0C447C] mt-1">£{totalArr.toLocaleString("en-GB")}</p>
         </div>
-        <div className="rounded-lg bg-zinc-50 p-3">
-          <p className="text-xs text-zinc-500">Contractual</p>
-          <p className="text-xl font-medium text-zinc-900">£{totalContractual.toLocaleString("en-GB")}</p>
+        <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
+          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Contractual</p>
+          <p className="text-2xl font-semibold text-zinc-900 mt-1">£{totalContractual.toLocaleString("en-GB")}</p>
         </div>
-        <div className="rounded-lg bg-zinc-50 p-3">
-          <p className="text-xs text-zinc-500">Consumption</p>
-          <p className="text-xl font-medium text-zinc-900">£{totalConsumption.toLocaleString("en-GB")}</p>
+        <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
+          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Consumption</p>
+          <p className="text-2xl font-semibold text-zinc-900 mt-1">£{totalConsumption.toLocaleString("en-GB")}</p>
         </div>
       </div>
       <p className="text-xs text-zinc-400 mb-6">
         NNAOV / Net Revenue Retention / Gross Revenue Retention aren&apos;t shown yet - those need period-over-period
-        realized bridge events (New Logo, Expansion, Contraction, Churned ARR) from Renewal, which isn&apos;t built yet
-        (screen 6/8). This is a snapshot, not a bridge.
+        realized bridge events (New Logo, Expansion, Contraction, Churned ARR) from Renewal, which isn&apos;t built yet.
+        This is a snapshot, not a bridge.
       </p>
 
-      <p className="text-xs text-zinc-500 mb-2">Health snapshot</p>
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Health snapshot</p>
+      <div className="grid grid-cols-4 gap-4 mb-6">
         {(["Thriving", "Stable", "Watch", "Critical"] as const).map((band) => (
-          <div key={band} className="rounded-lg bg-zinc-50 p-3">
+          <div
+            key={band}
+            className={`rounded-xl bg-white border border-zinc-200 border-l-4 ${tierBorderColor(band)} shadow-sm p-4`}
+          >
             <p className="text-xs text-zinc-500">{band}</p>
-            <p className="text-xl font-medium text-zinc-900">{bandCounts[band]}</p>
+            <p className="text-2xl font-semibold text-zinc-900 mt-1">{bandCounts[band]}</p>
           </div>
         ))}
       </div>
 
-      <p className="text-xs text-zinc-500 mb-2">Accounts by lifecycle stage</p>
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <div className="rounded-lg bg-zinc-50 p-3">
+      <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Accounts by lifecycle stage</p>
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <p className="text-xs text-zinc-500">Onboarding</p>
-          <p className="text-xl font-medium text-zinc-900">{stageCounts.onboarding}</p>
+          <p className="text-2xl font-semibold text-zinc-900 mt-1">{stageCounts.onboarding}</p>
         </div>
-        <div className="rounded-lg bg-zinc-50 p-3">
+        <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <p className="text-xs text-zinc-500">Live</p>
-          <p className="text-xl font-medium text-zinc-900">{stageCounts.live}</p>
+          <p className="text-2xl font-semibold text-zinc-900 mt-1">{stageCounts.live}</p>
         </div>
-        <div className="rounded-lg bg-zinc-50 p-3">
+        <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <p className="text-xs text-zinc-500">Churned</p>
-          <p className="text-xl font-medium text-zinc-900">{stageCounts.churned}</p>
+          <p className="text-2xl font-semibold text-zinc-900 mt-1">{stageCounts.churned}</p>
         </div>
       </div>
 
-      <p className="text-xs text-zinc-500 mb-2">
-        Needs attention (lowest Health scores) &middot; a real Briefing (screen 8/8) will replace this once the other
-        playbooks exist
-      </p>
-      <div className="space-y-1">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Needs attention (lowest Health scores)</p>
+        <Link href="/briefing" className="text-xs text-[#378ADD] hover:underline">
+          See full Briefing &rarr;
+        </Link>
+      </div>
+      <div className="rounded-xl bg-white border border-zinc-200 shadow-sm divide-y divide-zinc-100 overflow-hidden">
         {needsAttention.map((r) => (
           <Link
             key={r.id}
             href={`/health/${r.customerId}`}
-            className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2 text-sm hover:bg-zinc-100"
+            className="flex items-center justify-between px-4 py-3 text-sm hover:bg-zinc-50 transition-colors"
           >
-            <span className="text-zinc-900">{r.customer.name}</span>
+            <span className="text-zinc-900 font-medium">{r.customer.name}</span>
             <div className="flex items-center gap-2">
               <span className="text-zinc-500">{r.compositeScore}</span>
               <span className={`text-xs px-2 py-0.5 rounded ${tierColor(r.tierLabel)}`}>{r.tierLabel}</span>
