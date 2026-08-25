@@ -31,11 +31,17 @@ function sleep(ms: number): Promise<void> {
     const otherKey = `${testKeyPrefix}-other`;
     assert(await withinRateLimit(otherKey, 3, 60_000), "A different key has its own independent count, unaffected by the first key being exhausted");
 
+    // 500ms, not 50ms - each call is a real network round-trip to Postgres,
+    // and a tight window is fragile against real latency variance (a CI
+    // runner in a different region than the database can add tens of
+    // milliseconds on its own) - this isn't testing precise timing, just
+    // that a short window eventually expires, so generous margin costs
+    // nothing.
     const shortWindowKey = `${testKeyPrefix}-short-window`;
-    assert(await withinRateLimit(shortWindowKey, 1, 50), "First call against a 1-request, 50ms window is allowed");
-    assert(!(await withinRateLimit(shortWindowKey, 1, 50)), "A second immediate call against that same short window is blocked");
-    await sleep(75);
-    assert(await withinRateLimit(shortWindowKey, 1, 50), "After the window elapses, the same key is allowed again - it doesn't stay blocked forever");
+    assert(await withinRateLimit(shortWindowKey, 1, 500), "First call against a 1-request, 500ms window is allowed");
+    assert(!(await withinRateLimit(shortWindowKey, 1, 500)), "A second immediate call against that same short window is blocked");
+    await sleep(600);
+    assert(await withinRateLimit(shortWindowKey, 1, 500), "After the window elapses, the same key is allowed again - it doesn't stay blocked forever");
 
     const concurrentKey = `${testKeyPrefix}-concurrent`;
     const results = await Promise.all(Array.from({ length: 5 }, () => withinRateLimit(concurrentKey, 3, 60_000)));
