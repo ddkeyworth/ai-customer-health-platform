@@ -291,3 +291,18 @@ Implemented every proposal in `docs/playbook-proposals.md` after sign-off: a sha
 The README now shows all 14 screens (previously 6), recaptured against the final deployed build with `npm run screenshots`, so the AI content on Expansion, Adoption and Renewal is visible in them.
 
 `npx tsc --noEmit`, `npm run lint`, and `npm run build` all clean throughout. All 12 assert-based scripts pass, including the 3 new ones. `.puppeteerrc.cjs`'s guard was re-confirmed unaffected by this change (no new dependencies added).
+
+## Test 27 - Demo scaled from 19 to 120 customers, with visible IDs
+
+The demo held 19 customers and 4 recorded outcomes, too thin to show how Calibration or Renewal's churn model behave. `prisma/seed.ts` now builds 120: the 4 handcrafted accounts plus 116 generated from six profiles (20 thriving, 36 stable, 26 watch, 14 critical, 12 churned, 8 onboarding). A profile sets an account's signals and its outcome history together, so unhealthy accounts are more likely to have churned. That correlation is deliberate and synthetic.
+
+**Measured after the reseed, from the database:** 120 unique customer IDs (`CUS-0001` to `CUS-0120`), 150 customer-product rows, 217 outcome events (158 renewed, 46 expanded, 13 churned). Outcomes per customer: 24 have none, 64 have 1-2, 25 have 3-4, 7 have 5 or more. Renewal dates across the 150 product rows: 3 overdue, 10 within 30 days, 14 within 31-90, 34 within 91-180, 44 within 181-365 and 24 beyond a year. The stored API key survived the reseed (same last four characters).
+
+**Bugs found while doing it:**
+- The old reseed would have failed on its own: it never deleted `CapabilityRunConfig` rows, which reference the workspace, so it would have hit a foreign-key error once any schedule existed. It also deleted the workspace, and with it the stored Anthropic key. Both fixed: run configs are cleared, and the key and Adoption threshold are carried across the wipe.
+- `generate-opportunities.ts` deleted every workspace's opportunities, not just the demo's. Scoped to the demo workspace.
+- Churned accounts would have counted toward Home's ARR total and appeared in the Briefing queue. Both now exclude them.
+
+**Churn model minimum raised from 3 to 10 outcomes per band.** With the old 3, one Stable band of 3 accounts showed a 0% churn rate. `test-churn-model.ts` now checks the boundary itself: a band with exactly 10 outcomes uses its real rate, and a band with 9 falls back to the estimate even when all 9 churned.
+
+**Not yet done:** Health scores, opportunities and the other four AI layers have not been run on the new 120, so Health and Home's "needs attention" list are empty until they are. That run costs API credit and is waiting on approval.
