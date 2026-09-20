@@ -305,4 +305,21 @@ The demo held 19 customers and 4 recorded outcomes, too thin to show how Calibra
 
 **Churn model minimum raised from 3 to 10 outcomes per band.** With the old 3, one Stable band of 3 accounts showed a 0% churn rate. `test-churn-model.ts` now checks the boundary itself: a band with exactly 10 outcomes uses its real rate, and a band with 9 falls back to the estimate even when all 9 churned.
 
-**Not yet done:** Health scores, opportunities and the other four AI layers have not been run on the new 120, so Health and Home's "needs attention" list are empty until they are. That run costs API credit and is waiting on approval.
+**The full AI run on the 120 customers** (approved by Dan, roughly 340 calls, run locally against the demo workspace's own key). It finished with no errors in 2,066 seconds (about 34 minutes):
+
+| Step | Result | Time |
+|---|---|---|
+| Health scores | 120 computed | 818s |
+| Book summary | 1 written | 11s |
+| Opportunities (deterministic rules, no API) | 153 across 129 live accounts | 5s |
+| Onboarding | 4 overdue accounts, all 4 declined | 15s |
+| Adoption | 45 nudges (accounts below the 50% breadth threshold) | 246s |
+| Expansion and Renewal | 153 reviews and 17 save plays | 971s together (the log does not split them) |
+
+**What the new data showed:**
+- Health bands after scoring: 18 Thriving, 45 Stable, 51 Watch, 6 Critical. Outcomes by current band: Stable 107 (0 churned), Thriving 49 (0 churned), Watch 54 (10 churned, 19%), Critical 7 (3 churned). Renewal's churn model therefore uses real observed rates for Stable, Thriving and Watch, and still falls back to the illustrative 60% for Critical, which has only 7 outcomes against the minimum of 10. The 0% for Stable and Thriving is an artefact of the seed (no account in those bands was given a churn event), not a finding.
+- Onboarding declined all 4 overdue accounts again. That is the guardrail working, and also a limit of the seed: its onboarding accounts carry too little interaction text for the model to say more than "it's late".
+- Layer 2 of Health applied a negative adjustment (most often -8) to a large share of accounts, which pulled 51 of 120 into Watch. The 6 Critical accounts are fewer than the 14 seeded from the critical profile. Whether Layer 2 is too pessimistic or the seed's signals are too mild is not settled by this run.
+- Stored AI text was checked afterwards: 0 em dashes, and UK spelling. The one exception was "optimization", which came from the seed's own product and ticket wording, not the model. Fixed in `seed.ts` and, to avoid a second 34-minute run, in the stored rows directly (capability names, ticket text, training courses and every AI text field).
+
+**A limit this run exposed:** a Health run for 120 customers takes 818 seconds, more than double Vercel's 300-second function limit on the Hobby plan. On the hosted app, Run now for Health would be cut off part way. Results already written are kept, but the run does not resume. Batched, resumable runs are needed, and are not built. The scripts run locally have no such limit.

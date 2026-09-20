@@ -37,7 +37,7 @@ A conceptual exploration of an agentic-AI Customer Success platform – planned 
 
 ![Health scoring architecture](docs/screenshots/health-scoring-architecture.svg)
 
-All fourteen screenshots are real captures of the live app (`/login`, `/signup`, `/`, `/health`, `/health/[customerId]`, `/briefing`, `/onboarding`, `/adoption`, `/expansion`, `/renewal`, `/segments`, `/calibration`, `/settings`, `/marketing`), taken against the production deployment with the synthetic data described below. None are mockups. Renewal, Settings and Marketing are full-page captures; the rest show the top of the page. Onboarding shows no AI recovery plan because both overdue accounts were correctly declined for lack of evidence (see [Playbook agentic layers](#playbook-agentic-layers)). `health-scoring-architecture.svg` is a diagram, not a screenshot. Regenerate the screenshots with `npm run screenshots` (`scripts/capture-screenshots.mjs`, Puppeteer-driven).
+All fourteen screenshots are real captures of the live app (`/login`, `/signup`, `/`, `/health`, `/health/[customerId]`, `/briefing`, `/onboarding`, `/adoption`, `/expansion`, `/renewal`, `/segments`, `/calibration`, `/settings`, `/marketing`), taken against the production deployment with the synthetic data described below. None are mockups. Renewal, Settings and Marketing are full-page captures; the rest show the top of the page. Onboarding shows no AI recovery plan because all four overdue accounts were correctly declined for lack of evidence (see [Playbook agentic layers](#playbook-agentic-layers)). `health-scoring-architecture.svg` is a diagram, not a screenshot. Regenerate the screenshots with `npm run screenshots` (`scripts/capture-screenshots.mjs`, Puppeteer-driven).
 
 The repo is named descriptively for portfolio discoverability; **"Bearing"** is the working product name used within the app and mockups themselves.
 
@@ -155,10 +155,10 @@ other four lifecycle areas.
   visitors, not to simulate a real customer's trial economics.
 
 `npx tsc --noEmit`, `npm run lint`, and `npm run build` all clean. Verified for real against the live demo
-workspace's own configured key, not just unit-tested: real Anthropic calls producing real, evidence-grounded output
-across Onboarding (two overdue accounts correctly declined, with no evidence beyond "it's late"), Adoption (8 accounts),
-Expansion (27 opportunities) and Renewal (11 at-risk renewals), all after the key was topped up following a first run
-that ran out of credit. See `TESTING.md` for that first run and the dedup bug it caught.
+workspace's own configured key, not just unit-tested. The full pipeline ran on the 120-customer demo in about 34
+minutes with no errors: 120 Health scores, 153 Expansion reviews, 45 Adoption nudges, 17 Renewal save plays, and 4
+overdue onboarding accounts all correctly declined (none had evidence beyond "it's late"). See `TESTING.md` for the
+earlier 19-customer run, its dedup bug, and the counts and timings from this one.
 
 ## Stage 2: live deployment
 
@@ -212,7 +212,7 @@ separate, additional requirement, not a substitute for an active trial.
 
 **How the schedule actually runs:** a single Vercel Cron job (`vercel.json`, `/api/cron/run-capabilities`) fires once a day - the only frequency [Vercel's free Hobby plan allows](https://vercel.com/docs/cron-jobs/usage-and-pricing) (more frequent expressions fail at deploy time). It checks every workspace's own schedule against `src/lib/capabilityRuns.ts`'s `isDue()` (comparing `lastRunAt` to the interval), so "Weekly" still means roughly every 7 days even though the underlying check happens daily. The route is locked down with a `CRON_SECRET` env var - [Vercel's own documented pattern](https://vercel.com/docs/cron-jobs/manage-cron-jobs#securing-cron-jobs) - so a stranger can't hit the URL directly and trigger spend against other workspaces' stored keys. `src/proxy.ts`'s matcher excludes `/api/*` for this reason: an API route needs its own auth strategy, not the session-cookie check every page gets.
 
-**Verified for real, including a genuine end-to-end run:** clicking Run now in Settings actually recomputed all 19 seeded customers' Health scores against the demo workspace's own configured key, took ~3.2 minutes (comfortably inside Vercel's 300-second Hobby function limit at this scale, though worth watching if the customer count grows much larger), and correctly showed "Health scores recomputed successfully" with an updated last-run timestamp afterward. See `TESTING.md` for the full log, including a real bug it caught (the proxy was redirecting the cron route to `/login` before this fix, since Vercel's cron invocation carries no session cookie to check).
+**Verified for real, and a limit it exposed:** Run now and the daily cron both work end to end against the demo workspace's own configured key. At 19 customers a Health run took about 3.2 minutes. At 120 customers it takes about 13.6 minutes (818 seconds), and the full set of five capabilities about 34. Vercel's Hobby plan stops a function at 300 seconds, so on the hosted app a single Run now click for Health would be cut off partway at this size. Every capability writes results as it goes, so a cut-off run keeps what it finished, but it does not resume. Batched, resumable runs are the fix and are not built yet. Running the scripts locally, as done for the figures above, has no such limit. See `TESTING.md` for the full log, including a real bug caught earlier (the proxy was redirecting the cron route to `/login`, since Vercel's cron invocation carries no session cookie to check).
 
 ## Test coverage
 

@@ -290,7 +290,7 @@ async function main() {
 
   const capNames: [string, string][] = [
     ["Freight tracking", "adoption"],
-    ["Route optimization", "adoption"],
+    ["Route optimisation", "adoption"],
     ["Driver app", "adoption"],
     ["Customs docs", "adoption"],
     ["Payments processing", "consumption"],
@@ -325,7 +325,7 @@ async function main() {
     ["Inventory sync", "adoption"],
     ["Pick & pack", "adoption"],
     ["Returns processing", "adoption"],
-    ["Slotting optimization", "consumption"],
+    ["Slotting optimisation", "consumption"],
   ];
   const warehouseCapabilities = [];
   for (const [name, metricType] of warehouseCapNames) {
@@ -420,7 +420,7 @@ async function main() {
     ];
     const unhappyTickets = [
       "Escalated: repeated sync failures between billing and freight tracking, third time this month.",
-      "Customer frustrated with slow load times on the route optimization screen during peak hours.",
+      "Customer frustrated with slow load times on the route optimisation screen during peak hours.",
       "Complaint about a missed SLA on a support ticket raised two weeks ago.",
     ];
     const competitorTickets = [
@@ -505,7 +505,7 @@ async function main() {
     for (let i = 0; i < (opts.trainingSessionCount ?? 0); i++) {
       trainingRows.push({
         customerId,
-        courseName: pick(["Platform onboarding", "Advanced route optimization", "Admin & reporting"]),
+        courseName: pick(["Platform onboarding", "Advanced route optimisation", "Admin & reporting"]),
         attendeeCount: randInt(1, 5),
         occurredAt: daysAgo(randInt(10, 300)),
       });
