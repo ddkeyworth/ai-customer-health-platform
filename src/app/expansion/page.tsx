@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { resolveActiveSegment } from "@/lib/activeSegment";
+import CustomerRef from "@/components/CustomerRef";
 
 export const dynamic = "force-dynamic";
 
@@ -95,7 +96,7 @@ export default async function ExpansionPage({
                 <tr className="border-b border-zinc-100 align-top">
                   <td className="py-3 pr-3 whitespace-nowrap">
                     <Link href={`/health/${o.customerId}`} className="text-zinc-900 font-medium hover:text-[#378ADD] hover:underline">
-                      {o.customer.name}
+                      {o.customer.name}<CustomerRef value={o.customer.ref} />
                     </Link>
                   </td>
                   <td className="py-3 pr-3 text-zinc-600 whitespace-nowrap">{TYPE_LABELS[o.type]}</td>

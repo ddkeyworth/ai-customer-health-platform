@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { customersMatchingCriteria, SegmentCriteria } from "@/lib/segments";
 import { tierColor } from "@/lib/health/ui";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
+import CustomerRef from "@/components/CustomerRef";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,7 @@ export default async function SegmentDetailPage({ params }: { params: Promise<{ 
               <tr key={c.id} className="border-b border-zinc-100">
                 <td className="py-3 pr-3 whitespace-nowrap">
                   <Link href={`/health/${c.id}`} className="text-zinc-900 font-medium hover:text-[#378ADD] hover:underline">
-                    {c.name}
+                    {c.name}<CustomerRef value={c.ref} />
                   </Link>
                 </td>
                 <td className="py-3 pr-3 text-zinc-600">{c.industry}</td>

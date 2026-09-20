@@ -74,7 +74,7 @@ All 10 dashboard screens (Home, Health, Briefing, Onboarding, Adoption, Expansio
 | Product definition, requirements, information architecture | Fully planned |
 | Data model (Workspace, User, Customer, Product, Capability, Package, Health snapshot, Competitor config, Interaction, Usage, Survey, Event attendance, Opportunity, Segment, Desired Outcome, Stakeholder, Training completion, Outcome event, Session) | Built in `prisma/schema.prisma`, live on a real (free-tier) Postgres instance |
 | App shell (navigation, layout, logo) | Built |
-| Synthetic data generator (`prisma/seed.ts`) | **Built and run for real** - 19 fictional customers across 2 products, tickets, usage history, surveys, event attendance, renewal dates |
+| Synthetic data generator (`prisma/seed.ts`) | **Built and run for real** - 120 fictional customers (each with a visible ID such as `CUS-0042`) across 2 products, in six profiles from thriving to churned. Outcome history follows tenure (an account live for 4 years has up to 4 renewals, a young one has none) and renewal dates fall on each contract anniversary, so both vary widely. Re-run it to refresh the dates around today |
 | Health-scoring engine (the actual "special sauce") | **Built and tested for real** - see below. Runs against each workspace's own configured Anthropic key (see [Automation](#automation)) - on-demand, or a Daily/Weekly schedule via a real Vercel Cron job, not just a manually-run script |
 | `/health` | List view, per-customer drill-in (`/health/[customerId]`), and a real LLM-generated executive summary - all reading stored data, none recomputed on page load |
 | `/` (Home) | Real Total ARR, Health bands, lifecycle-stage counts, and a "needs attention" list. Deliberately does not show NNAOV/NRR/GRR - those need realised bridge events this build doesn't track yet |
@@ -142,7 +142,7 @@ other four lifecycle areas.
 - **Renewal, the bigger rebuild.** Churn likelihood no longer comes from one flat, permanently illustrative table.
   `src/lib/renewal/churnModel.ts` now computes the real observed churn rate per Health band from Calibration's own
   `OutcomeEvent` history, falling back to the illustrative table per band only where there isn't yet enough recorded
-  history (fewer than 3 outcomes) to trust a real rate - same honesty limitation already stated on `/calibration`:
+  history (fewer than 10 outcomes) to trust a real rate - same honesty limitation already stated on `/calibration`:
   this compares against the Health score on file now, not a true point-in-time value at the moment of the outcome.
   On top of that per-band baseline, a bounded agentic layer (+-20 percentage points, same shape as Health's
   adjustment) reasons about that specific account's own signals and produces a save-play recommendation - only for
@@ -252,7 +252,6 @@ Create a `.env` file (copy `.env.example`) with your own `DATABASE_URL` (a free 
 ```
 npx prisma db push
 npx tsx prisma/seed.ts
-npx tsx prisma/seed-renewal-dates.ts
 npx tsx prisma/compute-health-scores.ts
 npx tsx prisma/compute-book-summary.ts
 npx tsx prisma/generate-opportunities.ts

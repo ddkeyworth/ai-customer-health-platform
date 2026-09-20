@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { tierColor } from "@/lib/health/ui";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { resolveActiveSegment } from "@/lib/activeSegment";
+import CustomerRef from "@/components/CustomerRef";
 
 export const dynamic = "force-dynamic";
 
@@ -111,7 +112,7 @@ export default async function HealthPage({
             <tr key={r.id} className="border-b border-zinc-100 align-top">
               <td className="py-3 pr-3 whitespace-nowrap">
                 <Link href={`/health/${r.customerId}`} className="text-zinc-900 font-medium hover:text-[#378ADD] hover:underline">
-                  {r.customer.name}
+                  {r.customer.name}<CustomerRef value={r.customer.ref} />
                 </Link>
               </td>
               <td className="py-3 pr-3 font-medium text-zinc-900">{r.compositeScore}</td>

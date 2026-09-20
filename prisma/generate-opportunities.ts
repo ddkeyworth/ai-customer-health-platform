@@ -6,10 +6,14 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  await prisma.opportunity.deleteMany();
+  // Scoped to the demo workspace: an unscoped deleteMany() here would wipe
+  // (and then regenerate for) every workspace's opportunities, not just the
+  // seeded one's.
+  const demoScope = { workspace: { isDemoSeed: true } };
+  await prisma.opportunity.deleteMany({ where: { customer: demoScope } });
 
   const liveProducts = await prisma.customerProduct.findMany({
-    where: { lifecycleStatus: "live" },
+    where: { lifecycleStatus: "live", customer: demoScope },
     include: {
       customer: {
         include: {

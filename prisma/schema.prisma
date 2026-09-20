@@ -138,6 +138,10 @@ model CapabilityRunConfig {
 model Customer {
   id             String   @id @default(cuid())
   workspaceId    String
+  // Short, human-readable customer ID shown in every screen (e.g. CUS-0042).
+  // The cuid above stays the real key; this is what a person reads out or
+  // searches for. Unique within a workspace.
+  ref            String?
   name           String
   country        String?
   region         String?
@@ -164,6 +168,7 @@ model Customer {
   outcomeEvents      OutcomeEvent[]
   agentActions       AgentAction[]
 
+  @@unique([workspaceId, ref])
   @@map("customers")
 }
 

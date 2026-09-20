@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { tierColor } from "@/lib/health/ui";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { judge } from "@/lib/calibration";
+import CustomerRef from "@/components/CustomerRef";
 
 export const dynamic = "force-dynamic";
 
@@ -89,7 +90,7 @@ export default async function CalibrationPage() {
               <tr key={r.event.id} className="border-b border-zinc-100 align-top">
                 <td className="py-3 pr-3 whitespace-nowrap">
                   <Link href={`/health/${r.event.customerId}`} className="text-zinc-900 font-medium hover:text-[#378ADD] hover:underline">
-                    {r.event.customer.name}
+                    {r.event.customer.name}<CustomerRef value={r.event.customer.ref} />
                   </Link>
                 </td>
                 <td className="py-3 pr-3 whitespace-nowrap text-zinc-600">

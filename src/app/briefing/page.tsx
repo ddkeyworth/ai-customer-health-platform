@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { resolveActiveSegment } from "@/lib/activeSegment";
 import { computeDaysOverdue } from "@/lib/onboarding/pace";
+import CustomerRef from "@/components/CustomerRef";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,8 @@ export default async function BriefingPage({
 
   const customerProducts = await prisma.customerProduct.findMany({
     where: {
+      // A churned account has nothing left to act on.
+      lifecycleStatus: { not: "churned" },
       customer: { workspaceId: workspace.id },
       ...(activeSegment ? { customerId: { in: activeSegment.customerIds } } : {}),
     },
@@ -62,7 +65,7 @@ export default async function BriefingPage({
     productsByCustomer.set(cp.customerId, list);
   }
 
-  const byCustomer = new Map<string, { name: string; flags: Flag[] }>();
+  const byCustomer = new Map<string, { name: string; ref: string | null; flags: Flag[] }>();
 
   for (const [customerId, cps] of productsByCustomer) {
     const c = cps[0].customer;
@@ -128,7 +131,7 @@ export default async function BriefingPage({
       }
     }
 
-    if (flags.length > 0) byCustomer.set(customerId, { name: c.name, flags });
+    if (flags.length > 0) byCustomer.set(customerId, { name: c.name, ref: c.ref, flags });
   }
 
   const rows = [...byCustomer.entries()]
@@ -158,7 +161,7 @@ export default async function BriefingPage({
             className="block rounded-xl bg-white border border-zinc-200 shadow-sm px-4 py-3 hover:border-[#378ADD]/40 transition-colors"
           >
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-sm text-zinc-900 font-medium">{r.name}</span>
+              <span className="text-sm text-zinc-900 font-medium">{r.name}<CustomerRef value={r.ref} /></span>
               <span className="text-xs text-zinc-500">£{Math.round(r.totalImpact).toLocaleString("en-GB")}</span>
             </div>
             <div className="flex flex-wrap gap-1.5">

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { DriverResult } from "@/lib/health/drivers";
 import { tierColor, driverBarColor } from "@/lib/health/ui";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
+import CustomerRef from "@/components/CustomerRef";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export default async function CustomerHealthPage({
         <Link href="/health" className="text-sm text-zinc-500 hover:underline">
           &larr; Back to Health
         </Link>
-        <h1 className="text-2xl font-semibold text-zinc-900 mt-3">{customer.name}</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 mt-3">{customer.name}<CustomerRef value={customer.ref} /></h1>
         <p className="mt-2 text-sm text-zinc-600">No Health score computed yet for this customer.</p>
       </div>
     );
@@ -48,7 +49,7 @@ export default async function CustomerHealthPage({
       </Link>
 
       <div className="flex items-center justify-between mt-3 mb-1">
-        <h1 className="text-2xl font-semibold text-zinc-900">{customer.name}</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900">{customer.name}<CustomerRef value={customer.ref} /></h1>
         <span className="text-3xl font-semibold text-[#0C447C]">{snapshot.compositeScore}</span>
       </div>
       <div className="flex items-center gap-2 mb-5">

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { tierColor, tierBorderColor } from "@/lib/health/ui";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { resolveActiveSegment } from "@/lib/activeSegment";
+import CustomerRef from "@/components/CustomerRef";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +24,11 @@ export default async function Home({
     include: { customer: true },
   });
 
-  const totalContractual = customerProducts.reduce((a, cp) => a + Number(cp.contractualArr), 0);
-  const totalConsumption = customerProducts.reduce((a, cp) => a + Number(cp.consumptionArr), 0);
+  // Churned accounts are lost ARR, not current ARR - they still count in the
+  // lifecycle-stage tiles below, but not in these totals.
+  const activeProducts = customerProducts.filter((cp) => cp.lifecycleStatus !== "churned");
+  const totalContractual = activeProducts.reduce((a, cp) => a + Number(cp.contractualArr), 0);
+  const totalConsumption = activeProducts.reduce((a, cp) => a + Number(cp.consumptionArr), 0);
   const totalArr = totalContractual + totalConsumption;
 
   const stageCounts = { onboarding: 0, live: 0, churned: 0 } as Record<string, number>;
@@ -121,7 +125,7 @@ export default async function Home({
             href={`/health/${r.customerId}`}
             className="flex items-center justify-between px-4 py-3 text-sm hover:bg-zinc-50 transition-colors"
           >
-            <span className="text-zinc-900 font-medium">{r.customer.name}</span>
+            <span className="text-zinc-900 font-medium">{r.customer.name}<CustomerRef value={r.customer.ref} /></span>
             <div className="flex items-center gap-2">
               <span className="text-zinc-500">{r.compositeScore}</span>
               <span className={`text-xs px-2 py-0.5 rounded ${tierColor(r.tierLabel)}`}>{r.tierLabel}</span>

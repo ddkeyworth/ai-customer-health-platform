@@ -5,6 +5,7 @@ import { tierColor } from "@/lib/health/ui";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { resolveActiveSegment } from "@/lib/activeSegment";
 import { computeBaselineChurnRates } from "@/lib/renewal/churnModel";
+import CustomerRef from "@/components/CustomerRef";
 
 export const dynamic = "force-dynamic";
 
@@ -117,7 +118,7 @@ export default async function RenewalPage({
                 <tr className="border-b border-zinc-100">
                   <td className="py-3 pr-3 whitespace-nowrap">
                     <Link href={`/health/${r.customerId}`} className="text-zinc-900 font-medium hover:text-[#378ADD] hover:underline">
-                      {r.customer.name}
+                      {r.customer.name}<CustomerRef value={r.customer.ref} />
                     </Link>
                   </td>
                   <td className="py-3 pr-3 text-zinc-600 whitespace-nowrap">{fmtDate(r.renewalDate)}</td>
@@ -178,7 +179,7 @@ export default async function RenewalPage({
 
       <p className="mt-6 text-xs text-zinc-500">
         Churn risk per Health band now comes from real recorded outcomes on <code>/calibration</code> where there&apos;s
-        enough history (at least 3 recorded outcomes in that band) - {usingRealOutcomes ? "in use for at least one band right now" : "not enough history yet in this workspace, so every band is still on the illustrative fallback"}, per band, not
+        enough history (at least 10 recorded outcomes in that band) - {usingRealOutcomes ? "in use for at least one band right now" : "not enough history yet in this workspace, so every band is still on the illustrative fallback"}, per band, not
         all-or-nothing. Still an approximation, same limitation already stated on Calibration: this build compares
         against the Health score on file now, not a true point-in-time value at the moment of the outcome. Save plays
         (Settings &gt; Automation) apply a further bounded adjustment for that specific account&apos;s own signals, on

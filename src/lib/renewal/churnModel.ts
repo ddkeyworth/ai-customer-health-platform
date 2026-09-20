@@ -14,7 +14,7 @@
 // approximate signal, not a true point-in-time backtest.
 import { prisma } from "@/lib/prisma";
 
-export const MIN_SAMPLE_SIZE = 3;
+export const MIN_SAMPLE_SIZE = 10;
 
 export const ILLUSTRATIVE_CHURN_LIKELIHOOD: Record<string, number> = {
   Critical: 0.6,
