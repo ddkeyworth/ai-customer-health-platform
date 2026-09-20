@@ -7,7 +7,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { PrismaClient } from "@prisma/client";
 import { DriverResult } from "./drivers";
-import { noEmDash } from "../text";
+import { noEmDash, withStyleRules } from "../text";
 
 const prisma = new PrismaClient();
 
@@ -92,7 +92,7 @@ export async function computeAgenticLayer(
     model: "claude-sonnet-4-5",
     max_tokens: 1024,
     system:
-      "You compute a Customer Success Health read for one account. You are given a deterministic baseline score and the raw signals behind it. Your job: (1) decide whether a bounded adjustment (-15 to +15) to the baseline is warranted given context the baseline formula cannot weigh, (2) write a short evidence-grounded narrative, (3) scan the provided interaction text for mentions of the configured competitors' names or known capabilities. Never invent facts not present in the data you were given. Never adjust the score without a reason tied to specific provided evidence.",
+      withStyleRules("You compute a Customer Success Health read for one account. You are given a deterministic baseline score and the raw signals behind it. Your job: (1) decide whether a bounded adjustment (-15 to +15) to the baseline is warranted given context the baseline formula cannot weigh, (2) write a short evidence-grounded narrative, (3) scan the provided interaction text for mentions of the configured competitors' names or known capabilities. Never invent facts not present in the data you were given. Never adjust the score without a reason tied to specific provided evidence."),
     tools: [ADJUSTMENT_TOOL],
     tool_choice: { type: "tool", name: "record_health_adjustment" },
     messages: [{ role: "user", content: JSON.stringify(payload, null, 2) }],

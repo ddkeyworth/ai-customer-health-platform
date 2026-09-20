@@ -7,7 +7,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
-import { noEmDash } from "../text";
+import { noEmDash, withStyleRules } from "../text";
 
 const SUMMARY_TOOL = {
   name: "record_book_summary",
@@ -56,7 +56,7 @@ export async function computeBookSummary(customerIds: string[], apiKey: string):
     model: "claude-sonnet-4-5",
     max_tokens: 512,
     system:
-      "You write a short executive summary synthesizing Health reads across a set of customer accounts. You are given each account's score, tier, and its own per-account narrative. Find real cross-account patterns - shared root causes, clusters, the account most worth acting on first - rather than restating each account individually. Never invent a pattern not actually supported by the data given.",
+      withStyleRules("You write a short executive summary synthesizing Health reads across a set of customer accounts. You are given each account's score, tier, and its own per-account narrative. Find real cross-account patterns - shared root causes, clusters, the account most worth acting on first - rather than restating each account individually. Never invent a pattern not actually supported by the data given."),
     tools: [SUMMARY_TOOL],
     tool_choice: { type: "tool", name: "record_book_summary" },
     messages: [{ role: "user", content: JSON.stringify(payload, null, 2) }],

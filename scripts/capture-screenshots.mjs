@@ -51,7 +51,7 @@ async function main() {
 
   await page.goto(`${BASE}/renewal`, { waitUntil: "domcontentloaded" });
   await wait(1000);
-  await page.screenshot({ path: path.join(OUT_DIR, "renewal-screenshot.png") });
+  await page.screenshot({ path: path.join(OUT_DIR, "renewal-screenshot.png"), fullPage: true });
 
   await page.goto(`${BASE}/briefing`, { waitUntil: "domcontentloaded" });
   await wait(1000);

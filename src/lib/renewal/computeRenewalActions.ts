@@ -21,7 +21,14 @@ export async function computeRenewalActionsForWorkspace(workspaceId: string, api
     },
   });
 
-  const next90 = rows.filter((r) => r.renewalDate && r.renewalDate.getTime() - now.getTime() <= 90 * 86_400_000 && r.renewalDate.getTime() >= now.getTime());
+  // Deliberately the exact same window /renewal itself counts (renewal date
+  // at most 90 days out, with no lower bound): a live account whose renewal
+  // date has already passed without being marked renewed or churned is the
+  // most urgent case there is, not one to skip. An earlier version added a
+  // "not in the past" condition here that the page doesn't have, so the
+  // riskiest seeded account (Critical, interrupted, date already passed)
+  // never got a save play at all.
+  const next90 = rows.filter((r) => r.renewalDate && r.renewalDate.getTime() - now.getTime() <= 90 * 86_400_000);
   const atRisk = next90.filter((r) => {
     const tier = r.customer.healthSnapshots[0]?.tierLabel;
     return r.customer.renewalType === "interrupted" || tier === "Watch" || tier === "Critical";
@@ -57,7 +64,9 @@ export async function computeRenewalActionsForWorkspace(workspaceId: string, api
       subjectId: r.id,
       area: "renewal",
       actionType: "save_play",
-      headline: `${Math.round(adjustedLikelihood * 100)}% churn risk - ${daysToRenewal} days to renewal`,
+      headline: `${Math.round(adjustedLikelihood * 100)}% churn risk - ${
+        daysToRenewal >= 0 ? `${daysToRenewal} days to renewal` : `renewal date passed ${-daysToRenewal} days ago`
+      }`,
       reasoning: result.reasoning,
       suggestedNextStep: result.savePlay,
       impactArr: totalArr * adjustedLikelihood,

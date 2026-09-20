@@ -7,7 +7,7 @@
 // account that's also Health-Critical may warrant a different framing (or a
 // caution) than the rules alone would produce.
 import Anthropic from "@anthropic-ai/sdk";
-import { noEmDash } from "../text";
+import { noEmDash, withStyleRules } from "../text";
 
 const REVIEW_TOOL = {
   name: "record_expansion_review",
@@ -69,7 +69,7 @@ export async function computeExpansionReview(
     model: "claude-sonnet-4-5",
     max_tokens: 1024,
     system:
-      "You review one Expansion opportunity that a deterministic rule already raised. You are given the rule's own reasoning plus the account's Health context and interaction history - context a fixed rule can't weigh. Decide whether raising it as framed still makes sense (e.g. expanding a churn-risk account is a different conversation than expanding a healthy one) and write a richer, evidence-grounded reasoning to replace the rule's generic sentence. Never invent facts not present in the data you were given.",
+      withStyleRules("You review one Expansion opportunity that a deterministic rule already raised. You are given the rule's own reasoning plus the account's Health context and interaction history - context a fixed rule can't weigh. Decide whether raising it as framed still makes sense (e.g. expanding a churn-risk account is a different conversation than expanding a healthy one) and write a richer, evidence-grounded reasoning to replace the rule's generic sentence. Never invent facts not present in the data you were given."),
     tools: [REVIEW_TOOL],
     tool_choice: { type: "tool", name: "record_expansion_review" },
     messages: [{ role: "user", content: JSON.stringify(payload, null, 2) }],

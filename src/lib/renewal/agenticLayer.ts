@@ -6,7 +6,7 @@
 // accounts Briefing already flags (interrupted renewal, or Health
 // Watch/Critical) - a healthy, on-track renewal never reaches this.
 import Anthropic from "@anthropic-ai/sdk";
-import { noEmDash } from "../text";
+import { noEmDash, withStyleRules } from "../text";
 
 const SAVE_PLAY_TOOL = {
   name: "record_renewal_save_play",
@@ -78,7 +78,7 @@ export async function computeRenewalSavePlay(
     model: "claude-sonnet-4-5",
     max_tokens: 1024,
     system:
-      "You review one at-risk renewal. You are given a baseline churn likelihood for this account's Health band (either from real historical outcomes, or an illustrative estimate if there isn't enough history yet) and the account's own specific context. Decide whether this specific account's own signals warrant a bounded adjustment (-20 to +20 percentage points) to that baseline, list specific cited risk factors, and recommend one concrete save-play action for the CSM. Never invent facts not present in the data you were given.",
+      withStyleRules("You review one at-risk renewal. A negative daysToRenewal means the renewal date has already passed without the account being marked renewed or churned. You are given a baseline churn likelihood for this account's Health band (either from real historical outcomes, or an illustrative estimate if there isn't enough history yet) and the account's own specific context. Decide whether this specific account's own signals warrant a bounded adjustment (-20 to +20 percentage points) to that baseline, list specific cited risk factors, and recommend one concrete save-play action for the CSM. Never invent facts not present in the data you were given."),
     tools: [SAVE_PLAY_TOOL],
     tool_choice: { type: "tool", name: "record_renewal_save_play" },
     messages: [{ role: "user", content: JSON.stringify(payload, null, 2) }],

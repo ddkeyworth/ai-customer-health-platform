@@ -177,7 +177,7 @@ export default async function BriefingPage({
         Expansion, and Renewal flags are pulled live from their own already-computed data; Adoption&apos;s flag
         surfaces only when its agentic layer has actually run and proposed a nudge (Settings &gt; Automation) - the
         one area with no flag of its own until an AI layer produces one. Approve/dismiss/snooze and an on-demand
-        refresh aren&apos;t built yet. Nothing here is ever sent anywhere; this is a read-only prioritized view.
+        refresh aren&apos;t built yet. Nothing here is ever sent anywhere; this is a read-only prioritised view.
       </p>
     </div>
   );

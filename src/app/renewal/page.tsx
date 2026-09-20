@@ -183,7 +183,7 @@ export default async function RenewalPage({
         against the Health score on file now, not a true point-in-time value at the moment of the outcome. Save plays
         (Settings &gt; Automation) apply a further bounded adjustment for that specific account&apos;s own signals, on
         top of the band-level baseline - only generated for interrupted renewals or Watch/Critical accounts within 90
-        days. Gross Renewal Rate isn&apos;t shown - it needs realized won/lost renewal outcomes over time, which this
+        days. Gross Renewal Rate isn&apos;t shown - it needs realised won/lost renewal outcomes over time, which this
         build has limited history of yet.
       </p>
     </div>

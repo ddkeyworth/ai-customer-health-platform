@@ -3,7 +3,7 @@
 // for accounts already below the workspace's configured underused-breadth
 // threshold - see Workspace.adoptionUnderusedThresholdPct.
 import Anthropic from "@anthropic-ai/sdk";
-import { noEmDash } from "../text";
+import { noEmDash, withStyleRules } from "../text";
 
 const NUDGE_TOOL = {
   name: "record_adoption_nudge",
@@ -63,7 +63,7 @@ export async function computeAdoptionNudge(
     model: "claude-sonnet-4-5",
     max_tokens: 1024,
     system:
-      "You review one account using less than expected of what it's entitled to. You are given the entitled/used capability split and the account's interaction history. Decide which unused capabilities are worth a nudge and what kind - check whether the account has actually asked about an unused capability (a real signal) versus never mentioned it at all. Never invent facts not present in the data you were given.",
+      withStyleRules("You review one account using less than expected of what it's entitled to. You are given the entitled/used capability split and the account's interaction history. Decide which unused capabilities are worth a nudge and what kind - check whether the account has actually asked about an unused capability (a real signal) versus never mentioned it at all. Never invent facts not present in the data you were given."),
     tools: [NUDGE_TOOL],
     tool_choice: { type: "tool", name: "record_adoption_nudge" },
     messages: [{ role: "user", content: JSON.stringify(payload, null, 2) }],

@@ -75,7 +75,7 @@ export default async function Home({
       </div>
       <p className="text-xs text-zinc-400 mb-6">
         NNAOV / Net Revenue Retention / Gross Revenue Retention aren&apos;t shown yet - those need period-over-period
-        realized bridge events (New Logo, Expansion, Contraction, Churned ARR) from Renewal, which isn&apos;t built yet.
+        realised bridge events (New Logo, Expansion, Contraction, Churned ARR) from Renewal, which isn&apos;t built yet.
         This is a snapshot, not a bridge.
       </p>
 

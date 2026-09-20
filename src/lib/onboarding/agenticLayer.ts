@@ -4,7 +4,7 @@
 // called for accounts already confirmed overdue (daysOverdue > 0) - an
 // on-pace account never reaches this, so it can't generate noise.
 import Anthropic from "@anthropic-ai/sdk";
-import { noEmDash } from "../text";
+import { noEmDash, withStyleRules } from "../text";
 
 const RECOVERY_TOOL = {
   name: "record_onboarding_recovery",
@@ -65,7 +65,7 @@ export async function computeOnboardingRecovery(
     model: "claude-sonnet-4-5",
     max_tokens: 1024,
     system:
-      "You review one customer account that is overdue on its expected go-live date. You are given the account's interaction history. Decide whether there is enough real evidence to say why it stalled and suggest one concrete recovery step - if the only fact you have is 'it's late,' decline rather than inventing a plausible-sounding reason. Never invent facts not present in the data you were given.",
+      withStyleRules("You review one customer account that is overdue on its expected go-live date. You are given the account's interaction history. Decide whether there is enough real evidence to say why it stalled and suggest one concrete recovery step - if the only fact you have is 'it's late,' decline rather than inventing a plausible-sounding reason. Never invent facts not present in the data you were given."),
     tools: [RECOVERY_TOOL],
     tool_choice: { type: "tool", name: "record_onboarding_recovery" },
     messages: [{ role: "user", content: JSON.stringify(payload, null, 2) }],
