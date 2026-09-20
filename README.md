@@ -4,15 +4,40 @@ A conceptual exploration of an agentic-AI Customer Success platform – planned 
 
 > No AI reads every account right. It gets you close enough, fast enough, to act. Across onboarding, health, expansion, and renewal.
 
-![Login screen, real screenshot](docs/screenshots/login-screenshot.png)
-![Home screen, real screenshot](docs/screenshots/home-screenshot.png)
-![Health screen, real screenshot](docs/screenshots/health-screenshot.png)
-![Health scoring architecture](docs/screenshots/health-scoring-architecture.svg)
-![Customer detail (Health drill-in), real screenshot](docs/screenshots/customer-detail-screenshot.png)
-![Settings, real screenshot](docs/screenshots/competitor-config-screenshot.png)
-![Marketing page, real screenshot](docs/screenshots/marketing-screenshot.png)
+<table>
+<tr>
+<td><b>Login</b><br><img src="docs/screenshots/login-screenshot.png" width="440" alt="Login screen"></td>
+<td><b>Signup</b><br><img src="docs/screenshots/signup-screenshot.png" width="440" alt="Signup screen"></td>
+</tr>
+<tr>
+<td><b>Home</b><br><img src="docs/screenshots/home-screenshot.png" width="440" alt="Home screen"></td>
+<td><b>Health</b><br><img src="docs/screenshots/health-screenshot.png" width="440" alt="Health screen"></td>
+</tr>
+<tr>
+<td><b>Health drill-in (one customer)</b><br><img src="docs/screenshots/customer-detail-screenshot.png" width="440" alt="Customer detail, Health drill-in"></td>
+<td><b>Briefing</b><br><img src="docs/screenshots/briefing-screenshot.png" width="440" alt="Briefing screen"></td>
+</tr>
+<tr>
+<td><b>Onboarding</b><br><img src="docs/screenshots/onboarding-screenshot.png" width="440" alt="Onboarding screen"></td>
+<td><b>Adoption</b><br><img src="docs/screenshots/adoption-screenshot.png" width="440" alt="Adoption screen"></td>
+</tr>
+<tr>
+<td><b>Expansion</b><br><img src="docs/screenshots/expansion-screenshot.png" width="440" alt="Expansion screen"></td>
+<td><b>Renewal</b> (full page)<br><img src="docs/screenshots/renewal-screenshot.png" width="440" alt="Renewal screen"></td>
+</tr>
+<tr>
+<td><b>Segments</b><br><img src="docs/screenshots/segments-screenshot.png" width="440" alt="Segments screen"></td>
+<td><b>Calibration</b><br><img src="docs/screenshots/calibration-screenshot.png" width="440" alt="Calibration screen"></td>
+</tr>
+<tr>
+<td><b>Settings</b> (full page)<br><img src="docs/screenshots/competitor-config-screenshot.png" width="440" alt="Settings screen"></td>
+<td><b>Marketing page</b> (full page)<br><img src="docs/screenshots/marketing-screenshot.png" width="440" alt="Marketing page"></td>
+</tr>
+</table>
 
-All six screenshots above are real captures of the actual running app (`/login`, `/`, `/health`, `/health/[customerId]`, `/settings`, `/marketing`), taken against the live production deployment with the synthetic data described below – not mockups. `health-scoring-architecture.svg` is the one remaining diagram, not a screenshot. Regenerate them anytime with `npm run screenshots` (`scripts/capture-screenshots.mjs`, Puppeteer-driven).
+![Health scoring architecture](docs/screenshots/health-scoring-architecture.svg)
+
+All fourteen screenshots are real captures of the live app (`/login`, `/signup`, `/`, `/health`, `/health/[customerId]`, `/briefing`, `/onboarding`, `/adoption`, `/expansion`, `/renewal`, `/segments`, `/calibration`, `/settings`, `/marketing`), taken against the production deployment with the synthetic data described below. None are mockups. Renewal, Settings and Marketing are full-page captures; the rest show the top of the page. Onboarding shows no AI recovery plan because both overdue accounts were correctly declined for lack of evidence (see [Playbook agentic layers](#playbook-agentic-layers)). `health-scoring-architecture.svg` is a diagram, not a screenshot. Regenerate the screenshots with `npm run screenshots` (`scripts/capture-screenshots.mjs`, Puppeteer-driven).
 
 The repo is named descriptively for portfolio discoverability; **"Bearing"** is the working product name used within the app and mockups themselves.
 
