@@ -48,7 +48,7 @@ Added a server-side cap (`createSegment` silently no-ops past 20, same style as 
 
 ## Test 7 - Settings field validation
 
-`updateWorkspace` and `addCompetitor` previously accepted anything - free-text currency/date-format/language, unbounded name length, a `riskWeight` bypassable past its declared 1-5 range since the HTML `min`/`max` were client-side only. Added server-side validation (hex-color regex, 3-letter currency regex, an allowlist for date format/language, length caps, integer clamping on risk weight) and updated the UI to match (date format/language are now `<select>` dropdowns, since the server only accepts one of a fixed set).
+`updateWorkspace` and `addCompetitor` previously accepted anything - free-text currency/date-format/language, unbounded name length, a `riskWeight` bypassable past its declared 1-5 range since the HTML `min`/`max` were client-side only. Added server-side validation (hex-colour regex, 3-letter currency regex, an allowlist for date format/language, length caps, integer clamping on risk weight) and updated the UI to match (date format/language are now `<select>` dropdowns, since the server only accepts one of a fixed set).
 
 **Verified:** `npx tsc --noEmit` clean, and the Settings page rendered correctly post-change with the existing seeded values (workspace name, 3 configured competitors) intact.
 
@@ -112,7 +112,7 @@ Added `User.passwordHash`, a `Session` model, `src/lib/auth.ts` (bcrypt + databa
 
 ## Test 12 - Calibration loop: real outcomes checked against the Health score on file
 
-Added `OutcomeEvent` (churned/renewed/expanded, with real notes) and `/calibration`, which joins every outcome against the customer's latest `HealthScoreSnapshot` and classifies it: `confirmed` (the score's implied read matched what happened), `missed` (a healthy score, but the account churned), or `review` (a risk score, but the account did well anyway - deliberately not auto-labeled a scoring error, since a Watch/Critical account renewing could just as easily mean a successful save-play).
+Added `OutcomeEvent` (churned/renewed/expanded, with real notes) and `/calibration`, which joins every outcome against the customer's latest `HealthScoreSnapshot` and classifies it: `confirmed` (the score's implied read matched what happened), `missed` (a healthy score, but the account churned), or `review` (a risk score, but the account did well anyway - deliberately not auto-labelled a scoring error, since a Watch/Critical account renewing could just as easily mean a successful save-play).
 
 Seeded 4 real outcome events for the handcrafted customers, chosen to exercise all three verdict types, not just the confirming case: Northwind Traders (churned), Fenwick Logistics (expanded), Harlow & Co (renewed), Silent Freight Ltd (renewed).
 
