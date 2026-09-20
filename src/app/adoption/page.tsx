@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
@@ -13,6 +14,7 @@ export default async function AdoptionPage({
   const workspace = await getCurrentWorkspace();
   const { segment: segmentId } = await searchParams;
   const activeSegment = await resolveActiveSegment(workspace.id, segmentId);
+  const threshold = workspace.adoptionUnderusedThresholdPct;
 
   const liveProducts = await prisma.customerProduct.findMany({
     where: {
@@ -38,13 +40,26 @@ export default async function AdoptionPage({
     return { ...cap, usedByLive, liveTotal: liveCustomerIds.size };
   });
 
-  // Per-customer capability breadth.
+  const nudges = await prisma.agentAction.findMany({
+    where: { workspaceId: workspace.id, area: "adoption", status: "proposed" },
+  });
+  // Keyed by the CustomerProduct id, not customerId - a customer with two
+  // live Products can have independently different breadth on each.
+  const nudgeByProductId = new Map(nudges.filter((a) => a.subjectId).map((a) => [a.subjectId, a]));
+
+  // Per-customer-product capability breadth.
   const rows = liveProducts.map((cp) => {
     const entitled = cp.product.capabilities.length;
     const usedIds = new Set(
       usage.filter((u) => u.customerId === cp.customerId && cp.product.capabilities.some((c) => c.id === u.capabilityId)).map((u) => u.capabilityId)
     );
-    return { cp, entitled, used: usedIds.size, breadthPct: entitled > 0 ? Math.round((usedIds.size / entitled) * 100) : 0 };
+    return {
+      cp,
+      entitled,
+      used: usedIds.size,
+      breadthPct: entitled > 0 ? Math.round((usedIds.size / entitled) * 100) : 0,
+      nudge: nudgeByProductId.get(cp.id) ?? null,
+    };
   });
   rows.sort((a, b) => a.breadthPct - b.breadthPct);
 
@@ -63,8 +78,8 @@ export default async function AdoptionPage({
           <p className="text-2xl font-semibold text-zinc-900 mt-1">{avgBreadth}%</p>
         </div>
         <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
-          <p className="text-xs text-zinc-500">Accounts below 50% breadth</p>
-          <p className="text-2xl font-semibold text-zinc-900 mt-1">{rows.filter((r) => r.breadthPct < 50).length}</p>
+          <p className="text-xs text-zinc-500">Accounts below {threshold}% breadth</p>
+          <p className="text-2xl font-semibold text-zinc-900 mt-1">{rows.filter((r) => r.breadthPct < threshold).length}</p>
         </div>
       </div>
 
@@ -96,29 +111,46 @@ export default async function AdoptionPage({
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.cp.id} className="border-b border-zinc-100">
-              <td className="py-3 pr-3 whitespace-nowrap">
-                <Link href={`/health/${r.cp.customerId}`} className="text-zinc-900 font-medium hover:text-[#378ADD] hover:underline">
-                  {r.cp.customer.name}
-                </Link>
-              </td>
-              <td className="py-3 pr-3 text-zinc-600">{r.cp.package?.name ?? "n/a"}</td>
-              <td className="py-3 pr-3 text-zinc-600">
-                {r.used} of {r.entitled}
-              </td>
-              <td className="py-3 pr-3">
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-16 rounded-full bg-zinc-100 overflow-hidden">
-                    <div
-                      className={`h-full ${r.breadthPct < 50 ? "bg-amber-500" : "bg-green-500"}`}
-                      style={{ width: `${r.breadthPct}%` }}
-                    />
+            <Fragment key={r.cp.id}>
+              <tr className="border-b border-zinc-100">
+                <td className="py-3 pr-3 whitespace-nowrap">
+                  <Link href={`/health/${r.cp.customerId}`} className="text-zinc-900 font-medium hover:text-[#378ADD] hover:underline">
+                    {r.cp.customer.name}
+                  </Link>
+                </td>
+                <td className="py-3 pr-3 text-zinc-600">{r.cp.package?.name ?? "n/a"}</td>
+                <td className="py-3 pr-3 text-zinc-600">
+                  {r.used} of {r.entitled}
+                </td>
+                <td className="py-3 pr-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-16 rounded-full bg-zinc-100 overflow-hidden">
+                      <div
+                        className={`h-full ${r.breadthPct < threshold ? "bg-amber-500" : "bg-green-500"}`}
+                        style={{ width: `${r.breadthPct}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-zinc-600">{r.breadthPct}%</span>
                   </div>
-                  <span className="text-xs text-zinc-600">{r.breadthPct}%</span>
-                </div>
-              </td>
-              <td className="py-3 pr-3 text-zinc-600">£{Number(r.cp.consumptionArr).toLocaleString("en-GB")}</td>
-            </tr>
+                </td>
+                <td className="py-3 pr-3 text-zinc-600">£{Number(r.cp.consumptionArr).toLocaleString("en-GB")}</td>
+              </tr>
+              {r.nudge && (
+                <tr className="border-b border-zinc-100">
+                  <td colSpan={5} className="pb-3">
+                    <div className="rounded-xl bg-[#378ADD]/5 border border-[#378ADD]/20 p-3 text-sm text-zinc-800">
+                      <p className="text-xs font-medium text-[#0C447C] mb-1">AI adoption nudge</p>
+                      <p>{r.nudge.reasoning}</p>
+                      {r.nudge.suggestedNextStep && (
+                        <p className="mt-1 text-zinc-600">
+                          <span className="font-medium">Suggested:</span> {r.nudge.suggestedNextStep}
+                        </p>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           ))}
         </tbody>
       </table>
@@ -128,7 +160,8 @@ export default async function AdoptionPage({
         Usage-depth and consumption trend per account (growing/flat/declining), plus Desired Outcome progress
         (against &quot;why the customer bought this&quot;), are already computed for Health - see the driver
         breakdown on each account&apos;s Health page. Not yet shown here on Adoption itself, alongside the other
-        Health-only drivers (champion engagement, training, payment health).
+        Health-only drivers (champion engagement, training, payment health). The underused-breadth threshold above is
+        configurable in Settings &gt; Automation, not a fixed constant.
       </p>
     </div>
   );

@@ -1,4 +1,16 @@
-# Playbook design proposals (awaiting sign-off)
+# Playbook design proposals (approved and built, 2026-09-20)
+
+**Status: all five approved and implemented.** This document is kept as the original design record, not rewritten after the fact - see [README.md's Playbook agentic layers section](../README.md#playbook-agentic-layers) and `TESTING.md` for what was actually built and how it was verified. The real decisions made at sign-off, where they differ from or extend a "recommended" option below:
+
+1. All four area agentic layers approved as proposed.
+2. Adoption's underused-capability threshold: **configurable per workspace** (Settings), not a fixed constant.
+3. Expansion: **AI runs on top of** the deterministic rules (the recommended option), not a replacement. Extended scope: every capability's AI layer, Health included, now sits behind a real 14-day free trial, then an illustrative-only "subscribe" gate - no real payment processor exists.
+4. Renewal: the churn-likelihood **percentage itself** was rebuilt now, not deferred - it comes from real outcome history per Health band where there's enough of it, with a per-band illustrative fallback, plus the save-play layer below.
+5. `AgentAction` recommendations live in one shared table, displayed within each area's own page as well as Briefing.
+
+Original proposal text follows, unedited.
+
+---
 
 Not implemented. No schema or code changes here - this document exists so the actual design decisions get reviewed before anything is built, rather than guessed on a public repo. Health's two-layer pattern (`src/lib/health/baseline.ts` + `agenticLayer.ts`) is the proven reference: a deterministic layer computes real numbers from real data, a bounded agentic layer reasons on top of it with a required evidence-grounded justification, and the result is a draft a human reviews - never something sent or executed automatically. These five proposals extend that same shape to the other four lifecycle areas, plus the shared storage model all of them need.
 

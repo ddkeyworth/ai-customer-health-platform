@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { tierColor } from "@/lib/health/ui";
@@ -32,8 +33,16 @@ export default async function OnboardingPage({
     },
   });
 
+  const recoveryPlans = await prisma.agentAction.findMany({
+    where: { workspaceId: workspace.id, area: "onboarding", status: "proposed" },
+  });
+  // Keyed by the CustomerProduct id, not customerId - a customer with two
+  // live Products can be independently overdue on each, with its own
+  // recovery plan per product.
+  const recoveryByProductId = new Map(recoveryPlans.filter((a) => a.subjectId).map((a) => [a.subjectId, a]));
+
   const now = new Date();
-  const withPace = rows.map((r) => ({ ...r, daysOverdue: computeDaysOverdue(r.expectedGoLiveDate, now) }));
+  const withPace = rows.map((r) => ({ ...r, daysOverdue: computeDaysOverdue(r.expectedGoLiveDate, now), recoveryPlan: recoveryByProductId.get(r.id) ?? null }));
   withPace.sort((a, b) => (b.daysOverdue ?? -9999) - (a.daysOverdue ?? -9999));
 
   const totalNewLogoArr = rows.reduce((a, r) => a + Number(r.contractualArr), 0);
@@ -77,33 +86,50 @@ export default async function OnboardingPage({
           {withPace.map((r) => {
             const snap = r.customer.healthSnapshots[0];
             return (
-              <tr key={r.id} className="border-b border-zinc-100">
-                <td className="py-3 pr-3 whitespace-nowrap">
-                  <Link href={`/health/${r.customerId}`} className="text-zinc-900 font-medium hover:text-[#378ADD] hover:underline">
-                    {r.customer.name}
-                  </Link>
-                </td>
-                <td className="py-3 pr-3 text-zinc-600">{r.product.name}</td>
-                <td className="py-3 pr-3 text-zinc-600 whitespace-nowrap">{fmtDate(r.expectedGoLiveDate)}</td>
-                <td className="py-3 pr-3 whitespace-nowrap">
-                  {r.daysOverdue === null ? (
-                    <span className="text-zinc-400">n/a</span>
-                  ) : r.daysOverdue > 0 ? (
-                    <span className="text-red-800">{r.daysOverdue} days overdue</span>
-                  ) : (
-                    <span className="text-green-800">on pace</span>
-                  )}
-                </td>
-                <td className="py-3 pr-3">
-                  {snap ? (
-                    <span className={`text-xs px-2 py-0.5 rounded ${tierColor(snap.tierLabel)}`}>
-                      {snap.compositeScore}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-zinc-400">n/a</span>
-                  )}
-                </td>
-              </tr>
+              <Fragment key={r.id}>
+                <tr className="border-b border-zinc-100">
+                  <td className="py-3 pr-3 whitespace-nowrap">
+                    <Link href={`/health/${r.customerId}`} className="text-zinc-900 font-medium hover:text-[#378ADD] hover:underline">
+                      {r.customer.name}
+                    </Link>
+                  </td>
+                  <td className="py-3 pr-3 text-zinc-600">{r.product.name}</td>
+                  <td className="py-3 pr-3 text-zinc-600 whitespace-nowrap">{fmtDate(r.expectedGoLiveDate)}</td>
+                  <td className="py-3 pr-3 whitespace-nowrap">
+                    {r.daysOverdue === null ? (
+                      <span className="text-zinc-400">n/a</span>
+                    ) : r.daysOverdue > 0 ? (
+                      <span className="text-red-800">{r.daysOverdue} days overdue</span>
+                    ) : (
+                      <span className="text-green-800">on pace</span>
+                    )}
+                  </td>
+                  <td className="py-3 pr-3">
+                    {snap ? (
+                      <span className={`text-xs px-2 py-0.5 rounded ${tierColor(snap.tierLabel)}`}>
+                        {snap.compositeScore}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-zinc-400">n/a</span>
+                    )}
+                  </td>
+                </tr>
+                {r.recoveryPlan && (
+                  <tr className="border-b border-zinc-100">
+                    <td colSpan={5} className="pb-3">
+                      <div className="rounded-xl bg-[#378ADD]/5 border border-[#378ADD]/20 p-3 text-sm text-zinc-800">
+                        <p className="text-xs font-medium text-[#0C447C] mb-1">AI recovery plan</p>
+                        <p>{r.recoveryPlan.reasoning}</p>
+                        {r.recoveryPlan.suggestedNextStep && (
+                          <p className="mt-1 text-zinc-600">
+                            <span className="font-medium">Next step:</span> {r.recoveryPlan.suggestedNextStep}
+                          </p>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             );
           })}
         </tbody>
@@ -113,7 +139,9 @@ export default async function OnboardingPage({
       <p className="mt-6 text-xs text-zinc-500">
         Dates come from <code>CustomerProduct</code> (initial/expected/actual go-live). No date-change event log or
         cause tagging (customer/company/external) is built yet - the design calls for it, this screen doesn&apos;t
-        have it. Health scores link through to the same driver-level detail as the Health screen.
+        have it. Health scores link through to the same driver-level detail as the Health screen. AI recovery plans
+        (Settings &gt; Automation) only ever generate for overdue accounts with real supporting evidence - an
+        on-pace account, or one with nothing beyond &quot;it&apos;s late,&quot; never gets one.
       </p>
     </div>
   );

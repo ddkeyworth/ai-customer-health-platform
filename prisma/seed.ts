@@ -74,6 +74,7 @@ async function main() {
       (u) => u.id
     );
 
+    await prisma.agentAction.deleteMany({ where: { customerId: { in: customerIds } } });
     await prisma.healthScoreSnapshot.deleteMany({ where: { customerId: { in: customerIds } } });
     await prisma.usageSnapshot.deleteMany({ where: { customerId: { in: customerIds } } });
     await prisma.interaction.deleteMany({ where: { customerId: { in: customerIds } } });

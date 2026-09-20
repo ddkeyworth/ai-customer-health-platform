@@ -8,10 +8,14 @@ import {
   clearAnthropicApiKey,
   updateCapabilitySchedule,
   runCapabilityNow,
+  updateAdoptionThreshold,
+  simulateSubscribe,
+  cancelSimulatedSubscription,
 } from "./actions";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { EXPORT_FIELDS } from "@/lib/exportFields";
-import { getRunConfig } from "@/lib/capabilityRuns";
+import { ALLOWED_CAPABILITIES, getRunConfig, type Capability } from "@/lib/capabilityRuns";
+import { getTrialStatus } from "@/lib/trialGate";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +23,14 @@ function fmtRunTime(d: Date | null): string {
   if (!d) return "Never run yet";
   return `Last run ${d.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`;
 }
+
+const CAPABILITY_LABELS: Record<Capability, string> = {
+  health: "Health scoring",
+  onboarding: "Onboarding recovery plans",
+  adoption: "Adoption nudges",
+  expansion: "Expansion review",
+  renewal: "Renewal save plays",
+};
 
 export default async function SettingsPage({
   searchParams,
@@ -31,7 +43,10 @@ export default async function SettingsPage({
     where: { workspaceId: workspace.id },
     orderBy: { riskWeight: "desc" },
   });
-  const healthRunConfig = await getRunConfig(workspace.id, "health");
+  const trial = getTrialStatus(workspace);
+  const runConfigs = Object.fromEntries(
+    await Promise.all(ALLOWED_CAPABILITIES.map(async (c) => [c, await getRunConfig(workspace.id, c)] as const))
+  ) as Record<Capability, Awaited<ReturnType<typeof getRunConfig>>>;
 
   return (
     <div className="max-w-2xl">
@@ -148,49 +163,118 @@ export default async function SettingsPage({
         will run at all until this is configured.
       </p>
 
-      <h2 className="text-sm font-medium text-zinc-900 mb-3">Automation</h2>
+      <h2 className="text-sm font-medium text-zinc-900 mb-3">Plan &amp; trial</h2>
       <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4 mb-2">
-        {ran === "health" && (
-          <p className="text-xs text-green-800 bg-green-50 rounded-lg px-3 py-2 mb-3">Health scores recomputed successfully.</p>
+        {trial.exempt ? (
+          <p className="text-sm text-zinc-700">Demo workspace - always has full access, not on a trial.</p>
+        ) : trial.subscribed ? (
+          <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
+            <span className="text-sm text-zinc-900">Subscribed (demo only - no real payment was taken)</span>
+            <form action={cancelSimulatedSubscription}>
+              <button type="submit" className="text-xs text-red-700 hover:underline">
+                Cancel
+              </button>
+            </form>
+          </div>
+        ) : trial.active ? (
+          <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
+            <span className="text-sm text-zinc-900">
+              {trial.daysRemaining} day{trial.daysRemaining === 1 ? "" : "s"} left in your free trial
+            </span>
+            <form action={simulateSubscribe}>
+              <button type="submit" className="rounded-lg bg-[#0C447C] hover:bg-[#0a3a69] transition-colors text-white text-sm px-3 py-1.5">
+                Upgrade (demo only)
+              </button>
+            </form>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+            <span className="text-sm text-red-800">Your free trial ended on {trial.trialEndsAt.toDateString()}.</span>
+            <form action={simulateSubscribe}>
+              <button type="submit" className="rounded-lg bg-[#0C447C] hover:bg-[#0a3a69] transition-colors text-white text-sm px-3 py-1.5">
+                Upgrade (demo only)
+              </button>
+            </form>
+          </div>
         )}
-        {runError === "health" && (
-          <p className="text-xs text-red-800 bg-red-50 rounded-lg px-3 py-2 mb-3">
-            Couldn&apos;t run Health scoring - check the API key above is valid, or try again shortly if you&apos;ve
-            run this 3 times in the last hour.
+      </div>
+      <p className="text-xs text-zinc-500 mb-8">
+        Every capability below (Health included) needs an active trial or subscription to run - a workspace&apos;s
+        own configured Anthropic key is a separate, additional requirement, not a substitute. &quot;Upgrade&quot;
+        here is illustrative only, matching the &quot;concept, not a connection&quot; treatment already used for
+        billing elsewhere in this repo - no real payment processor exists, and nothing is ever actually charged.
+      </p>
+
+      <h2 className="text-sm font-medium text-zinc-900 mb-3">Automation</h2>
+      <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4 mb-2 space-y-2">
+        {ran && (
+          <p className="text-xs text-green-800 bg-green-50 rounded-lg px-3 py-2">
+            {CAPABILITY_LABELS[ran as Capability] ?? ran} ran successfully.
+          </p>
+        )}
+        {runError && (
+          <p className="text-xs text-red-800 bg-red-50 rounded-lg px-3 py-2">
+            Couldn&apos;t run {CAPABILITY_LABELS[runError as Capability] ?? runError} - check the API key above is
+            valid and your trial/subscription is active, or try again shortly if you&apos;ve run this 3 times in the
+            last hour.
           </p>
         )}
         {!workspace.anthropicApiKeyLast4 ? (
           <p className="text-sm text-zinc-500">Configure your Anthropic API key above to enable this.</p>
+        ) : !trial.active ? (
+          <p className="text-sm text-zinc-500">Upgrade above to enable this - your free trial has ended.</p>
         ) : (
-          <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
-            <div>
-              <p className="text-sm text-zinc-900 font-medium">Health scoring</p>
-              <p className="text-xs text-zinc-500">{fmtRunTime(healthRunConfig.lastRunAt)}</p>
+          ALLOWED_CAPABILITIES.map((capability) => (
+            <div key={capability}>
+              <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
+                <div>
+                  <p className="text-sm text-zinc-900 font-medium">{CAPABILITY_LABELS[capability]}</p>
+                  <p className="text-xs text-zinc-500">{fmtRunTime(runConfigs[capability].lastRunAt)}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <form action={updateCapabilitySchedule} className="flex items-center gap-1.5">
+                    <input type="hidden" name="capability" value={capability} />
+                    <select
+                      name="schedule"
+                      defaultValue={runConfigs[capability].schedule}
+                      className="rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
+                    >
+                      <option value="on_demand">On-demand only</option>
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                    </select>
+                    <button type="submit" className="rounded-lg border border-zinc-200 text-zinc-700 text-sm px-2.5 py-1.5">
+                      Save
+                    </button>
+                  </form>
+                  <form action={runCapabilityNow}>
+                    <input type="hidden" name="capability" value={capability} />
+                    <button type="submit" className="rounded-lg bg-[#0C447C] hover:bg-[#0a3a69] transition-colors text-white text-sm px-3 py-1.5">
+                      Run now
+                    </button>
+                  </form>
+                </div>
+              </div>
+              {capability === "adoption" && (
+                <form action={updateAdoptionThreshold} className="flex items-center gap-2 mt-1.5 px-3">
+                  <label className="text-xs text-zinc-500">Underused-capability threshold</label>
+                  <input
+                    name="threshold"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    defaultValue={workspace.adoptionUnderusedThresholdPct}
+                    className="w-16 rounded-lg border border-zinc-200 px-2 py-1 text-xs"
+                  />
+                  <span className="text-xs text-zinc-500">%</span>
+                  <button type="submit" className="rounded-lg border border-zinc-200 text-zinc-700 text-xs px-2 py-1">
+                    Save
+                  </button>
+                </form>
+              )}
             </div>
-            <div className="flex items-center gap-2">
-              <form action={updateCapabilitySchedule} className="flex items-center gap-1.5">
-                <input type="hidden" name="capability" value="health" />
-                <select
-                  name="schedule"
-                  defaultValue={healthRunConfig.schedule}
-                  className="rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
-                >
-                  <option value="on_demand">On-demand only</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                </select>
-                <button type="submit" className="rounded-lg border border-zinc-200 text-zinc-700 text-sm px-2.5 py-1.5">
-                  Save
-                </button>
-              </form>
-              <form action={runCapabilityNow}>
-                <input type="hidden" name="capability" value="health" />
-                <button type="submit" className="rounded-lg bg-[#0C447C] hover:bg-[#0a3a69] transition-colors text-white text-sm px-3 py-1.5">
-                  Run now
-                </button>
-              </form>
-            </div>
-          </div>
+          ))
         )}
       </div>
       <p className="text-xs text-zinc-500 mb-8">
@@ -278,9 +362,10 @@ export default async function SettingsPage({
 
       <h2 className="text-sm font-medium text-zinc-900 mb-3">Not built yet</h2>
       <p className="text-sm text-zinc-600">
-        Team &amp; roles, billing (illustrative), other integrations (concept-only connectors), developer/API
-        (concept-only), consumption/outcome metric configuration, and the actual export mechanism (the allowlist
-        above only records intent).
+        Team &amp; roles, other integrations (concept-only connectors), developer/API (concept-only), consumption/
+        outcome metric configuration, and the actual export mechanism (the allowlist above only records intent).
+        Plan &amp; trial above is a real, working gate - the &quot;Upgrade&quot; action within it stays illustrative
+        only, since real payment processing is out of scope for this repo.
       </p>
     </div>
   );

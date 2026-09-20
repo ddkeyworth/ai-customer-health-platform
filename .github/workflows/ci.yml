@@ -62,7 +62,7 @@ jobs:
         run: npx tsc --noEmit
       - name: Run assert-based regression suite
         run: |
-          for f in test-auth test-workspace-secret test-settings-validation test-calibration test-segments test-workspace-scoping test-rate-limit test-capability-runs test-onboarding-pace; do
+          for f in test-auth test-workspace-secret test-settings-validation test-calibration test-segments test-workspace-scoping test-rate-limit test-capability-runs test-onboarding-pace test-trial-gate test-churn-model test-agent-actions; do
             echo "=== $f ==="
             npx tsx prisma/$f.ts
           done

@@ -37,6 +37,38 @@ async function main() {
   await wait(1000);
   await page.screenshot({ path: path.join(OUT_DIR, "competitor-config-screenshot.png"), fullPage: true });
 
+  await page.goto(`${BASE}/onboarding`, { waitUntil: "domcontentloaded" });
+  await wait(1000);
+  await page.screenshot({ path: path.join(OUT_DIR, "onboarding-screenshot.png") });
+
+  await page.goto(`${BASE}/adoption`, { waitUntil: "domcontentloaded" });
+  await wait(1000);
+  await page.screenshot({ path: path.join(OUT_DIR, "adoption-screenshot.png") });
+
+  await page.goto(`${BASE}/expansion`, { waitUntil: "domcontentloaded" });
+  await wait(1000);
+  await page.screenshot({ path: path.join(OUT_DIR, "expansion-screenshot.png") });
+
+  await page.goto(`${BASE}/renewal`, { waitUntil: "domcontentloaded" });
+  await wait(1000);
+  await page.screenshot({ path: path.join(OUT_DIR, "renewal-screenshot.png") });
+
+  await page.goto(`${BASE}/briefing`, { waitUntil: "domcontentloaded" });
+  await wait(1000);
+  await page.screenshot({ path: path.join(OUT_DIR, "briefing-screenshot.png") });
+
+  await page.goto(`${BASE}/calibration`, { waitUntil: "domcontentloaded" });
+  await wait(1000);
+  await page.screenshot({ path: path.join(OUT_DIR, "calibration-screenshot.png") });
+
+  await page.goto(`${BASE}/segments`, { waitUntil: "domcontentloaded" });
+  await wait(1000);
+  await page.screenshot({ path: path.join(OUT_DIR, "segments-screenshot.png") });
+
+  await page.goto(`${BASE}/signup`, { waitUntil: "domcontentloaded" });
+  await wait(1000);
+  await page.screenshot({ path: path.join(OUT_DIR, "signup-screenshot.png") });
+
   await page.goto(`${BASE}/marketing`, { waitUntil: "domcontentloaded" });
   await wait(1000);
   await page.screenshot({ path: path.join(OUT_DIR, "marketing-screenshot.png"), fullPage: true });

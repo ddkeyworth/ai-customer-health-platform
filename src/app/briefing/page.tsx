@@ -36,6 +36,16 @@ export default async function BriefingPage({
     },
   });
 
+  // Adoption has no flag of its own below until its agentic layer actually
+  // flags one - additive on top of the live queries above, not a
+  // replacement for them, per docs/playbook-proposals.md decision 1. Keyed
+  // by CustomerProduct id, not customerId - usage-breadth genuinely varies
+  // by product, same as Onboarding/Renewal below.
+  const adoptionNudges = await prisma.agentAction.findMany({
+    where: { workspaceId: workspace.id, area: "adoption", status: "proposed" },
+  });
+  const adoptionByProductId = new Map(adoptionNudges.filter((a) => a.subjectId).map((a) => [a.subjectId, a]));
+
   const now = new Date();
 
   // Grouped by customer first, not iterated flat - Health and Expansion are
@@ -43,8 +53,8 @@ export default async function BriefingPage({
   // not per-product ones. Iterating customerProducts directly and pushing a
   // Health/Expansion flag inside that loop meant a customer with more than
   // one product got the identical flag duplicated once per extra product.
-  // Onboarding and Renewal genuinely do vary by product, so those stay
-  // inside the per-product loop.
+  // Onboarding, Adoption, and Renewal genuinely do vary by product, so
+  // those stay inside the per-product loop.
   const productsByCustomer = new Map<string, typeof customerProducts>();
   for (const cp of customerProducts) {
     const list = productsByCustomer.get(cp.customerId) ?? [];
@@ -82,6 +92,18 @@ export default async function BriefingPage({
     for (const cp of cps) {
       const totalArr = Number(cp.contractualArr) + Number(cp.consumptionArr);
 
+      // Adoption nudge - per product (a customer with two live Products can
+      // have independently different breadth on each), only when the
+      // agentic layer has actually flagged one (Settings > Automation).
+      const nudge = adoptionByProductId.get(cp.id);
+      if (nudge) {
+        flags.push({
+          area: "Adoption",
+          headline: nudge.headline,
+          impact: Number(nudge.impactArr ?? 0),
+        });
+      }
+
       // Onboarding overdue - per product.
       if (cp.lifecycleStatus === "onboarding" && cp.expectedGoLiveDate && cp.expectedGoLiveDate < now) {
         const daysOverdue = computeDaysOverdue(cp.expectedGoLiveDate, now);
@@ -116,6 +138,7 @@ export default async function BriefingPage({
   const areaColor: Record<string, string> = {
     Health: "bg-red-50 text-red-800",
     Onboarding: "bg-amber-50 text-amber-800",
+    Adoption: "bg-purple-50 text-purple-800",
     Expansion: "bg-green-50 text-green-800",
     Renewal: "bg-blue-50 text-blue-800",
   };
@@ -150,10 +173,11 @@ export default async function BriefingPage({
       </div>
 
       <p className="mt-6 text-xs text-zinc-500">
-        Consolidated by account, ranked by combined £ impact - not a raw per-signal activity feed. Pulled live from
-        Health, Onboarding, Expansion, and Renewal (all real, already-computed data), not a separate stored item with
-        its own review/dismiss state - approve/dismiss/snooze and the on-demand refresh the design calls for
-        aren&apos;t built yet. Nothing here is ever sent anywhere; this is a read-only prioritized view.
+        Consolidated by account, ranked by combined £ impact - not a raw per-signal activity feed. Health, Onboarding,
+        Expansion, and Renewal flags are pulled live from their own already-computed data; Adoption&apos;s flag
+        surfaces only when its agentic layer has actually run and proposed a nudge (Settings &gt; Automation) - the
+        one area with no flag of its own until an AI layer produces one. Approve/dismiss/snooze and an on-demand
+        refresh aren&apos;t built yet. Nothing here is ever sent anywhere; this is a read-only prioritized view.
       </p>
     </div>
   );

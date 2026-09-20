@@ -32,6 +32,18 @@ model Workspace {
   // is safe to store in the clear purely for a masked "ending in ****1234" display.
   anthropicApiKeyEncrypted String?
   anthropicApiKeyLast4     String?
+  // Free-trial gate for the AI layer of every capability (Health included) -
+  // see src/lib/trialGate.ts. No stored trial-end date: computed from
+  // createdAt + TRIAL_DAYS at read time, so there's nothing to backfill for
+  // existing rows. subscriptionActive is illustrative only, same "concept,
+  // not a connection" treatment as billing elsewhere in Settings - no real
+  // payment processor exists, matching the app's own safety principle
+  // against operationalizing anything that would touch real money.
+  subscriptionActive Boolean @default(false)
+  // Adoption's "underused capability" threshold (see /adoption and its
+  // agentic layer) - configurable per workspace rather than the fixed 50%
+  // the page used before this existed.
+  adoptionUnderusedThresholdPct Int @default(50)
   createdAt          DateTime @default(now())
   archivedAt         DateTime?
 
@@ -42,6 +54,7 @@ model Workspace {
   segments          Segment[]
   products          Product[]
   capabilityRunConfigs CapabilityRunConfig[]
+  agentActions      AgentAction[]
 
   @@map("workspaces")
 }
@@ -149,6 +162,7 @@ model Customer {
   stakeholders       Stakeholder[]
   trainingCompletions TrainingCompletion[]
   outcomeEvents      OutcomeEvent[]
+  agentActions       AgentAction[]
 
   @@map("customers")
 }
@@ -460,4 +474,48 @@ model Segment {
   workspace Workspace @relation(fields: [workspaceId], references: [id])
 
   @@map("segments")
+}
+
+// Shared draft-recommendation storage for every agentic layer beyond Health
+// (Onboarding, Adoption, Expansion, Renewal) - see
+// docs/playbook-proposals.md. Health keeps writing to its own
+// HealthScoreSnapshot (a score, not a recommendation); this is for the
+// "here's a suggested action, a human decides" kind of output the other
+// four areas produce. Always a draft: status only ever changes via a human
+// reviewing it in the relevant area's own page - never sent, executed, or
+// auto-approved. metadata holds whatever extra structured fields are
+// specific to one area (e.g. Onboarding's stalledReason, Renewal's
+// riskFactors) rather than a wide table of mostly-null columns.
+model AgentAction {
+  id                String    @id @default(cuid())
+  workspaceId       String
+  customerId        String
+  area              String    // "onboarding" | "adoption" | "expansion" | "renewal"
+  actionType        String    // "recovery_plan" | "usage_nudge" | "expansion_review" | "save_play"
+  // Distinguishes multiple concurrent actions for the same customer+area -
+  // a customer with two live Products can have two independent Onboarding/
+  // Adoption/Renewal reads (the CustomerProduct id), and one with two open
+  // Opportunities can have two independent Expansion reviews (the
+  // Opportunity id). Without this, a second qualifying product/opportunity
+  // would silently overwrite the first's recommendation on the next run -
+  // a real bug caught by actually running this end to end, not by the unit
+  // tests alone, the same customer-vs-product mistake already found once in
+  // Briefing (see TESTING.md).
+  subjectId         String?
+  status            String    @default("proposed") // "proposed" | "accepted" | "dismissed"
+  headline          String    // one-line summary, shown in Briefing and the area's own page
+  reasoning         String    // evidence-grounded narrative, same rule as Health's narrative
+  suggestedNextStep String?
+  impactArr         Decimal?  // for £-impact ranking in Briefing, same pattern as Health/Expansion
+  confidenceLevel   String    @default("early_read") // "early_read" | "established"
+  metadata          Json?
+  createdAt         DateTime  @default(now())
+  reviewedAt        DateTime?
+  reviewedBy        String?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  customer  Customer  @relation(fields: [customerId], references: [id])
+
+  @@index([workspaceId, status])
+  @@map("agent_actions")
 }

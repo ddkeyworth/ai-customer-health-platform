@@ -14,6 +14,7 @@ import {
   ALLOWED_LANGUAGES,
   ANTHROPIC_KEY_PATTERN,
   clampRiskWeight,
+  clampAdoptionThreshold,
 } from "@/lib/settingsValidation";
 import { ALLOWED_CAPABILITIES, ALLOWED_SCHEDULES, setSchedule, runCapability, type Capability } from "@/lib/capabilityRuns";
 
@@ -127,6 +128,34 @@ export async function runCapabilityNow(formData: FormData) {
   }
   revalidatePath("/settings");
   redirect(`/settings?ran=${capability}`);
+}
+
+export async function updateAdoptionThreshold(formData: FormData) {
+  const workspace = await getCurrentWorkspace();
+  if (!(await withinRateLimit(`updateAdoptionThreshold:${workspace.id}`, 10, 60_000))) return;
+
+  const threshold = clampAdoptionThreshold(Number(formData.get("threshold")));
+  await prisma.workspace.update({
+    where: { id: workspace.id },
+    data: { adoptionUnderusedThresholdPct: threshold },
+  });
+  revalidatePath("/settings");
+}
+
+// Illustrative only - no real payment processor exists, same "concept, not
+// a connection" treatment as billing elsewhere in this repo. Flips the
+// workspace's subscriptionActive flag directly; nothing here charges
+// anything or talks to a real payment provider.
+export async function simulateSubscribe() {
+  const workspace = await getCurrentWorkspace();
+  await prisma.workspace.update({ where: { id: workspace.id }, data: { subscriptionActive: true } });
+  revalidatePath("/settings");
+}
+
+export async function cancelSimulatedSubscription() {
+  const workspace = await getCurrentWorkspace();
+  await prisma.workspace.update({ where: { id: workspace.id }, data: { subscriptionActive: false } });
+  revalidatePath("/settings");
 }
 
 export async function updateExportAllowlist(formData: FormData) {

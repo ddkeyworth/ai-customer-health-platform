@@ -8,6 +8,7 @@ import {
   ALLOWED_LANGUAGES,
   ANTHROPIC_KEY_PATTERN,
   clampRiskWeight,
+  clampAdoptionThreshold,
 } from "../src/lib/settingsValidation";
 
 function assert(condition: boolean, message: string): void {
@@ -39,5 +40,11 @@ assert(clampRiskWeight(0) === 1, "A risk weight below the range clamps up to 1")
 assert(clampRiskWeight(99) === 5, "A risk weight above the range clamps down to 5");
 assert(clampRiskWeight(2.6) === 3, "A non-integer risk weight rounds to the nearest integer");
 assert(clampRiskWeight(NaN) === 3, "A non-numeric risk weight defaults to 3, the same default the UI form shows");
+
+assert(clampAdoptionThreshold(50) === 50, "An adoption threshold already in range (0-100) passes through unchanged");
+assert(clampAdoptionThreshold(-10) === 0, "A threshold below the range clamps up to 0");
+assert(clampAdoptionThreshold(150) === 100, "A threshold above the range clamps down to 100");
+assert(clampAdoptionThreshold(49.6) === 50, "A non-integer threshold rounds to the nearest integer");
+assert(clampAdoptionThreshold(NaN) === 50, "A non-numeric threshold defaults to 50, the same default the schema has");
 
 console.log("\nAll settings-validation checks passed.");

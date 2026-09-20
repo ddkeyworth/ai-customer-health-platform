@@ -121,7 +121,9 @@ export default async function CalibrationPage() {
         point-in-time backtest of &quot;what the score said before the outcome happened.&quot; &quot;Worth
         reviewing&quot; isn&apos;t necessarily a scoring error - a Watch/Critical account that renewed anyway may
         reflect a successful save-play, not a bad score. This surface exists so a human can spot patterns and decide
-        whether driver weighting should change; nothing here adjusts anything automatically - see README.md.
+        whether driver weighting should change; nothing here adjusts anything automatically. These same outcomes now
+        also feed <code>/renewal</code>&apos;s churn-likelihood baseline directly, per Health band, once there&apos;s
+        enough recorded history (see <code>src/lib/renewal/churnModel.ts</code>) - see README.md.
       </p>
     </div>
   );

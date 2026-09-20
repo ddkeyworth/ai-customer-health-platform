@@ -11,3 +11,7 @@ export const ANTHROPIC_KEY_PATTERN = /^sk-ant-[A-Za-z0-9_-]{20,}$/;
 export function clampRiskWeight(raw: number): number {
   return Number.isFinite(raw) ? Math.min(5, Math.max(1, Math.round(raw))) : 3;
 }
+
+export function clampAdoptionThreshold(raw: number): number {
+  return Number.isFinite(raw) ? Math.min(100, Math.max(0, Math.round(raw))) : 50;
+}
