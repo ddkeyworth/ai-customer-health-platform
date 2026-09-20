@@ -156,9 +156,9 @@ other four lifecycle areas.
 
 `npx tsc --noEmit`, `npm run lint`, and `npm run build` all clean. Verified for real against the live demo
 workspace's own configured key, not just unit-tested: real Anthropic calls producing real, evidence-grounded output
-across Onboarding (including two accounts correctly declined - no evidence beyond "it's late"), all of Adoption and
-Expansion, and 2 of 4 Renewal candidates before that key ran out of credit mid-run - see `TESTING.md` for the honest
-account of what that partial run did and didn't cover, and the real dedup bug it caught.
+across Onboarding (two overdue accounts correctly declined, with no evidence beyond "it's late"), Adoption (8 accounts),
+Expansion (27 opportunities) and Renewal (11 at-risk renewals), all after the key was topped up following a first run
+that ran out of credit. See `TESTING.md` for that first run and the dedup bug it caught.
 
 ## Stage 2: live deployment
 
