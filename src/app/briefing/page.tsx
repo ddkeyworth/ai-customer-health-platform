@@ -179,8 +179,11 @@ export default async function BriefingPage({
         Consolidated by account, ranked by combined £ impact - not a raw per-signal activity feed. Health, Onboarding,
         Expansion, and Renewal flags are pulled live from their own already-computed data; Adoption&apos;s flag
         surfaces only when its agentic layer has actually run and proposed a nudge (Settings &gt; Automation) - the
-        one area with no flag of its own until an AI layer produces one. Approve/dismiss/snooze and an on-demand
-        refresh aren&apos;t built yet. Nothing here is ever sent anywhere; this is a read-only prioritised view.
+        one area with no flag of its own until an AI layer produces one. Briefing itself stays read-only - no
+        approve/dismiss/snooze here, and no on-demand refresh - but Accept/Dismiss are real on each area&apos;s own
+        page (Onboarding, Adoption, Expansion, Renewal), wherever the AI recommendation behind a flag is shown.
+        Snooze isn&apos;t built anywhere yet. Nothing here is ever sent anywhere; this is a read-only prioritised
+        view.
       </p>
     </div>
   );

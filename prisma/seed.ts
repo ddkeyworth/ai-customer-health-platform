@@ -388,6 +388,10 @@ async function main() {
       hasChampion?: boolean;
       championDaysAgo?: number | null; // null = champion exists but never engaged
       trainingSessionCount?: number;
+      // Real, specific evidence for why an overdue onboarding account has
+      // stalled - without this, the onboarding agentic layer had nothing to
+      // point to beyond "it's late" and correctly declined every time.
+      onboardingBlocker?: "customer_delay" | "internal_delay" | "external_dependency" | null;
     }
   ) {
     const ids = Array.isArray(pkgIds) ? pkgIds : [pkgIds];
@@ -428,12 +432,33 @@ async function main() {
       "Mentioned in passing that their ops director has been demoing CargoPilot for the driver app workflow.",
       "Asked if we have a feature comparable to RouteWorks' predictive ETA model.",
     ];
+    const onboardingBlockerTickets: Record<string, string[]> = {
+      customer_delay: [
+        "Customer's IT team has not yet completed the internal security review of our integration.",
+        "Customer's project lead has rescheduled the kickoff call twice so far.",
+        "Waiting on the customer to provide the driver roster before accounts can be provisioned.",
+        "Customer requested a scope change mid-onboarding and it is still pending sign-off on their side.",
+      ],
+      internal_delay: [
+        "Internal data migration from the customer's legacy system is still queued with our implementation team.",
+        "Our integration engineer flagged a scheduling conflict that pushed the technical setup back two weeks.",
+        "Config review by our onboarding team has been delayed behind two other active rollouts.",
+      ],
+      external_dependency: [
+        "Customer is waiting on their own hardware vendor to deliver handheld scanners before drivers can be onboarded.",
+        "Go-live is blocked on the customer's payment processor completing its own compliance check.",
+        "Customer's unrelated warehouse management system upgrade has pushed their internal timeline back.",
+      ],
+    };
 
     const interactionRows: { customerId: string; type: string; text: string; severity: string; occurredAt: Date }[] = [];
     for (let i = 0; i < opts.interactionCount; i++) {
       let text = pick(genericTickets);
       let severity = "low";
-      if (opts.competitorMention && i === 0) {
+      if (opts.onboardingBlocker && i < 2) {
+        text = pick(onboardingBlockerTickets[opts.onboardingBlocker]);
+        severity = "medium";
+      } else if (opts.competitorMention && i === 0) {
         text = pick(competitorTickets);
         severity = "medium";
       } else if (opts.usageTrend === "declining" && i < 2) {
@@ -796,7 +821,7 @@ async function main() {
         },
       });
       await seedCustomerData(customer.id, pkgIds, {
-        interactionCount: randInt(0, 3),
+        interactionCount: overdue ? randInt(2, 5) : randInt(0, 2),
         competitorMention: false,
         usageTrend: "flat",
         eventCount: randInt(0, 1),
@@ -805,6 +830,7 @@ async function main() {
         hasChampion: chance(0.4),
         championDaysAgo: randInt(1, 30),
         trainingSessionCount: randInt(0, 2),
+        onboardingBlocker: overdue ? pick(["customer_delay", "internal_delay", "external_dependency"]) : null,
       });
       continue;
     }

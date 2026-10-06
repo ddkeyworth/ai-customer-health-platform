@@ -5,6 +5,7 @@ import { tierColor } from "@/lib/health/ui";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { resolveActiveSegment } from "@/lib/activeSegment";
 import { computeBaselineChurnRates } from "@/lib/renewal/churnModel";
+import AgentActionReview from "@/components/AgentActionReview";
 import CustomerRef from "@/components/CustomerRef";
 
 export const dynamic = "force-dynamic";
@@ -166,6 +167,7 @@ export default async function RenewalPage({
                             <span className="font-medium">Save play:</span> {savePlay.suggestedNextStep}
                           </p>
                         )}
+                        <AgentActionReview id={savePlay.id} />
                       </div>
                     </td>
                   </tr>

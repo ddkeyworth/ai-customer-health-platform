@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { resolveActiveSegment } from "@/lib/activeSegment";
+import AgentActionReview from "@/components/AgentActionReview";
 import CustomerRef from "@/components/CustomerRef";
 
 export const dynamic = "force-dynamic";
@@ -147,6 +148,7 @@ export default async function AdoptionPage({
                           <span className="font-medium">Suggested:</span> {r.nudge.suggestedNextStep}
                         </p>
                       )}
+                      <AgentActionReview id={r.nudge.id} />
                     </div>
                   </td>
                 </tr>

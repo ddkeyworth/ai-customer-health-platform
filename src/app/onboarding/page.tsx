@@ -5,6 +5,7 @@ import { tierColor } from "@/lib/health/ui";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { resolveActiveSegment } from "@/lib/activeSegment";
 import { computeDaysOverdue } from "@/lib/onboarding/pace";
+import AgentActionReview from "@/components/AgentActionReview";
 import CustomerRef from "@/components/CustomerRef";
 
 export const dynamic = "force-dynamic";
@@ -126,6 +127,7 @@ export default async function OnboardingPage({
                             <span className="font-medium">Next step:</span> {r.recoveryPlan.suggestedNextStep}
                           </p>
                         )}
+                        <AgentActionReview id={r.recoveryPlan.id} />
                       </div>
                     </td>
                   </tr>

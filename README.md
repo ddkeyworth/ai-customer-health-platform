@@ -37,7 +37,7 @@ A conceptual exploration of an agentic-AI Customer Success platform – planned 
 
 ![Health scoring architecture](docs/screenshots/health-scoring-architecture.svg)
 
-All fourteen screenshots are real captures of the live app (`/login`, `/signup`, `/`, `/health`, `/health/[customerId]`, `/briefing`, `/onboarding`, `/adoption`, `/expansion`, `/renewal`, `/segments`, `/calibration`, `/settings`, `/marketing`), taken against the production deployment with the synthetic data described below. None are mockups. Renewal, Settings and Marketing are full-page captures; the rest show the top of the page. Onboarding shows no AI recovery plan because all four overdue accounts were correctly declined for lack of evidence (see [Playbook agentic layers](#playbook-agentic-layers)). `health-scoring-architecture.svg` is a diagram, not a screenshot. Regenerate the screenshots with `npm run screenshots` (`scripts/capture-screenshots.mjs`, Puppeteer-driven).
+All fourteen screenshots are real captures of the live app (`/login`, `/signup`, `/`, `/health`, `/health/[customerId]`, `/briefing`, `/onboarding`, `/adoption`, `/expansion`, `/renewal`, `/segments`, `/calibration`, `/settings`, `/marketing`), taken against the production deployment with the synthetic data described below. None are mockups. Renewal, Settings and Marketing are full-page captures; the rest show the top of the page. Onboarding shows AI recovery plans on the four overdue accounts, each with Accept and Dismiss (see [Reviewing AI recommendations](#reviewing-ai-recommendations)). `health-scoring-architecture.svg` is a diagram, not a screenshot. Regenerate the screenshots with `npm run screenshots` (`scripts/capture-screenshots.mjs`, Puppeteer-driven).
 
 The repo is named descriptively for portfolio discoverability; **"Bearing"** is the working product name used within the app and mockups themselves.
 
@@ -84,7 +84,7 @@ All 10 dashboard screens (Home, Health, Briefing, Onboarding, Adoption, Expansio
 | `/renewal` | Real renewal dates, Auto/Interrupted status, ARR at risk. Churn likelihood now comes from real recorded outcomes per Health band where there's enough history, with an illustrative per-band fallback, plus a real agentic save-play layer for at-risk accounts |
 | `/segments` | Real saved filters - create/view/delete all genuinely work, capped at 20 per workspace. Picking one from the top-bar selector re-scopes every area (Home, Health, Onboarding, Adoption, Expansion, Renewal, Briefing) to it, carried via the URL - the Micro view from the original design. Health's executive summary stays whole-book-only rather than generating a live per-segment Anthropic call on every page load |
 | `/settings` | Org profile/branding/localisation and competitor risk config are real, writable forms (Server Actions). A data-export allowlist config is also real (which of Bearing's own generated fields would sync to a CRM), same concept-only treatment as Integrations/SSO - no actual export mechanism exists. A workspace can also store its own Anthropic API key, encrypted at rest (see [Bring your own Anthropic API key](#bring-your-own-anthropic-api-key)), a configurable Adoption threshold, and a real run schedule for all 5 capabilities - on-demand, daily, or weekly, plus a Run now override (see [Automation](#automation)). A real free-trial/subscription gate now sits in front of every capability's AI layer - the "subscribe" action itself stays illustrative, same concept-only treatment as billing. Team & roles, other integrations, developer/API stay honest "not built yet" |
-| `/briefing` | Real cross-area action queue, consolidated by account and ranked by £ impact, pulled live from Health/Onboarding/Expansion/Renewal, plus Adoption once its agentic layer has actually proposed a nudge. Read-only - no approve/dismiss/snooze state yet |
+| `/briefing` | Real cross-area action queue, consolidated by account and ranked by £ impact, pulled live from Health/Onboarding/Expansion/Renewal, plus Adoption once its agentic layer has actually proposed a nudge. Briefing itself stays read-only, but Accept/Dismiss are real on each area's own page - see [Reviewing AI recommendations](#reviewing-ai-recommendations) |
 | `/marketing` | Real public-facing landing page - positioning line, 5 lifecycle-area cards, illustrative two-axis pricing, and an honest "what's actually real" section. Rendered without the internal dashboard chrome via `AppShell`. Terms/Privacy/Security stay one-line honest placeholders, not real legal documents, per the governing safety principle |
 | `/calibration` | Real calibration loop - every recorded `OutcomeEvent` (churned/renewed/expanded) compared against the Health score on file, classified as confirmed/missed/worth-reviewing. Not a true point-in-time backtest (one snapshot per customer, not a real historical series); nothing here adjusts driver weighting automatically - see the page's own footnote |
 | `/login`, `/signup` | Real email/password authentication (bcrypt + database-backed sessions) - see [Authentication](#authentication). Signup creates a genuine new, empty, isolated workspace, not a new user in the shared demo one |
@@ -132,7 +132,9 @@ other four lifecycle areas.
   covered by `prisma/test-agent-actions.ts`.
 - **Onboarding** - a recovery plan for accounts genuinely overdue on go-live: likely stalled reason, evidence-grounded
   reasoning, one concrete next step. Declines rather than inventing a reason when there's nothing beyond "it's
-  late" - confirmed for real against the two accounts overdue in the seed data, both correctly declined.
+  late". Tested both ways against the demo: with no blocker evidence in the interaction history all four overdue accounts
+  were declined, and once each was given real blocker tickets (a customer delay, an internal delay, an external
+  dependency) all four got a specific recovery plan citing them.
 - **Adoption** - a usage nudge for accounts below a workspace-configurable underused-capability threshold (Settings,
   default 50%), checking whether the account has actually asked about an unused capability versus never mentioned it
   at all.
@@ -156,9 +158,22 @@ other four lifecycle areas.
 
 `npx tsc --noEmit`, `npm run lint`, and `npm run build` all clean. Verified for real against the live demo
 workspace's own configured key, not just unit-tested. The full pipeline ran on the 120-customer demo in about 34
-minutes with no errors: 120 Health scores, 153 Expansion reviews, 45 Adoption nudges, 17 Renewal save plays, and 4
-overdue onboarding accounts all correctly declined (none had evidence beyond "it's late"). See `TESTING.md` for the
-earlier 19-customer run, its dedup bug, and the counts and timings from this one.
+minutes with no errors: 120 Health scores, 153 Expansion reviews, 45 Adoption nudges and 17 Renewal save plays. The 4
+overdue onboarding accounts were declined on that run (no evidence beyond "it's late"); after blocker tickets were
+added they each received a recovery plan. See `TESTING.md` for the earlier 19-customer run, its dedup bug, and the
+counts and timings from this one.
+
+## Reviewing AI recommendations
+
+Every AI recommendation (Onboarding's recovery plans, Adoption's nudges, Expansion's reviews, Renewal's save plays)
+carries a real Accept/Dismiss action, shown directly on the card wherever that recommendation appears - on the area's
+own page, not centralised in Briefing. `AgentAction` already had a `status` field (proposed/accepted/dismissed) from
+the original design; this is the UI that was missing, not a new idea. Accepting or dismissing sets `status` and
+records who and when (`reviewedAt`/`reviewedBy`), scoped to the current workspace the same way `deleteCompetitor` and
+`deleteSegment` already are - one workspace can't review another's recommendation by guessing its id. Once reviewed,
+a recommendation drops out of the "proposed" queries every page already runs, so it disappears from view; there's no
+history list to see what was accepted or dismissed, and no way to undo it. Snooze isn't built: it would need a new
+date field and a decision on how long "snoozed" means, which is a real design question, not wiring.
 
 ## Stage 2: live deployment
 
@@ -216,7 +231,7 @@ separate, additional requirement, not a substitute for an active trial.
 
 ## Test coverage
 
-Twelve assert-based regression scripts (each throws and exits non-zero on failure, rather than printing output for a human to eyeball), all under `prisma/` and run via `npx tsx prisma/<name>.ts`:
+Thirteen assert-based regression scripts (each throws and exits non-zero on failure, rather than printing output for a human to eyeball), all under `prisma/` and run via `npx tsx prisma/<name>.ts`:
 
 | Script | Covers |
 |---|---|
@@ -231,6 +246,7 @@ Twelve assert-based regression scripts (each throws and exits non-zero on failur
 | `test-onboarding-pace.ts` | The days-overdue calculation shared by Onboarding and Briefing - no date, a past date, a future date, and the exact-today boundary |
 | `test-trial-gate.ts` | The free-trial gate every capability's AI layer sits behind - within-trial, expired, subscribed, and the demo workspace's permanent exemption |
 | `test-churn-model.ts` | Renewal's real churn-rate calculation from Calibration's outcome history, and its per-band fallback to the illustrative table below the minimum sample size |
+| `test-agent-action-review.ts` | Accept/Dismiss on AI recommendations: it sets status, who and when; a row already reviewed cannot be reviewed again; and reviewing another workspace's recommendation by guessing its id changes nothing |
 | `test-agent-actions.ts` | The shared AgentAction upsert helper - refreshes an existing proposed row in place, leaves a reviewed one alone, and keeps two different subjects (e.g. two Products) independent rather than one overwriting the other |
 
 Everything else (workspace scoping as exercised through the actual pages, and the marketing page) is still verified interactively only, logged in `TESTING.md` - a stated, known gap, not silently left implicit.

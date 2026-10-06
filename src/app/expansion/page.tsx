@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { resolveActiveSegment } from "@/lib/activeSegment";
+import AgentActionReview from "@/components/AgentActionReview";
 import CustomerRef from "@/components/CustomerRef";
 
 export const dynamic = "force-dynamic";
@@ -116,6 +117,7 @@ export default async function ExpansionPage({
                         </p>
                         <p>{review.reasoning}</p>
                         {review.suggestedNextStep && <p className="mt-1 text-amber-800">{review.suggestedNextStep}</p>}
+                        <AgentActionReview id={review.id} />
                       </div>
                     </td>
                   </tr>
