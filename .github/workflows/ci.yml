@@ -33,6 +33,12 @@ on:
       - "**/*.md"
   workflow_dispatch:
 
+# Every run uses the same test database, so two runs at once would collide and
+# slow each other down. This queues them: one at a time, none cancelled.
+concurrency:
+  group: ci-test-database
+  cancel-in-progress: false
+
 jobs:
   ci:
     runs-on: ubuntu-latest
