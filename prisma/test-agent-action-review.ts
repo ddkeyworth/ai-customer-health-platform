@@ -1,11 +1,11 @@
-// Assert-based regression check for Accept/Dismiss on AI recommendations
+// Assert-based regression check for Accept/Dismiss/Snooze on AI recommendations
 // (src/lib/agentActionStatus.ts) - confirms a review actually changes
 // status/reviewedBy/reviewedAt, that an already-reviewed row can't be
 // reviewed again, and the actual IDOR guard: reviewing another workspace's
 // AgentAction by guessing its id updates nothing. Creates two real,
 // throwaway workspaces; deletes everything it created.
 import { PrismaClient } from "@prisma/client";
-import { setAgentActionStatus } from "../src/lib/agentActionStatus";
+import { setAgentActionStatus, snoozeAgentAction, notSnoozed, SNOOZE_DAYS } from "../src/lib/agentActionStatus";
 
 const prisma = new PrismaClient();
 
@@ -32,6 +32,18 @@ function assert(condition: boolean, message: string): void {
     },
   });
 
+  const snoozable = await prisma.agentAction.create({
+    data: {
+      workspaceId: workspaceA.id,
+      customerId: customer.id,
+      area: "adoption",
+      actionType: "usage_nudge",
+      headline: "Snooze headline",
+      reasoning: "Snooze reasoning",
+      confidenceLevel: "early_read",
+    },
+  });
+
   try {
     const crossWorkspaceCount = await setAgentActionStatus(workspaceB.id, action.id, "accepted", "Someone Else");
     assert(crossWorkspaceCount === 0, "Reviewing another workspace's AgentAction by guessing its id updates zero rows, not that workspace's data");
@@ -52,7 +64,38 @@ function assert(condition: boolean, message: string): void {
 
     const stillDismissed = await prisma.agentAction.findUniqueOrThrow({ where: { id: action.id } });
     assert(stillDismissed.status === "dismissed" && stillDismissed.reviewedBy === "Priya Chandra", "The original dismissal is untouched, not silently overwritten");
+
+    // --- Snooze ---
+    const visible = (at: Date) =>
+      prisma.agentAction.findMany({ where: { workspaceId: workspaceA.id, status: "proposed", ...notSnoozed(at) } });
+    const t0 = new Date();
+
+    assert((await visible(t0)).some((a) => a.id === snoozable.id), "A fresh recommendation is visible before any snooze");
+
+    assert((await snoozeAgentAction(workspaceB.id, snoozable.id, 7)) === 0, "Snoozing another workspace's recommendation by guessing its id updates zero rows");
+    assert((await snoozeAgentAction(workspaceA.id, snoozable.id, 5)) === 0, "A snooze length outside the 7/14/30 allowlist is refused");
+    assert((await snoozeAgentAction(workspaceA.id, snoozable.id, -7)) === 0, "A negative snooze length is refused");
+    const stillClear = await prisma.agentAction.findUniqueOrThrow({ where: { id: snoozable.id } });
+    assert(stillClear.snoozeUntil === null, "Refused snoozes leave snoozeUntil untouched");
+
+    for (const days of SNOOZE_DAYS) {
+      assert((await snoozeAgentAction(workspaceA.id, snoozable.id, days, t0)) === 1, `Snoozing for ${days} days updates exactly one row`);
+      const row = await prisma.agentAction.findUniqueOrThrow({ where: { id: snoozable.id } });
+      const diffDays = (row.snoozeUntil!.getTime() - t0.getTime()) / 86_400_000;
+      assert(Math.abs(diffDays - days) < 1e-6, `snoozeUntil is exactly ${days} days after the snooze moment`);
+    }
+
+    // Last snooze above was 30 days.
+    const day = (n: number) => new Date(t0.getTime() + n * 86_400_000);
+    assert(!(await visible(day(29))).some((a) => a.id === snoozable.id), "A snoozed recommendation is hidden before its date");
+    assert((await visible(day(31))).some((a) => a.id === snoozable.id), "It reappears by itself once the snooze date has passed");
+    const afterwards = await prisma.agentAction.findUniqueOrThrow({ where: { id: snoozable.id } });
+    assert(afterwards.status === "proposed", "A snoozed recommendation stays proposed, not accepted or dismissed");
+
+    await setAgentActionStatus(workspaceA.id, snoozable.id, "dismissed", "Priya Chandra");
+    assert((await snoozeAgentAction(workspaceA.id, snoozable.id, 7)) === 0, "A dismissed recommendation cannot be snoozed");
   } finally {
+    await prisma.agentAction.delete({ where: { id: snoozable.id } });
     await prisma.agentAction.delete({ where: { id: action.id } });
     await prisma.customer.delete({ where: { id: customer.id } });
     await prisma.workspace.delete({ where: { id: workspaceA.id } });

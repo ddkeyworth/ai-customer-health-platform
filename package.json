@@ -7,7 +7,9 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "screenshots": "node scripts/capture-screenshots.mjs"
+    "screenshots": "node scripts/capture-screenshots.mjs",
+    "refresh-dates": "tsx prisma/refresh-demo-dates.ts",
+    "refresh-ai": "tsx prisma/refresh-ai.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

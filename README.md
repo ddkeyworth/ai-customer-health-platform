@@ -98,6 +98,7 @@ The easy part of this project is the CRM-adjacent facts – ARR, package, who's 
 The architecture (see `docs/screenshots/health-scoring-architecture.svg`) is implemented in `src/lib/health/`:
 
 - **Two layers, not one formula.** Layer 1 (`baseline.ts`) is deterministic and reproducible: each of the 15 drivers normalised against the account's own history and a peer cohort, not a fixed global threshold – no AI involved. Layer 2 (`agenticLayer.ts`) is a real Anthropic API call (`claude-sonnet-4-5`, structured tool output) that applies a **bounded** adjustment on top of the baseline (capped at +-15 points), with a required, evidence-grounded reason – never a freeform, unexplained number.
+- **Layer 2 is guarded in code, not just in the prompt.** The first full run on 120 customers lowered 89 scores (63 of them by exactly -8), mostly for usage, engagement and champion signals that Layer 1 had already scored, so the same problem was being counted twice. A prompt-only fix then overcorrected, giving most accounts +3 to +5 after one routine seat question. The fix that held has three parts: the prompt says the baseline already covers all 15 drivers and the default adjustment is 0; any non-zero adjustment must quote evidence that is not in the drivers (`evidenceNotInDrivers`), and the code sets the adjustment to 0 if that quote is missing or shorter than 15 characters; and an upward nudge can never lift an account out of its baseline band (so Layer 2 cannot turn a Watch account into a Stable one). Downward moves may cross a band, because a specific risk signal is exactly what a baseline can miss. These rules live in `applyAdjustmentGuards` and are covered by `test-health-layer2-guards.ts`. Verified on a 20-account dry run before anything was written.
 - **Evidence-chain narrative.** Every claim the narrative makes must trace back to a specific input value it was given, not an invented correlation. Tested for real: the model has correctly cited exact usage-decline percentages, specific ticket dates and content, and even surfaced a genuine expansion signal ("asked about adding two more seats") that isn't one of the 15 formal drivers at all – reasoning beyond the baseline, not just restating it.
 - **A real whole-book executive summary**, not a code-aggregated stat sentence. `src/lib/health/bookSummary.ts` makes one Anthropic call across all customers' scores and narratives, finding real cross-account patterns – tested for real, it independently spotted the same billing-sync defect recurring across four unrelated accounts, and noted that high-NPS accounts were nonetheless showing steep usage decline (sentiment lagging disengagement). Scoped by a list of customer IDs rather than hardcoded to "everyone," so the same function can serve a Segment-scoped summary later without changes. Computed by a batch script (`prisma/compute-book-summary.ts`), same "never live on page load" rule as everything else.
 - **Stage-aware scoring.** A pre-Live account gets a narrow, honest read focused on onboarding pace, not the full 15-driver picture applied to an account that hasn't started yet.
@@ -172,8 +173,14 @@ the original design; this is the UI that was missing, not a new idea. Accepting 
 records who and when (`reviewedAt`/`reviewedBy`), scoped to the current workspace the same way `deleteCompetitor` and
 `deleteSegment` already are - one workspace can't review another's recommendation by guessing its id. Once reviewed,
 a recommendation drops out of the "proposed" queries every page already runs, so it disappears from view; there's no
-history list to see what was accepted or dismissed, and no way to undo it. Snooze isn't built: it would need a new
-date field and a decision on how long "snoozed" means, which is a real design question, not wiring.
+history list to see what was accepted or dismissed, and no way to undo it.
+
+**Snooze.** Each card also has a Snooze option for 7, 14 or 30 days. The recommendation stays `proposed`, gets a
+`snoozeUntil` date, and is hidden from every page (Onboarding, Adoption, Expansion, Renewal, Briefing) until that
+date passes, then reappears by itself. Only a proposed recommendation can be snoozed, only those three lengths are
+accepted, and the update is scoped to the current workspace like Accept and Dismiss. One deliberate exception: on
+Renewal a snoozed save play is hidden from the card, but its AI adjustment still feeds the churn figure, so
+snoozing a plan never makes an account look safer than it is.
 
 ## Stage 2: live deployment
 
@@ -225,13 +232,15 @@ separate, additional requirement, not a substitute for an active trial.
 
 **Why on-demand is the default, not just the safe choice:** the original batch-script pattern (`npx tsx prisma/compute-health-scores.ts`, still available for local/manual use) can only ever be run by whoever has terminal access to the deployment - which defeats the point of bring-your-own-key for anyone who isn't the maintainer. A real self-hosted instance needs an in-app way to make this run at all. Defaulting new workspaces to on-demand keeps the zero-spend-until-asked property that instinct suggested was needed, while still making the feature actually usable by someone who only has the deployed app, not a terminal.
 
+**Keeping the demo current.** The demo workspace's customer dates (renewals, go-lives, tickets, usage, surveys and so on) are fixed in the seed, so left alone they would drift into the past. `src/lib/demoDates.ts` shifts all of them forward by the whole days that have elapsed, so every relative fact ("21 days overdue", "renewal in 17 days") stays true. The same daily cron does this once the demo's reference date is a week old, at no AI cost, and `npm run refresh-dates` does it by hand. It does not shift when an AI run happened, so nothing can end up dated in the future. Dates quoted inside stored AI text move with the data and the day-count headlines are recalculated. The AI text itself is not regenerated: `npm run refresh-ai [-- health summary expansion renewal]` does that, costs real API credit and is never run automatically.
+
 **How the schedule actually runs:** a single Vercel Cron job (`vercel.json`, `/api/cron/run-capabilities`) fires once a day - the only frequency [Vercel's free Hobby plan allows](https://vercel.com/docs/cron-jobs/usage-and-pricing) (more frequent expressions fail at deploy time). It checks every workspace's own schedule against `src/lib/capabilityRuns.ts`'s `isDue()` (comparing `lastRunAt` to the interval), so "Weekly" still means roughly every 7 days even though the underlying check happens daily. The route is locked down with a `CRON_SECRET` env var - [Vercel's own documented pattern](https://vercel.com/docs/cron-jobs/manage-cron-jobs#securing-cron-jobs) - so a stranger can't hit the URL directly and trigger spend against other workspaces' stored keys. `src/proxy.ts`'s matcher excludes `/api/*` for this reason: an API route needs its own auth strategy, not the session-cookie check every page gets.
 
 **Verified for real, and a limit it exposed:** Run now and the daily cron both work end to end against the demo workspace's own configured key. At 19 customers a Health run took about 3.2 minutes. At 120 customers it takes about 13.6 minutes (818 seconds), and the full set of five capabilities about 34. Vercel's Hobby plan stops a function at 300 seconds, so on the hosted app a single Run now click for Health would be cut off partway at this size. Every capability writes results as it goes, so a cut-off run keeps what it finished, but it does not resume. Batched, resumable runs are the fix and are not built yet. Running the scripts locally, as done for the figures above, has no such limit. See `TESTING.md` for the full log, including a real bug caught earlier (the proxy was redirecting the cron route to `/login`, since Vercel's cron invocation carries no session cookie to check).
 
 ## Test coverage
 
-Thirteen assert-based regression scripts (each throws and exits non-zero on failure, rather than printing output for a human to eyeball), all under `prisma/` and run via `npx tsx prisma/<name>.ts`:
+Fifteen assert-based regression scripts (each throws and exits non-zero on failure, rather than printing output for a human to eyeball), all under `prisma/` and run via `npx tsx prisma/<name>.ts`:
 
 | Script | Covers |
 |---|---|
@@ -246,7 +255,9 @@ Thirteen assert-based regression scripts (each throws and exits non-zero on fail
 | `test-onboarding-pace.ts` | The days-overdue calculation shared by Onboarding and Briefing - no date, a past date, a future date, and the exact-today boundary |
 | `test-trial-gate.ts` | The free-trial gate every capability's AI layer sits behind - within-trial, expired, subscribed, and the demo workspace's permanent exemption |
 | `test-churn-model.ts` | Renewal's real churn-rate calculation from Calibration's outcome history, and its per-band fallback to the illustrative table below the minimum sample size |
-| `test-agent-action-review.ts` | Accept/Dismiss on AI recommendations: it sets status, who and when; a row already reviewed cannot be reviewed again; and reviewing another workspace's recommendation by guessing its id changes nothing |
+| `test-agent-action-review.ts` | Accept/Dismiss/Snooze on AI recommendations: status, who and when; a reviewed row cannot be reviewed again; another workspace's recommendation cannot be touched by guessing its id; Snooze accepts only 7, 14 and 30 days, hides until the exact date, then reappears, and a dismissed row cannot be snoozed |
+| `test-health-layer2-guards.ts` | Health Layer 2's guards: no evidence means no adjustment, the -15 bound, and an upward nudge never leaving the baseline's band |
+| `test-demo-dates.ts` | The demo date refresh: dates move by exactly N days, nulls stay null, another workspace is untouched, real AI-run timestamps are not shifted, quoted dates move with the data, and day-count headlines are recalculated |
 | `test-agent-actions.ts` | The shared AgentAction upsert helper - refreshes an existing proposed row in place, leaves a reviewed one alone, and keeps two different subjects (e.g. two Products) independent rather than one overwriting the other |
 
 Everything else (workspace scoping as exercised through the actual pages, and the marketing page) is still verified interactively only, logged in `TESTING.md` - a stated, known gap, not silently left implicit.

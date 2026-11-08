@@ -5,6 +5,7 @@ import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { resolveActiveSegment } from "@/lib/activeSegment";
 import AgentActionReview from "@/components/AgentActionReview";
 import CustomerRef from "@/components/CustomerRef";
+import { notSnoozed } from "@/lib/agentActionStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ export default async function ExpansionPage({
   });
 
   const reviews = await prisma.agentAction.findMany({
-    where: { workspaceId: workspace.id, area: "expansion", status: "proposed" },
+    where: { workspaceId: workspace.id, area: "expansion", status: "proposed", ...notSnoozed() },
   });
   // subjectId is the Opportunity id - a customer with two open Opportunities
   // gets two independent reviews, not one shared between them.

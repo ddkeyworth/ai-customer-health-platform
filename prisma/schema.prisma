@@ -517,6 +517,9 @@ model AgentAction {
   createdAt         DateTime  @default(now())
   reviewedAt        DateTime?
   reviewedBy        String?
+  // Snooze: the recommendation stays "proposed" but is hidden from every
+  // page until this moment passes, then reappears by itself.
+  snoozeUntil       DateTime?
 
   workspace Workspace @relation(fields: [workspaceId], references: [id])
   customer  Customer  @relation(fields: [customerId], references: [id])

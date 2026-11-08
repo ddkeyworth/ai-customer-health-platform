@@ -7,6 +7,7 @@ import { resolveActiveSegment } from "@/lib/activeSegment";
 import { computeDaysOverdue } from "@/lib/onboarding/pace";
 import AgentActionReview from "@/components/AgentActionReview";
 import CustomerRef from "@/components/CustomerRef";
+import { notSnoozed } from "@/lib/agentActionStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ export default async function OnboardingPage({
   });
 
   const recoveryPlans = await prisma.agentAction.findMany({
-    where: { workspaceId: workspace.id, area: "onboarding", status: "proposed" },
+    where: { workspaceId: workspace.id, area: "onboarding", status: "proposed", ...notSnoozed() },
   });
   // Keyed by the CustomerProduct id, not customerId - a customer with two
   // live Products can be independently overdue on each, with its own

@@ -19,3 +19,27 @@ export async function setAgentActionStatus(
   });
   return result.count;
 }
+
+// Snooze presets, in days. A fixed allowlist, not a free number: the value
+// arrives from a form field, so anything outside it is refused.
+export const SNOOZE_DAYS = [7, 14, 30] as const;
+
+// A snoozed recommendation stays "proposed" but is hidden until snoozeUntil
+// passes. Spread into every query that lists proposed recommendations.
+export function notSnoozed(now: Date = new Date()) {
+  return { OR: [{ snoozeUntil: null }, { snoozeUntil: { lte: now } }] };
+}
+
+export async function snoozeAgentAction(
+  workspaceId: string,
+  id: string,
+  days: number,
+  now: Date = new Date()
+): Promise<number> {
+  if (!(SNOOZE_DAYS as readonly number[]).includes(days)) return 0;
+  const result = await prisma.agentAction.updateMany({
+    where: { id, workspaceId, status: "proposed" },
+    data: { snoozeUntil: new Date(now.getTime() + days * 86_400_000) },
+  });
+  return result.count;
+}

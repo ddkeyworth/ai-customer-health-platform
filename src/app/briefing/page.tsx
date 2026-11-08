@@ -4,6 +4,7 @@ import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { resolveActiveSegment } from "@/lib/activeSegment";
 import { computeDaysOverdue } from "@/lib/onboarding/pace";
 import CustomerRef from "@/components/CustomerRef";
+import { notSnoozed } from "@/lib/agentActionStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ export default async function BriefingPage({
   // by CustomerProduct id, not customerId - usage-breadth genuinely varies
   // by product, same as Onboarding/Renewal below.
   const adoptionNudges = await prisma.agentAction.findMany({
-    where: { workspaceId: workspace.id, area: "adoption", status: "proposed" },
+    where: { workspaceId: workspace.id, area: "adoption", status: "proposed", ...notSnoozed() },
   });
   const adoptionByProductId = new Map(adoptionNudges.filter((a) => a.subjectId).map((a) => [a.subjectId, a]));
 
@@ -180,10 +181,10 @@ export default async function BriefingPage({
         Expansion, and Renewal flags are pulled live from their own already-computed data; Adoption&apos;s flag
         surfaces only when its agentic layer has actually run and proposed a nudge (Settings &gt; Automation) - the
         one area with no flag of its own until an AI layer produces one. Briefing itself stays read-only - no
-        approve/dismiss/snooze here, and no on-demand refresh - but Accept/Dismiss are real on each area&apos;s own
-        page (Onboarding, Adoption, Expansion, Renewal), wherever the AI recommendation behind a flag is shown.
-        Snooze isn&apos;t built anywhere yet. Nothing here is ever sent anywhere; this is a read-only prioritised
-        view.
+        approve/dismiss/snooze here, and no on-demand refresh - but Accept, Dismiss and Snooze are real on each area&apos;s
+        own page (Onboarding, Adoption, Expansion, Renewal), wherever the AI recommendation behind a flag is shown.
+        A snoozed recommendation drops out of this view until its snooze ends. Nothing here is ever sent anywhere;
+        this is a read-only prioritised view.
       </p>
     </div>
   );

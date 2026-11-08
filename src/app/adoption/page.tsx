@@ -5,6 +5,7 @@ import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { resolveActiveSegment } from "@/lib/activeSegment";
 import AgentActionReview from "@/components/AgentActionReview";
 import CustomerRef from "@/components/CustomerRef";
+import { notSnoozed } from "@/lib/agentActionStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,7 @@ export default async function AdoptionPage({
   });
 
   const nudges = await prisma.agentAction.findMany({
-    where: { workspaceId: workspace.id, area: "adoption", status: "proposed" },
+    where: { workspaceId: workspace.id, area: "adoption", status: "proposed", ...notSnoozed() },
   });
   // Keyed by the CustomerProduct id, not customerId - a customer with two
   // live Products can have independently different breadth on each.

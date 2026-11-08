@@ -9,7 +9,7 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { getSessionUser } from "@/lib/auth";
-import { setAgentActionStatus } from "@/lib/agentActionStatus";
+import { setAgentActionStatus, snoozeAgentAction as snooze } from "@/lib/agentActionStatus";
 
 const REVALIDATE_PATHS = ["/onboarding", "/adoption", "/expansion", "/renewal", "/briefing"];
 
@@ -26,4 +26,10 @@ export async function acceptAgentAction(id: string) {
 
 export async function dismissAgentAction(id: string) {
   await review(id, "dismissed");
+}
+
+export async function snoozeAgentAction(id: string, days: number) {
+  const workspace = await getCurrentWorkspace();
+  await snooze(workspace.id, id, days);
+  for (const path of REVALIDATE_PATHS) revalidatePath(path);
 }

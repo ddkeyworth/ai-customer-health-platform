@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ALLOWED_CAPABILITIES, getRunConfig, isDue, runCapability } from "@/lib/capabilityRuns";
+import { refreshDemoDatesIfDue } from "@/lib/demoDates";
 
 export const maxDuration = 300;
 
@@ -42,5 +43,14 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ checkedAt: now.toISOString(), results });
+  // Keeps the demo workspace's dates current (no AI cost, a no-op until the
+  // reference date is a week old). See src/lib/demoDates.ts.
+  let demoDates: { shiftedDays: number } | null = null;
+  try {
+    demoDates = await refreshDemoDatesIfDue(now);
+  } catch (e) {
+    console.error("Cron: demo date refresh failed", e);
+  }
+
+  return NextResponse.json({ checkedAt: now.toISOString(), results, demoDates });
 }

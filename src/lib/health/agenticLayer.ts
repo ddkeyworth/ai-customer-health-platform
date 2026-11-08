@@ -23,13 +23,17 @@ const ADJUSTMENT_TOOL = {
         maximum: 15,
         description: "Bounded nudge to the baseline score. 0 if the baseline already reflects the situation well.",
       },
+      evidenceNotInDrivers: {
+        type: "string",
+        description: "Required if adjustmentDelta != 0, empty string otherwise. Quote the specific interaction text, event or fact that NONE of the 15 drivers already scores (a driver already counts usage, engagement, champion, payment, NPS, competitor mentions, support volume, silence, breadth, outcomes, training). If the only support for a change is something a driver already captures, the adjustment must be 0.",
+      },
       adjustmentReason: {
         type: "string",
-        description: "Required if adjustmentDelta != 0. Must cite specific driver values or interaction text provided - never an unstated inference.",
+        description: "Required if adjustmentDelta != 0. Explain why the evidence above changes the read beyond what the drivers already say - never restate a driver's own score as the reason.",
       },
       narrative: {
         type: "string",
-        description: "2-4 sentences explaining this account's Health read. Every claim must trace to a specific driver value or interaction quote actually provided - no invented correlations.",
+        description: "2-4 sentences explaining this account's Health read. Every claim must trace to a specific driver value or interaction quote actually provided - no invented correlations. Describe the account's situation only; do not say whether or how much you are adjusting the score, because the adjustment is recorded separately and may be set to zero.",
       },
       confidenceLevel: {
         type: "string",
@@ -49,16 +53,42 @@ const ADJUSTMENT_TOOL = {
         },
       },
     },
-    required: ["adjustmentDelta", "narrative", "confidenceLevel", "competitorMentions"],
+    required: ["adjustmentDelta", "evidenceNotInDrivers", "narrative", "confidenceLevel", "competitorMentions"],
   },
 };
 
 export interface AgenticResult {
   adjustmentDelta: number;
   adjustmentReason: string | null;
+  evidenceNotInDrivers: string | null;
   narrative: string;
   confidenceLevel: "early_read" | "established";
   competitorMentions: { competitor: string; evidence: string }[];
+}
+
+// Upper score of the Health band a baseline falls in (bands match
+// tierLabelFor in computeHealthScores.ts: 85 / 60 / 40).
+export function bandCeiling(score: number): number {
+  if (score >= 85) return 100;
+  if (score >= 60) return 84;
+  if (score >= 40) return 59;
+  return 39;
+}
+
+// Enforced in code, not just asked for in the prompt. A non-zero adjustment
+// only counts if the model named evidence no driver already scores. An
+// earlier version without this lowered 89 of 120 scores (63 by exactly -8),
+// mostly on usage, engagement and champion signals the baseline had already
+// counted, which pulled 51 accounts into Watch. Optimism also has to be
+// earned by the drivers: an upward nudge stays within the band the baseline
+// put the account in. Downward moves are not capped that way, because a
+// specific risk signal (a cancellation threat) is exactly what a baseline
+// can miss.
+export function applyAdjustmentGuards(claimed: number, evidenceNotInDrivers: string | undefined, baselineScore: number): number {
+  const bounded = Math.max(-15, Math.min(15, Math.round(claimed)));
+  const hasEvidence = (evidenceNotInDrivers ?? "").trim().length >= 15;
+  const evidenced = bounded !== 0 && !hasEvidence ? 0 : bounded;
+  return evidenced > 0 ? Math.min(evidenced, bandCeiling(baselineScore) - baselineScore) : evidenced;
 }
 
 export async function computeAgenticLayer(
@@ -92,7 +122,7 @@ export async function computeAgenticLayer(
     model: "claude-sonnet-4-5",
     max_tokens: 1024,
     system:
-      withStyleRules("You compute a Customer Success Health read for one account. You are given a deterministic baseline score and the raw signals behind it. Your job: (1) decide whether a bounded adjustment (-15 to +15) to the baseline is warranted given context the baseline formula cannot weigh, (2) write a short evidence-grounded narrative, (3) scan the provided interaction text for mentions of the configured competitors' names or known capabilities. Never invent facts not present in the data you were given. Never adjust the score without a reason tied to specific provided evidence."),
+      withStyleRules("You compute a Customer Success Health read for one account. You are given a deterministic baseline score and the raw signals behind it. Your job: (1) decide whether a bounded adjustment (-15 to +15) to the baseline is warranted, (2) write a short evidence-grounded narrative, (3) scan the provided interaction text for mentions of the configured competitors' names or known capabilities. The baseline already scores all 15 drivers, including usage and engagement trend, champion engagement, engagement silence, payment health, NPS, support volume and severity, competitor risk, capability breadth, desired outcomes and training. Penalising or rewarding an account again for something a driver already scores counts it twice. The default adjustment is 0. Adjust only for evidence no driver captures, such as a stated intent in the interaction text that is specific and unusual (a cancellation threat, an executive sponsor leaving, a named internal decision), a one-off incident, or an interaction between signals that a per-driver score cannot express, and quote that evidence in evidenceNotInDrivers. A routine request or question is not evidence. Positive evidence is weighed against the account's overall risk: it does not outweigh declining usage, a silent champion or a late payment. Never invent facts not present in the data you were given."),
     tools: [ADJUSTMENT_TOOL],
     tool_choice: { type: "tool", name: "record_health_adjustment" },
     messages: [{ role: "user", content: JSON.stringify(payload, null, 2) }],
@@ -104,6 +134,7 @@ export async function computeAgenticLayer(
   }
   const parsed = toolUse.input as {
     adjustmentDelta: number;
+    evidenceNotInDrivers?: string;
     adjustmentReason?: string;
     narrative: string;
     confidenceLevel: "early_read" | "established";
@@ -120,9 +151,12 @@ export async function computeAgenticLayer(
     throw new Error(`Model returned no narrative and no adjustmentReason for customer ${customerId}.`);
   }
 
+  const adjustmentDelta = applyAdjustmentGuards(parsed.adjustmentDelta, parsed.evidenceNotInDrivers, baselineScore);
+
   return {
-    adjustmentDelta: Math.max(-15, Math.min(15, Math.round(parsed.adjustmentDelta))),
-    adjustmentReason: parsed.adjustmentReason ? noEmDash(parsed.adjustmentReason) : null,
+    adjustmentDelta,
+    adjustmentReason: adjustmentDelta !== 0 && parsed.adjustmentReason ? noEmDash(parsed.adjustmentReason) : null,
+    evidenceNotInDrivers: adjustmentDelta !== 0 ? noEmDash((parsed.evidenceNotInDrivers ?? '').trim()) : null,
     narrative: noEmDash(rawNarrative),
     confidenceLevel: parsed.confidenceLevel,
     competitorMentions: parsed.competitorMentions ?? [],

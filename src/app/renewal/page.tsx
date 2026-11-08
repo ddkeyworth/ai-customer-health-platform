@@ -51,6 +51,10 @@ export default async function RenewalPage({
   // live Products (two distinct renewal dates) gets an independent save
   // play per product, same reasoning as Onboarding/Adoption above.
   const savePlayByProductId = new Map(savePlays.filter((a) => a.subjectId).map((a) => [a.subjectId, a]));
+  // A snoozed save play still feeds the churn figure above (hiding a card
+  // must not quietly change the numbers); only the card itself is hidden.
+  const snoozedNow = new Date();
+  const isSnoozed = (a: { snoozeUntil: Date | null } | undefined) => !!a?.snoozeUntil && a.snoozeUntil > snoozedNow;
 
   const now = new Date();
   const next90 = rows.filter((r) => r.renewalDate && r.renewalDate.getTime() - now.getTime() <= 90 * 86400000);
@@ -149,7 +153,7 @@ export default async function RenewalPage({
                     </span>
                   </td>
                 </tr>
-                {savePlay && (
+                {savePlay && !isSnoozed(savePlay) && (
                   <tr className="border-b border-zinc-100">
                     <td colSpan={7} className="pb-3">
                       <div className="rounded-xl bg-[#378ADD]/5 border border-[#378ADD]/20 p-3 text-sm text-zinc-800">
