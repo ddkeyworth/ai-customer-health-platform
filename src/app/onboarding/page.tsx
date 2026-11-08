@@ -58,7 +58,7 @@ export default async function OnboardingPage({
       </h1>
       <p className="text-sm text-zinc-500 mb-6">{rows.length} accounts currently onboarding</p>
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
         <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <p className="text-xs text-zinc-500">New Logo ARR (onboarding)</p>
           <p className="text-2xl font-semibold text-zinc-900 mt-1">£{totalNewLogoArr.toLocaleString("en-GB")}</p>

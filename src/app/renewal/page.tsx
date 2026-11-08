@@ -86,7 +86,7 @@ export default async function RenewalPage({
       </h1>
       <p className="text-sm text-zinc-500 mb-6">{next90.length} accounts renewing in the next 90 days</p>
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <p className="text-xs text-zinc-500">Projected churn, next 90 days (&pound;, estimate)</p>
           <p className="text-2xl font-semibold text-zinc-900 mt-1">£{Math.round(projectedChurnArr).toLocaleString("en-GB")}</p>

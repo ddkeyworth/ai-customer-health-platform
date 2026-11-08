@@ -29,7 +29,7 @@ export default function AppShell({
       {sidebar}
       <div className="flex flex-1 flex-col min-w-0">
         {topbar}
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-4 md:p-6">{children}</main>
       </div>
     </>
   );

@@ -37,11 +37,11 @@ export default function Sidebar() {
   const suffix = segment ? `?segment=${segment}` : "";
 
   return (
-    <div className="w-52 shrink-0 bg-white border-r border-zinc-200 p-3">
-      <div className="px-2 pb-5 pt-1 text-lg text-[#0C447C]">
+    <div className="w-full md:w-52 md:shrink-0 bg-white border-b md:border-b-0 md:border-r border-zinc-200 p-3 flex flex-col">
+      <div className="px-2 pb-3 md:pb-5 pt-1 text-lg text-[#0C447C]">
         <Logo height="1.1em" />
       </div>
-      <nav className="flex flex-col gap-0.5">
+      <nav className="flex flex-row md:flex-col gap-0.5 overflow-x-auto md:overflow-visible whitespace-nowrap">
         {NAV_ITEMS.map((item) => (
           <Link
             key={item.href}
@@ -51,7 +51,7 @@ export default function Sidebar() {
             {item.label}
           </Link>
         ))}
-        <div className="my-2 h-px bg-zinc-200" />
+        <div className="my-2 h-px bg-zinc-200 hidden md:block" />
         {FOOTER_ITEMS.map((item) => (
           <Link key={item.href} href={item.href} className={navLinkClass(isActive(pathname ?? "", item.href))}>
             {item.label}

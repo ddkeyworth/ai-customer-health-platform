@@ -86,7 +86,7 @@ export default async function HealthPage({
         )}
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {(["Thriving", "Stable", "Watch", "Critical"] as const).map((band) => (
           <div key={band} className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
             <p className="text-xs text-zinc-500">{band}</p>

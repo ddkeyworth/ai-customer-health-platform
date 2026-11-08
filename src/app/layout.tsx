@@ -23,7 +23,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${inter.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex bg-zinc-50 text-zinc-900 font-sans">
+      <body className="min-h-full flex flex-col md:flex-row bg-zinc-50 text-zinc-900 font-sans">
         <AppShell
           sidebar={
             <Suspense fallback={null}>

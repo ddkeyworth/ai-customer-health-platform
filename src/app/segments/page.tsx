@@ -63,7 +63,7 @@ export default async function SegmentsPage() {
             <label className="block text-xs text-zinc-500 mb-1">Name</label>
             <input name="name" required maxLength={80} className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent" />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs text-zinc-500 mb-1">Industry</label>
               <select name="industry" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
@@ -86,7 +86,7 @@ export default async function SegmentsPage() {
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-zinc-500 mb-1">Renewal type</label>
               <select name="renewalType" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">

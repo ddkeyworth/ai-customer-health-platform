@@ -74,7 +74,7 @@ export default async function CustomerHealthPage({
         {snapshot.narrative}
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 text-sm">
         <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <p className="text-xs text-zinc-500 mb-1">Baseline (Layer 1, deterministic)</p>
           <p className="text-xl font-semibold text-zinc-900">{snapshot.baselineScore}</p>

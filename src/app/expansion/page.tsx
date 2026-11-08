@@ -64,7 +64,7 @@ export default async function ExpansionPage({
       </div>
 
       <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">By type</p>
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {Object.entries(TYPE_LABELS).map(([key, label]) => {
           const stat = byType.get(key) ?? { count: 0, arr: 0 };
           return (

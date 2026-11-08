@@ -75,7 +75,7 @@ export default async function AdoptionPage({
       </h1>
       <p className="text-sm text-zinc-500 mb-6">{liveProducts.length} live accounts</p>
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <p className="text-xs text-zinc-500">Average capability breadth</p>
           <p className="text-2xl font-semibold text-zinc-900 mt-1">{avgBreadth}%</p>
@@ -87,7 +87,7 @@ export default async function AdoptionPage({
       </div>
 
       <p className="text-xs text-zinc-500 mb-2">By Capability, across live accounts</p>
-      <div className="grid grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         {capStats.map((c) => (
           <div key={c.id} className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
             <p className="text-xs text-zinc-500">{c.name}</p>

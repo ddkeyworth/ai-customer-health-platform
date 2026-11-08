@@ -63,7 +63,7 @@ export default async function Home({
         relationships
       </p>
 
-      <div className="grid grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
         <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Total ARR</p>
           <p className="text-2xl font-semibold text-[#0C447C] mt-1">£{totalArr.toLocaleString("en-GB")}</p>
@@ -79,12 +79,12 @@ export default async function Home({
       </div>
       <p className="text-xs text-zinc-400 mb-6">
         NNAOV / Net Revenue Retention / Gross Revenue Retention aren&apos;t shown yet - those need period-over-period
-        realised bridge events (New Logo, Expansion, Contraction, Churned ARR) from Renewal, which isn&apos;t built yet.
-        This is a snapshot, not a bridge.
+        realised bridge events (New Logo, Expansion, Contraction, Churned ARR) from Renewal&apos;s outcome history, which this build doesn&apos;t record as
+        a time series. This is a snapshot, not a bridge.
       </p>
 
       <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Health snapshot</p>
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {(["Thriving", "Stable", "Watch", "Critical"] as const).map((band) => (
           <div
             key={band}
@@ -97,7 +97,7 @@ export default async function Home({
       </div>
 
       <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Accounts by lifecycle stage</p>
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
         <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <p className="text-xs text-zinc-500">Onboarding</p>
           <p className="text-2xl font-semibold text-zinc-900 mt-1">{stageCounts.onboarding}</p>

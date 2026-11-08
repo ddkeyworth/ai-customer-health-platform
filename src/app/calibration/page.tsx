@@ -51,7 +51,7 @@ export default async function CalibrationPage() {
         {rows.length} real outcomes checked against the Health score on file
       </p>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <p className="text-xs text-zinc-500">Confirmed</p>
           <p className="text-2xl font-semibold text-zinc-900 mt-1">{counts.confirmed}</p>

@@ -64,7 +64,7 @@ export default async function SettingsPage({
             className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent"
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-zinc-500 mb-1">Brand primary colour</label>
             <input
@@ -88,7 +88,7 @@ export default async function SettingsPage({
             />
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <div>
             <label className="block text-xs text-zinc-500 mb-1">Currency</label>
             <input
