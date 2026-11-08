@@ -42,6 +42,7 @@ concurrency:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       SECRET_ENCRYPTION_KEY: ${{ secrets.SECRET_ENCRYPTION_KEY }}
@@ -81,9 +82,74 @@ jobs:
         # made, so the copy can never fall out of date. db push without
         # --accept-data-loss refuses any change that would delete data.
         run: npx prisma db push --skip-generate
-      - name: Run assert-based regression suite
-        run: |
-          for f in test-auth test-workspace-secret test-settings-validation test-calibration test-segments test-workspace-scoping test-rate-limit test-capability-runs test-onboarding-pace test-trial-gate test-churn-model test-agent-actions test-agent-action-review test-demo-dates test-health-layer2-guards test-capability-batches test-csv-parse-validate test-import-export test-deployment-modes test-password-reset test-pagination test-import-mapping test-csp; do
-            echo "=== $f ==="
-            npx tsx prisma/$f.ts
-          done
+      # One step per test script, each with a time limit: a stuck test now fails
+      # in 5 minutes and is named in the run, instead of hanging the whole job.
+      - name: test-agent-action-review
+        timeout-minutes: 5
+        run: npx tsx prisma/test-agent-action-review.ts
+      - name: test-agent-actions
+        timeout-minutes: 5
+        run: npx tsx prisma/test-agent-actions.ts
+      - name: test-auth
+        timeout-minutes: 5
+        run: npx tsx prisma/test-auth.ts
+      - name: test-calibration
+        timeout-minutes: 5
+        run: npx tsx prisma/test-calibration.ts
+      - name: test-capability-batches
+        timeout-minutes: 5
+        run: npx tsx prisma/test-capability-batches.ts
+      - name: test-capability-runs
+        timeout-minutes: 5
+        run: npx tsx prisma/test-capability-runs.ts
+      - name: test-churn-model
+        timeout-minutes: 5
+        run: npx tsx prisma/test-churn-model.ts
+      - name: test-csp
+        timeout-minutes: 5
+        run: npx tsx prisma/test-csp.ts
+      - name: test-csv-parse-validate
+        timeout-minutes: 5
+        run: npx tsx prisma/test-csv-parse-validate.ts
+      - name: test-demo-dates
+        timeout-minutes: 5
+        run: npx tsx prisma/test-demo-dates.ts
+      - name: test-deployment-modes
+        timeout-minutes: 5
+        run: npx tsx prisma/test-deployment-modes.ts
+      - name: test-health-layer2-guards
+        timeout-minutes: 5
+        run: npx tsx prisma/test-health-layer2-guards.ts
+      - name: test-import-export
+        timeout-minutes: 5
+        run: npx tsx prisma/test-import-export.ts
+      - name: test-import-mapping
+        timeout-minutes: 5
+        run: npx tsx prisma/test-import-mapping.ts
+      - name: test-onboarding-pace
+        timeout-minutes: 5
+        run: npx tsx prisma/test-onboarding-pace.ts
+      - name: test-pagination
+        timeout-minutes: 5
+        run: npx tsx prisma/test-pagination.ts
+      - name: test-password-reset
+        timeout-minutes: 5
+        run: npx tsx prisma/test-password-reset.ts
+      - name: test-rate-limit
+        timeout-minutes: 5
+        run: npx tsx prisma/test-rate-limit.ts
+      - name: test-segments
+        timeout-minutes: 5
+        run: npx tsx prisma/test-segments.ts
+      - name: test-settings-validation
+        timeout-minutes: 5
+        run: npx tsx prisma/test-settings-validation.ts
+      - name: test-trial-gate
+        timeout-minutes: 5
+        run: npx tsx prisma/test-trial-gate.ts
+      - name: test-workspace-scoping
+        timeout-minutes: 5
+        run: npx tsx prisma/test-workspace-scoping.ts
+      - name: test-workspace-secret
+        timeout-minutes: 5
+        run: npx tsx prisma/test-workspace-secret.ts
