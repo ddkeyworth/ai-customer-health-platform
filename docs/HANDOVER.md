@@ -2,6 +2,15 @@
 
 Written when the work was stopped part way (laptop battery). Everything below is committed to `main`.
 
+## The list (6 items)
+
+1. Remainder of the last session
+2. Stripe test mode
+3. Payment tests
+4. Flexible import with dynamic field mapping
+5. Skeptical end-to-end test of the whole solution
+6. Not built, stated honestly
+
 ## 1. Remainder of the last session (do these first)
 
 Built and committed, but not yet fully verified or finished:
@@ -35,6 +44,6 @@ The import currently reads fixed columns. Build a mapping step so an uploaded fi
 
 Repeat the full skeptical test, after items 2 to 4 so it also covers payments and the flexible import: weaknesses, errors and functional gaps, then improvements for a more robust final version.
 
-## Still not built (stated honestly)
+## 6. Not built, stated honestly
 
-Password reset (needs email), adding or editing a single customer by form, team roles and invitations.
+Password reset (it needs email), forms to add or edit a single customer, and team roles.
