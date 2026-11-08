@@ -1,3 +1,4 @@
+import AiKeyBanner from "@/components/AiKeyBanner";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
@@ -149,6 +150,7 @@ export default async function BriefingPage({
 
   return (
     <div>
+      <AiKeyBanner workspace={workspace} />
       <h1 className="text-2xl font-semibold text-zinc-900 mb-1">
         Briefing{activeSegment ? <span className="text-zinc-400"> &middot; {activeSegment.name}</span> : null}
       </h1>

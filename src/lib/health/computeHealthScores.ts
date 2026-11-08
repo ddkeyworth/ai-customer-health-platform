@@ -20,7 +20,15 @@ function tierLabelFor(score: number): string {
   return "Critical";
 }
 
-export async function computeHealthScoresForWorkspace(workspaceId: string): Promise<void> {
+// The ids this capability would score (see src/lib/capabilityBatches.ts).
+export async function listHealthWorkIds(workspaceId: string): Promise<string[]> {
+  const customers = await prisma.customer.findMany({ where: { workspaceId }, select: { id: true } });
+  return customers.map((c) => c.id);
+}
+
+// onlyIds limits the run to those customers; used for resumable batches and
+// for re-scoring a few accounts without paying for all of them.
+export async function computeHealthScoresForWorkspace(workspaceId: string, onlyIds?: string[]): Promise<void> {
   const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
   if (!workspace.anthropicApiKeyEncrypted) {
     console.log(`Skipping "${workspace.name}" - no Anthropic API key configured in Settings.`);
@@ -28,7 +36,9 @@ export async function computeHealthScoresForWorkspace(workspaceId: string): Prom
   }
   const apiKey = decryptSecret(workspace.anthropicApiKeyEncrypted);
 
-  const customers = await prisma.customer.findMany({ where: { workspaceId } });
+  const customers = await prisma.customer.findMany({
+    where: { workspaceId, ...(onlyIds ? { id: { in: onlyIds } } : {}) },
+  });
   console.log(`Computing Health scores for "${workspace.name}" (${customers.length} customers)...`);
 
   for (const customer of customers) {

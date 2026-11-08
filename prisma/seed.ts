@@ -179,6 +179,25 @@ const PROFILES: Record<Exclude<Archetype, "onboarding">, Profile> = {
   },
 };
 
+// The riskiest accounts in the demo. The ordinary "critical" profile above
+// rarely scores below 40 on Layer 1 (a plain average of 15 drivers, several of
+// which stay healthy even for a struggling account), so the first few
+// critical accounts get this harsher, internally consistent storyline: a
+// failed payment, an interrupted renewal, no engaged champion and critical
+// escalations. Verified on the live demo, where the same storyline took three
+// accounts from a baseline of 44-48 to 25-34.
+const SEVERE_CRITICAL: Profile = {
+  tenure: [100, 700], usage: ["declining"], nps: [1, 2], interactions: [8, 9],
+  competitor: 0.45, desiredTracked: 1, desired: [5, 20], champion: 1, championDays: [200, 300], championNeverEngaged: 0,
+  events: [0, 0], training: [0, 0], late: 0, failed: 1, interrupted: 1, expandedChance: 0,
+};
+const SEVERE_COUNT = 3;
+const SEVERE_TICKETS = [
+  "Escalation: the operations director wrote to our account executive. The billing-to-freight sync has failed again and invoices have been blocked for three weeks.",
+  "The finance lead confirmed in writing that the failed payment is deliberate until the open sync incident is fixed.",
+  "The VP of operations asked for a call with our leadership and said the renewal is under review.",
+];
+
 const RENEWED_NOTES = [
   "Renewed for another term on schedule.",
   "Renewed after a CSM-led review of usage.",
@@ -392,6 +411,7 @@ async function main() {
       // stalled - without this, the onboarding agentic layer had nothing to
       // point to beyond "it's late" and correctly declined every time.
       onboardingBlocker?: "customer_delay" | "internal_delay" | "external_dependency" | null;
+      severe?: boolean; // the harshest storyline: the first three tickets are critical escalations
     }
   ) {
     const ids = Array.isArray(pkgIds) ? pkgIds : [pkgIds];
@@ -455,7 +475,10 @@ async function main() {
     for (let i = 0; i < opts.interactionCount; i++) {
       let text = pick(genericTickets);
       let severity = "low";
-      if (opts.onboardingBlocker && i < 2) {
+      if (opts.severe && i < SEVERE_TICKETS.length) {
+        text = SEVERE_TICKETS[i];
+        severity = "critical";
+      } else if (opts.onboardingBlocker && i < 2) {
         text = pick(onboardingBlockerTickets[opts.onboardingBlocker]);
         severity = "medium";
       } else if (opts.competitorMention && i === 0) {
@@ -759,6 +782,7 @@ async function main() {
   const archetypes = shuffle(plan).slice(0, generatedCount);
 
   const tally: Record<string, number> = {};
+  let severeLeft = SEVERE_COUNT;
 
   for (let idx = 0; idx < generatedCount; idx++) {
     const name = generatedNames[idx];
@@ -773,7 +797,9 @@ async function main() {
     const pkg = tier === "enterprise" ? enterprise : tier === "mid_market" ? pro : starter;
     const warehousePkg = tier === "enterprise" ? warehouseEnterprise : tier === "mid_market" ? warehousePro : warehouseStarter;
 
-    const profile = archetype === "onboarding" ? PROFILES.stable : PROFILES[archetype];
+    const severe = archetype === "critical" && severeLeft > 0;
+    if (severe) severeLeft--;
+    const profile = archetype === "onboarding" ? PROFILES.stable : severe ? SEVERE_CRITICAL : PROFILES[archetype];
     const interrupted = archetype !== "onboarding" && chance(profile.interrupted);
 
     const customer = await prisma.customer.create({
@@ -887,6 +913,7 @@ async function main() {
       hasChampion,
       championDaysAgo: hasChampion && !chance(profile.championNeverEngaged) ? randInt(profile.championDays[0], profile.championDays[1]) : null,
       trainingSessionCount: randInt(profile.training[0], profile.training[1]),
+      severe,
     });
 
     // Outcome history follows tenure: one renewal per completed year (capped

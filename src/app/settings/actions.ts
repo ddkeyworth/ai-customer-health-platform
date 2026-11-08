@@ -2,7 +2,6 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { withinRateLimit } from "@/lib/rateLimit";
 import { EXPORT_FIELD_KEYS } from "@/lib/exportFields";
@@ -16,7 +15,8 @@ import {
   clampRiskWeight,
   clampAdoptionThreshold,
 } from "@/lib/settingsValidation";
-import { ALLOWED_CAPABILITIES, ALLOWED_SCHEDULES, setSchedule, runCapability, type Capability } from "@/lib/capabilityRuns";
+import { ALLOWED_CAPABILITIES, ALLOWED_SCHEDULES, setSchedule, type Capability } from "@/lib/capabilityRuns";
+import { isSpendLocked } from "@/lib/demoGuard";
 
 export async function updateWorkspace(formData: FormData) {
   const workspace = await getCurrentWorkspace();
@@ -73,6 +73,7 @@ export async function deleteCompetitor(id: string) {
 
 export async function updateAnthropicApiKey(formData: FormData) {
   const workspace = await getCurrentWorkspace();
+  if (isSpendLocked(workspace)) return;
   if (!(await withinRateLimit(`updateAnthropicApiKey:${workspace.id}`, 5, 60_000))) return;
 
   const apiKey = String(formData.get("apiKey") ?? "").trim();
@@ -90,6 +91,7 @@ export async function updateAnthropicApiKey(formData: FormData) {
 
 export async function clearAnthropicApiKey() {
   const workspace = await getCurrentWorkspace();
+  if (isSpendLocked(workspace)) return;
   await prisma.workspace.update({
     where: { id: workspace.id },
     data: { anthropicApiKeyEncrypted: null, anthropicApiKeyLast4: null },
@@ -101,33 +103,12 @@ export async function updateCapabilitySchedule(formData: FormData) {
   const workspace = await getCurrentWorkspace();
   const capability = String(formData.get("capability") ?? "");
   const schedule = String(formData.get("schedule") ?? "");
+  if (isSpendLocked(workspace)) return;
   if (!ALLOWED_CAPABILITIES.includes(capability as Capability)) return;
   if (!ALLOWED_SCHEDULES.includes(schedule as (typeof ALLOWED_SCHEDULES)[number])) return;
 
   await setSchedule(workspace.id, capability as Capability, schedule as (typeof ALLOWED_SCHEDULES)[number]);
   revalidatePath("/settings");
-}
-
-export async function runCapabilityNow(formData: FormData) {
-  const workspace = await getCurrentWorkspace();
-  const capability = String(formData.get("capability") ?? "");
-  if (!ALLOWED_CAPABILITIES.includes(capability as Capability)) return;
-
-  // Protects the workspace's own wallet from accidental repeated clicks -
-  // this only ever spends that workspace's own key, but still shouldn't be
-  // spammable.
-  if (!(await withinRateLimit(`runCapabilityNow:${workspace.id}:${capability}`, 3, 60 * 60_000))) {
-    redirect(`/settings?runError=${capability}`);
-  }
-
-  try {
-    await runCapability(workspace.id, capability as Capability);
-  } catch (e) {
-    console.error(e);
-    redirect(`/settings?runError=${capability}`);
-  }
-  revalidatePath("/settings");
-  redirect(`/settings?ran=${capability}`);
 }
 
 export async function updateAdoptionThreshold(formData: FormData) {

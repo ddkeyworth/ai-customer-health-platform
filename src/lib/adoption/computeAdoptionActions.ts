@@ -5,12 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { computeAdoptionNudge } from "./agenticLayer";
 import { upsertProposedAgentAction } from "@/lib/agentActions";
 
-export async function computeAdoptionActionsForWorkspace(workspaceId: string, apiKey: string): Promise<void> {
+async function selectCandidates(workspaceId: string, onlyIds?: string[]) {
   const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
   const threshold = workspace.adoptionUnderusedThresholdPct;
 
   const liveProducts = await prisma.customerProduct.findMany({
-    where: { lifecycleStatus: "live", customer: { workspaceId } },
+    where: { lifecycleStatus: "live", customer: { workspaceId }, ...(onlyIds ? { id: { in: onlyIds } } : {}) },
     include: {
       customer: { include: { interactions: true } },
       product: { include: { capabilities: true } },
@@ -28,6 +28,16 @@ export async function computeAdoptionActionsForWorkspace(workspaceId: string, ap
       return { cp, entitled, usedIds, breadthPct };
     })
     .filter((c) => c.breadthPct < threshold);
+  return { candidates, threshold };
+}
+
+// The ids this capability would review (see src/lib/capabilityBatches.ts).
+export async function listAdoptionWorkIds(workspaceId: string): Promise<string[]> {
+  return (await selectCandidates(workspaceId)).candidates.map((c) => c.cp.id);
+}
+
+export async function computeAdoptionActionsForWorkspace(workspaceId: string, apiKey: string, onlyIds?: string[]): Promise<void> {
+  const { candidates, threshold } = await selectCandidates(workspaceId, onlyIds);
 
   console.log(`Adoption agentic layer: ${candidates.length} account(s) below ${threshold}% breadth.`);
 

@@ -60,7 +60,7 @@ export async function setSchedule(workspaceId: string, capability: Capability, s
   });
 }
 
-async function recordRun(workspaceId: string, capability: Capability, now: Date): Promise<void> {
+export async function recordRun(workspaceId: string, capability: Capability, now: Date): Promise<void> {
   await prisma.capabilityRunConfig.upsert({
     where: { workspaceId_capability: { workspaceId, capability } },
     create: { workspaceId, capability, lastRunAt: now },
@@ -71,7 +71,7 @@ async function recordRun(workspaceId: string, capability: Capability, now: Date)
 // The single dispatch point - both Run Now and the cron call this, so
 // there's one place that decides what actually happens for a capability,
 // and one place that enforces "no key configured means it doesn't run."
-export async function runCapability(workspaceId: string, capability: Capability): Promise<void> {
+export async function assertCanRun(workspaceId: string, capability: Capability): Promise<string> {
   const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
 
   const trial = getTrialStatus(workspace);
@@ -82,7 +82,15 @@ export async function runCapability(workspaceId: string, capability: Capability)
   if (!workspace.anthropicApiKeyEncrypted) {
     throw new Error(`Workspace "${workspace.name}" has no Anthropic API key configured - cannot run "${capability}".`);
   }
-  const apiKey = decryptSecret(workspace.anthropicApiKeyEncrypted); // fail fast if the stored value is somehow corrupt, before doing any work
+  return decryptSecret(workspace.anthropicApiKeyEncrypted); // fail fast if the stored value is somehow corrupt, before doing any work
+}
+
+// Runs a capability start to finish in one call, with no time limit of its
+// own. Fine for scripts and tests; the hosted app uses the resumable path
+// (capabilityBatches.ts / capabilityWork.ts) because a hosted function is cut
+// off at 300 seconds.
+export async function runCapability(workspaceId: string, capability: Capability): Promise<void> {
+  const apiKey = await assertCanRun(workspaceId, capability);
 
   if (capability === "health") {
     await computeHealthScoresForWorkspace(workspaceId);

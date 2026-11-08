@@ -7,14 +7,22 @@ import { computeDaysOverdue } from "./pace";
 import { computeOnboardingRecovery } from "./agenticLayer";
 import { upsertProposedAgentAction } from "@/lib/agentActions";
 
-export async function computeOnboardingActionsForWorkspace(workspaceId: string, apiKey: string): Promise<void> {
-  const now = new Date();
+async function selectOverdue(workspaceId: string, now: Date, onlyIds?: string[]) {
   const rows = await prisma.customerProduct.findMany({
-    where: { lifecycleStatus: "onboarding", customer: { workspaceId } },
+    where: { lifecycleStatus: "onboarding", customer: { workspaceId }, ...(onlyIds ? { id: { in: onlyIds } } : {}) },
     include: { customer: { include: { interactions: true } } },
   });
+  return rows.filter((r) => r.expectedGoLiveDate && computeDaysOverdue(r.expectedGoLiveDate, now)! > 0);
+}
 
-  const overdue = rows.filter((r) => r.expectedGoLiveDate && computeDaysOverdue(r.expectedGoLiveDate, now)! > 0);
+// The ids this capability would review (see src/lib/capabilityBatches.ts).
+export async function listOnboardingWorkIds(workspaceId: string): Promise<string[]> {
+  return (await selectOverdue(workspaceId, new Date())).map((r) => r.id);
+}
+
+export async function computeOnboardingActionsForWorkspace(workspaceId: string, apiKey: string, onlyIds?: string[]): Promise<void> {
+  const now = new Date();
+  const overdue = await selectOverdue(workspaceId, now, onlyIds);
   console.log(`Onboarding agentic layer: ${overdue.length} overdue account(s) to review.`);
 
   for (const r of overdue) {

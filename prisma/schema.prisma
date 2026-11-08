@@ -54,6 +54,7 @@ model Workspace {
   segments          Segment[]
   products          Product[]
   capabilityRunConfigs CapabilityRunConfig[]
+  capabilityRuns       CapabilityRun[]
   agentActions      AgentAction[]
 
   @@map("workspaces")
@@ -132,6 +133,30 @@ model CapabilityRunConfig {
 
   @@id([workspaceId, capability])
   @@map("capability_run_configs")
+}
+
+// One batched, resumable run of a capability. A full run can take longer than
+// a hosted function is allowed to live (Vercel Hobby stops one at 300 seconds),
+// so the work list is stored here and each call to advanceRun() processes as
+// much of it as the time budget allows, then stops. Anyone can pick it up
+// again (the Settings page, or the daily cron) from exactly where it left off.
+model CapabilityRun {
+  id          String    @id @default(cuid())
+  workspaceId String
+  capability  String
+  status      String    @default("running") // "running" | "done" | "failed" (failed stays resumable)
+  pendingIds  Json      // ids still to process, in order
+  total       Int
+  processed   Int       @default(0)
+  error       String?
+  leaseUntil  DateTime? // set while a call is working, so two callers never process the same items
+  startedAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@index([workspaceId, capability, status])
+  @@map("capability_runs")
 }
 
 // The managed customer record – deliberately NOT called "Account" (see README.md).

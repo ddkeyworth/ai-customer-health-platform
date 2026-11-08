@@ -16,9 +16,9 @@ const TYPE_LABELS: Record<string, string> = {
   consumption_growth: "Consumption growth",
 };
 
-export async function computeExpansionActionsForWorkspace(workspaceId: string, apiKey: string): Promise<void> {
-  const opportunities = await prisma.opportunity.findMany({
-    where: { stage: "open", customer: { workspaceId } },
+async function selectOpportunities(workspaceId: string, onlyIds?: string[]) {
+  return prisma.opportunity.findMany({
+    where: { stage: "open", customer: { workspaceId }, ...(onlyIds ? { id: { in: onlyIds } } : {}) },
     include: {
       customer: {
         include: {
@@ -28,6 +28,16 @@ export async function computeExpansionActionsForWorkspace(workspaceId: string, a
       },
     },
   });
+}
+
+// The ids this capability would review (see src/lib/capabilityBatches.ts).
+export async function listExpansionWorkIds(workspaceId: string): Promise<string[]> {
+  const rows = await prisma.opportunity.findMany({ where: { stage: "open", customer: { workspaceId } }, select: { id: true } });
+  return rows.map((r) => r.id);
+}
+
+export async function computeExpansionActionsForWorkspace(workspaceId: string, apiKey: string, onlyIds?: string[]): Promise<void> {
+  const opportunities = await selectOpportunities(workspaceId, onlyIds);
 
   console.log(`Expansion agentic layer: reviewing ${opportunities.length} open opportunit${opportunities.length === 1 ? "y" : "ies"}.`);
 

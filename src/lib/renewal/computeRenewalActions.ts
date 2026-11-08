@@ -8,13 +8,13 @@ import { computeBaselineChurnRates } from "./churnModel";
 import { computeRenewalSavePlay } from "./agenticLayer";
 import { upsertProposedAgentAction } from "@/lib/agentActions";
 
-export async function computeRenewalActionsForWorkspace(workspaceId: string, apiKey: string): Promise<void> {
-  const now = new Date();
+async function selectAtRisk(workspaceId: string, now: Date, onlyIds?: string[]) {
   const rows = await prisma.customerProduct.findMany({
     where: {
       lifecycleStatus: "live",
       renewalDate: { not: null },
       customer: { workspaceId },
+      ...(onlyIds ? { id: { in: onlyIds } } : {}),
     },
     include: {
       customer: { include: { interactions: true, healthSnapshots: { orderBy: { computedAt: "desc" }, take: 1 } } },
@@ -33,6 +33,17 @@ export async function computeRenewalActionsForWorkspace(workspaceId: string, api
     const tier = r.customer.healthSnapshots[0]?.tierLabel;
     return r.customer.renewalType === "interrupted" || tier === "Watch" || tier === "Critical";
   });
+  return atRisk;
+}
+
+// The ids this capability would review (see src/lib/capabilityBatches.ts).
+export async function listRenewalWorkIds(workspaceId: string): Promise<string[]> {
+  return (await selectAtRisk(workspaceId, new Date())).map((r) => r.id);
+}
+
+export async function computeRenewalActionsForWorkspace(workspaceId: string, apiKey: string, onlyIds?: string[]): Promise<void> {
+  const now = new Date();
+  const atRisk = await selectAtRisk(workspaceId, now, onlyIds);
 
   console.log(`Renewal agentic layer: ${atRisk.length} at-risk renewal(s) in the next 90 days.`);
   const baselineRates = await computeBaselineChurnRates(workspaceId);

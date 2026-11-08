@@ -11,7 +11,9 @@
 // trigger every workspace's own Anthropic key to spend money on demand.
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ALLOWED_CAPABILITIES, getRunConfig, isDue, runCapability } from "@/lib/capabilityRuns";
+import { ALLOWED_CAPABILITIES, getRunConfig, isDue } from "@/lib/capabilityRuns";
+import { getActiveRun } from "@/lib/capabilityBatches";
+import { advanceCapabilityRun } from "@/lib/capabilityWork";
 import { refreshDemoDatesIfDue } from "@/lib/demoDates";
 
 export const maxDuration = 300;
@@ -24,6 +26,10 @@ export async function GET(request: NextRequest) {
   }
 
   const now = new Date();
+  // One function call may live 300 seconds. Stop starting new work after this
+  // many, and stop each step early enough for its slowest chunk to finish.
+  const CRON_BUDGET_MS = 200_000;
+  const startedAt = Date.now();
   const workspaces = await prisma.workspace.findMany({ select: { id: true, name: true } });
 
   const results: { workspace: string; capability: string; outcome: string }[] = [];
@@ -31,11 +37,22 @@ export async function GET(request: NextRequest) {
   for (const workspace of workspaces) {
     for (const capability of ALLOWED_CAPABILITIES) {
       const config = await getRunConfig(workspace.id, capability);
-      if (!isDue(config, now)) continue;
+      const unfinished = await getActiveRun(workspace.id, capability);
+      if (!isDue(config, now) && !unfinished) continue;
+
+      const remaining = CRON_BUDGET_MS - (Date.now() - startedAt);
+      if (remaining <= 0) {
+        results.push({ workspace: workspace.name, capability, outcome: "waiting for the next run" });
+        continue;
+      }
 
       try {
-        await runCapability(workspace.id, capability);
-        results.push({ workspace: workspace.name, capability, outcome: "ran" });
+        const progress = await advanceCapabilityRun(workspace.id, capability, { startNew: true, budgetMs: remaining });
+        results.push({
+          workspace: workspace.name,
+          capability,
+          outcome: progress.status === "done" ? "ran" : `${progress.status} ${progress.processed}/${progress.total}`,
+        });
       } catch (e) {
         console.error(`Cron: "${workspace.name}"/${capability} failed`, e);
         results.push({ workspace: workspace.name, capability, outcome: "error" });

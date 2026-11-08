@@ -1,3 +1,4 @@
+import AiKeyBanner from "@/components/AiKeyBanner";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { tierColor } from "@/lib/health/ui";
@@ -35,11 +36,12 @@ export default async function HealthPage({
   if (rows.length === 0) {
     return (
       <div className="max-w-2xl">
+        <AiKeyBanner workspace={workspace} />
         <h1 className="text-2xl font-semibold text-zinc-900">Health</h1>
         <p className="mt-2 text-sm text-zinc-600">
           {activeSegment
             ? `No customers in the "${activeSegment.name}" segment have a Health score yet.`
-            : <>No Health scores computed yet. Run <code>npx tsx prisma/compute-health-scores.ts</code> after seeding.</>}
+            : "No Health scores yet. Scores appear here once this workspace has customers and you have run Health from Settings."}
         </p>
       </div>
     );
@@ -63,6 +65,7 @@ export default async function HealthPage({
 
   return (
     <div>
+      <AiKeyBanner workspace={workspace} />
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-semibold text-zinc-900">
           Health{activeSegment ? <span className="text-zinc-400 font-normal"> &middot; {activeSegment.name}</span> : null}

@@ -7,7 +7,6 @@ import {
   updateAnthropicApiKey,
   clearAnthropicApiKey,
   updateCapabilitySchedule,
-  runCapabilityNow,
   updateAdoptionThreshold,
   simulateSubscribe,
   cancelSimulatedSubscription,
@@ -16,6 +15,9 @@ import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { EXPORT_FIELDS } from "@/lib/exportFields";
 import { ALLOWED_CAPABILITIES, getRunConfig, type Capability } from "@/lib/capabilityRuns";
 import { getTrialStatus } from "@/lib/trialGate";
+import { getActiveRun } from "@/lib/capabilityBatches";
+import RunNowButton from "@/components/RunNowButton";
+import { DEMO_LOCK_NOTICE } from "@/lib/demoGuard";
 
 export const dynamic = "force-dynamic";
 
@@ -33,17 +35,18 @@ const CAPABILITY_LABELS: Record<Capability, string> = {
 };
 
 export default async function SettingsPage({
-  searchParams,
 }: {
-  searchParams: Promise<{ ran?: string; runError?: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const workspace = await getCurrentWorkspace();
-  const { ran, runError } = await searchParams;
   const competitors = await prisma.competitorConfig.findMany({
     where: { workspaceId: workspace.id },
     orderBy: { riskWeight: "desc" },
   });
   const trial = getTrialStatus(workspace);
+  const activeRuns = Object.fromEntries(
+    await Promise.all(ALLOWED_CAPABILITIES.map(async (c) => [c, await getActiveRun(workspace.id, c)] as const))
+  ) as Record<Capability, Awaited<ReturnType<typeof getActiveRun>>>;
   const runConfigs = Object.fromEntries(
     await Promise.all(ALLOWED_CAPABILITIES.map(async (c) => [c, await getRunConfig(workspace.id, c)] as const))
   ) as Record<Capability, Awaited<ReturnType<typeof getRunConfig>>>;
@@ -131,11 +134,15 @@ export default async function SettingsPage({
         {workspace.anthropicApiKeyLast4 ? (
           <div className="flex items-center justify-between text-sm bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
             <span className="text-zinc-900">Configured - ending in ****{workspace.anthropicApiKeyLast4}</span>
-            <form action={clearAnthropicApiKey}>
-              <button type="submit" className="text-xs text-red-700 hover:underline">
-                Remove
-              </button>
-            </form>
+            {workspace.isDemoSeed ? (
+              <span className="text-xs text-zinc-400">Locked on the shared demo</span>
+            ) : (
+              <form action={clearAnthropicApiKey}>
+                <button type="submit" className="text-xs text-red-700 hover:underline">
+                  Remove
+                </button>
+              </form>
+            )}
           </div>
         ) : (
           <form action={updateAnthropicApiKey} className="flex items-end gap-2">
@@ -207,19 +214,17 @@ export default async function SettingsPage({
 
       <h2 className="text-sm font-medium text-zinc-900 mb-3">Automation</h2>
       <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4 mb-2 space-y-2">
-        {ran && (
-          <p className="text-xs text-green-800 bg-green-50 rounded-lg px-3 py-2">
-            {CAPABILITY_LABELS[ran as Capability] ?? ran} ran successfully.
-          </p>
-        )}
-        {runError && (
-          <p className="text-xs text-red-800 bg-red-50 rounded-lg px-3 py-2">
-            Couldn&apos;t run {CAPABILITY_LABELS[runError as Capability] ?? runError} - check the API key above is
-            valid and your trial/subscription is active, or try again shortly if you&apos;ve run this 3 times in the
-            last hour.
-          </p>
-        )}
-        {!workspace.anthropicApiKeyLast4 ? (
+        {workspace.isDemoSeed ? (
+          <>
+            <p className="text-sm text-zinc-700 bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">{DEMO_LOCK_NOTICE}</p>
+            {ALLOWED_CAPABILITIES.map((capability) => (
+              <div key={capability} className="flex items-center justify-between bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
+                <p className="text-sm text-zinc-900 font-medium">{CAPABILITY_LABELS[capability]}</p>
+                <p className="text-xs text-zinc-500">{fmtRunTime(runConfigs[capability].lastRunAt)}</p>
+              </div>
+            ))}
+          </>
+        ) : !workspace.anthropicApiKeyLast4 ? (
           <p className="text-sm text-zinc-500">Configure your Anthropic API key above to enable this.</p>
         ) : !trial.active ? (
           <p className="text-sm text-zinc-500">Upgrade above to enable this - your free trial has ended.</p>
@@ -247,12 +252,19 @@ export default async function SettingsPage({
                       Save
                     </button>
                   </form>
-                  <form action={runCapabilityNow}>
-                    <input type="hidden" name="capability" value={capability} />
-                    <button type="submit" className="rounded-lg bg-[#0C447C] hover:bg-[#0a3a69] transition-colors text-white text-sm px-3 py-1.5">
-                      Run now
-                    </button>
-                  </form>
+                  <RunNowButton
+                    capability={capability}
+                    initial={
+                      activeRuns[capability]
+                        ? {
+                            status: activeRuns[capability]!.status as "running" | "failed",
+                            processed: activeRuns[capability]!.processed,
+                            total: activeRuns[capability]!.total,
+                            error: activeRuns[capability]!.error,
+                          }
+                        : null
+                    }
+                  />
                 </div>
               </div>
               {capability === "adoption" && (
@@ -282,7 +294,10 @@ export default async function SettingsPage({
         key until you click Run now or pick a schedule. Scheduled runs happen via a daily check (Vercel Hobby&apos;s
         cron plans only allow once-per-day jobs) that looks at every workspace&apos;s own schedule and runs whichever
         are actually due - so &quot;Weekly&quot; still only runs roughly every 7 days even though the check itself
-        happens daily. Run now always works regardless of the schedule setting.
+        happens daily. Run now always works regardless of the schedule setting. A large workspace takes longer than a
+        hosted function may run, so a run is done in pieces and saves its place after each one: keep the page open
+        and it finishes by itself, or close it and click Continue later. A scheduled run continues each day until
+        it is done.
       </p>
 
       <h2 className="text-sm font-medium text-zinc-900 mb-3">Competitor risk ({competitors.length}/20)</h2>

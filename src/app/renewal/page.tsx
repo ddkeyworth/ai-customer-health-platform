@@ -1,3 +1,4 @@
+import AiKeyBanner from "@/components/AiKeyBanner";
 import { Fragment } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -81,6 +82,7 @@ export default async function RenewalPage({
 
   return (
     <div>
+      <AiKeyBanner workspace={workspace} />
       <h1 className="text-2xl font-semibold text-zinc-900 mb-1">
         Renewal{activeSegment ? <span className="text-zinc-400"> &middot; {activeSegment.name}</span> : null}
       </h1>
