@@ -256,7 +256,18 @@ try {
     return out;
   });
   check(Object.entries(dl).filter(([k]) => k !== "nonsense").every(([, v]) => v.status === 200 && /text\/csv/.test(v.type) && /attachment; filename="bearing-/.test(v.disp)), "Every export (customers, tickets, usage, outcomes, stakeholders, goals, training, events, surveys, recommendations) downloads as a CSV attachment");
-  check(["stakeholders", "goals", "training", "events", "surveys"].every((k) => dl[k].bom && /^customer,/.test(dl[k].body) && /Example Customer/.test(dl[k].body)), "The five newer exports start with the import columns and contain the imported rows");
+  // The exports name each customer by its reference (CUS-0001), which the importer accepts, so the
+  // check is: a byte-order mark, the import's header starting with the customer column, and at least
+  // one data row after it.
+  const newerProblems = ["stakeholders", "goals", "training", "events", "surveys"].flatMap((k) => {
+    const lines = dl[k].body.split(/\r?\n/).filter((l) => l.trim() !== "");
+    const problems = [];
+    if (!dl[k].bom) problems.push("no byte-order mark");
+    if (!/^customer,/.test(lines[0] ?? "")) problems.push(`header starts "${(lines[0] ?? "").slice(0, 40)}"`);
+    if (lines.length < 2) problems.push("no data rows");
+    return problems.length ? [`${k}: ${problems.join(", ")}`] : [];
+  });
+  check(newerProblems.length === 0, newerProblems.length === 0 ? "The five newer exports start with the import columns and contain the imported rows" : `The five newer exports have problems: ${newerProblems.join(" | ")}`);
   check(dl.nonsense.status === 404, "An unknown export name is a 404");
   check(dl.customers.bom, "The customers export starts with a byte-order mark so Excel reads the characters correctly");
   check(/^ref,name,country/.test(dl.customers.body) && /Example Customer One/.test(dl.customers.body), "The customers export starts with the import columns and contains the imported customers");
