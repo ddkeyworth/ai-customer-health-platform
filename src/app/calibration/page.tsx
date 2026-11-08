@@ -4,6 +4,8 @@ import { tierColor } from "@/lib/health/ui";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { judge } from "@/lib/calibration";
 import CustomerRef from "@/components/CustomerRef";
+import ShowMore from "@/components/ShowMore";
+import { pageSlice, parseShow } from "@/lib/pagination";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +26,14 @@ const VERDICT_STYLE: Record<string, string> = {
   "n/a": "bg-zinc-100 text-zinc-500",
 };
 
-export default async function CalibrationPage() {
+export default async function CalibrationPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ show?: string }>;
+}) {
   const workspace = await getCurrentWorkspace();
+  const sp = await searchParams;
+  const show = parseShow(sp.show);
   const events = await prisma.outcomeEvent.findMany({
     where: { customer: { workspaceId: workspace.id } },
     include: {
@@ -86,7 +94,7 @@ export default async function CalibrationPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {pageSlice(rows, show).map((r) => (
               <tr key={r.event.id} className="border-b border-zinc-100 align-top">
                 <td className="py-3 pr-3 whitespace-nowrap">
                   <Link href={`/health/${r.event.customerId}`} className="text-zinc-900 font-medium hover:text-[#378ADD] hover:underline">
@@ -115,6 +123,7 @@ export default async function CalibrationPage() {
         </table>
       </div>
       )}
+      <ShowMore path="/calibration" params={sp} show={show} total={rows.length} />
 
       <p className="mt-6 text-xs text-zinc-500">
         Compares each real outcome against the most recent Health score on file for that customer - this build

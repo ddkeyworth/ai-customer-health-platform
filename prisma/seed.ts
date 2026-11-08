@@ -272,6 +272,8 @@ async function main() {
     await prisma.competitorConfig.deleteMany({ where: { workspaceId: wsId } });
     await prisma.capabilityRunConfig.deleteMany({ where: { workspaceId: wsId } });
     await prisma.capabilityRun.deleteMany({ where: { workspaceId: wsId } });
+    await prisma.customField.deleteMany({ where: { workspaceId: wsId } });
+    await prisma.importMapping.deleteMany({ where: { workspaceId: wsId } });
     await prisma.package.deleteMany({ where: { productId: { in: productIds } } });
     await prisma.capability.deleteMany({ where: { productId: { in: productIds } } });
     await prisma.product.deleteMany({ where: { workspaceId: wsId } });

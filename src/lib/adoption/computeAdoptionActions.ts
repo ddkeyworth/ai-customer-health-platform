@@ -18,12 +18,19 @@ async function selectCandidates(workspaceId: string, onlyIds?: string[]) {
   });
   const usage = await prisma.usageSnapshot.findMany({ where: { customer: { workspaceId } } });
 
+  // Built once, so the work grows with the number of usage rows rather than
+  // with customers times rows.
+  const capsByCustomer = new Map<string, Set<string>>();
+  for (const u of usage) {
+    if (!capsByCustomer.has(u.customerId)) capsByCustomer.set(u.customerId, new Set());
+    capsByCustomer.get(u.customerId)!.add(u.capabilityId);
+  }
+
   const candidates = liveProducts
     .map((cp) => {
       const entitled = cp.product.capabilities;
-      const usedIds = new Set(
-        usage.filter((u) => u.customerId === cp.customerId && entitled.some((c) => c.id === u.capabilityId)).map((u) => u.capabilityId)
-      );
+      const entitledIds = new Set(entitled.map((c) => c.id));
+      const usedIds = new Set([...(capsByCustomer.get(cp.customerId) ?? [])].filter((id) => entitledIds.has(id)));
       const breadthPct = entitled.length > 0 ? Math.round((usedIds.size / entitled.length) * 100) : 0;
       return { cp, entitled, usedIds, breadthPct };
     })

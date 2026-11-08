@@ -26,7 +26,7 @@ const SUMMARY_TOOL = {
 };
 
 export async function computeBookSummary(customerIds: string[], apiKey: string): Promise<string> {
-  const anthropic = new Anthropic({ apiKey });
+  const anthropic = new Anthropic({ apiKey, timeout: 45_000, maxRetries: 1 });
   const snapshots = await prisma.healthScoreSnapshot.findMany({
     where: { customerId: { in: customerIds } },
     include: { customer: true },

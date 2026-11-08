@@ -41,16 +41,32 @@ function hoursAgo(h: number): Date {
     const afterSet = await getRunConfig(testWorkspace.id, "health");
     assert(afterSet.schedule === "daily", "setSchedule persists and getRunConfig reads it back correctly");
 
-    // runCapability() must refuse to run for a workspace with no Anthropic
+    // Every AI capability must refuse to run for a workspace with no Anthropic
     // key configured - the actual enforcement of "no fallback to a shared
     // platform key," checked without needing a real API call.
-    let threw = false;
+    for (const capability of ["onboarding", "adoption", "expansion", "renewal"] as const) {
+      let threw = false;
+      try {
+        await runCapability(testWorkspace.id, capability);
+      } catch {
+        threw = true;
+      }
+      assert(threw, `runCapability refuses to run ${capability} for a workspace with no Anthropic API key configured`);
+    }
+
+    // Health is the one exception: its deterministic baseline needs no AI, so
+    // it runs for free with no key (it never calls the API and never borrows
+    // anyone else's key). This test workspace has no customers, so the run
+    // simply finishes and records that it ran.
+    let healthThrew = false;
     try {
       await runCapability(testWorkspace.id, "health");
     } catch {
-      threw = true;
+      healthThrew = true;
     }
-    assert(threw, "runCapability refuses to run for a workspace with no Anthropic API key configured");
+    assert(!healthThrew, "Health runs with no API key (free baseline only), because it uses no AI");
+    const afterRun = await getRunConfig(testWorkspace.id, "health");
+    assert(afterRun.lastRunAt !== null, "A key-free Health run records when it ran");
   } finally {
     await prisma.capabilityRunConfig.deleteMany({ where: { workspaceId: testWorkspace.id } });
     await prisma.workspace.delete({ where: { id: testWorkspace.id } });

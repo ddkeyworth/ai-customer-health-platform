@@ -20,7 +20,11 @@ export default function AppShell({
 }) {
   const pathname = usePathname();
   const isChromeless =
-    pathname?.startsWith("/marketing") || pathname?.startsWith("/login") || pathname?.startsWith("/signup");
+    pathname?.startsWith("/marketing") ||
+    pathname?.startsWith("/login") ||
+    pathname?.startsWith("/signup") ||
+    pathname?.startsWith("/forgot-password") ||
+    pathname?.startsWith("/recovery-key");
 
   if (isChromeless) return <div className="w-full">{children}</div>;
 

@@ -6,17 +6,27 @@
 // "on_demand" (the default) is never due here - it only ever runs via the
 // Run Now button in Settings.
 //
+// Order of work, on purpose:
+//   1. cheap housekeeping first (expired sessions, expired rate-limit rows,
+//      demo dates), so it always happens however long the AI work takes;
+//   2. the AI work, oldest-waiting first and with an equal share of the time
+//      each, so one large workspace cannot starve the others;
+//   3. it never starts a step it could not finish inside the hosting limit.
+//
 // Locked down with CRON_SECRET (see src/lib/rateLimit.ts's README note
 // on why this matters): without it, anyone who found this URL could
 // trigger every workspace's own Anthropic key to spend money on demand.
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ALLOWED_CAPABILITIES, getRunConfig, isDue } from "@/lib/capabilityRuns";
-import { getActiveRun } from "@/lib/capabilityBatches";
-import { advanceCapabilityRun } from "@/lib/capabilityWork";
+import { ALLOWED_CAPABILITIES, getRunConfig, isDue, type Capability } from "@/lib/capabilityRuns";
+import { DEFAULT_BUDGET_MS, fairOrder, getActiveRun, runHousekeeping, sliceBudget } from "@/lib/capabilityBatches";
+import { advanceCapabilityRun, worstChunkMsFor } from "@/lib/capabilityWork";
 import { refreshDemoDatesIfDue } from "@/lib/demoDates";
 
 export const maxDuration = 300;
+
+// Time kept back after the housekeeping for the response itself.
+const HOUSEKEEPING_ALLOWANCE_MS = 10_000;
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -26,46 +36,14 @@ export async function GET(request: NextRequest) {
   }
 
   const now = new Date();
-  // One function call may live 300 seconds. Stop starting new work after this
-  // many, and stop each step early enough for its slowest chunk to finish.
-  const CRON_BUDGET_MS = 200_000;
   const startedAt = Date.now();
-  const workspaces = await prisma.workspace.findMany({ select: { id: true, name: true } });
 
-  const results: { workspace: string; capability: string; outcome: string }[] = [];
-
-  for (const workspace of workspaces) {
-    for (const capability of ALLOWED_CAPABILITIES) {
-      const config = await getRunConfig(workspace.id, capability);
-      const unfinished = await getActiveRun(workspace.id, capability);
-      if (!isDue(config, now) && !unfinished) continue;
-
-      const remaining = CRON_BUDGET_MS - (Date.now() - startedAt);
-      if (remaining <= 0) {
-        results.push({ workspace: workspace.name, capability, outcome: "waiting for the next run" });
-        continue;
-      }
-
-      try {
-        const progress = await advanceCapabilityRun(workspace.id, capability, { startNew: true, budgetMs: remaining });
-        results.push({
-          workspace: workspace.name,
-          capability,
-          outcome: progress.status === "done" ? "ran" : `${progress.status} ${progress.processed}/${progress.total}`,
-        });
-      } catch (e) {
-        console.error(`Cron: "${workspace.name}"/${capability} failed`, e);
-        results.push({ workspace: workspace.name, capability, outcome: "error" });
-      }
-    }
-  }
-
-  // Expired sessions are dead weight, and on the demo they carry a visitor's
-  // per-visit changes, which should disappear with the visit.
+  // ---- 1. housekeeping ----
+  // Expired sessions and expired rate-limit rows (see runHousekeeping).
   try {
-    await prisma.session.deleteMany({ where: { expiresAt: { lt: now } } });
+    await runHousekeeping(now);
   } catch (e) {
-    console.error("Cron: expired-session cleanup failed", e);
+    console.error("Cron: housekeeping failed", e);
   }
 
   // Keeps the demo workspace's dates current (no AI cost, a no-op until the
@@ -75,6 +53,51 @@ export async function GET(request: NextRequest) {
     demoDates = await refreshDemoDatesIfDue(now);
   } catch (e) {
     console.error("Cron: demo date refresh failed", e);
+  }
+
+  // ---- 2. the AI work ----
+  // One function call may live 300 seconds. Everything below shares what is left.
+  const totalBudgetMs = DEFAULT_BUDGET_MS - HOUSEKEEPING_ALLOWANCE_MS;
+  const workspaces = await prisma.workspace.findMany({ select: { id: true, name: true } });
+
+  // Gather everything that is due or unfinished first, then order it fairly.
+  const candidates: { workspaceId: string; workspace: string; capability: Capability; lastRunAt: Date | null }[] = [];
+  for (const workspace of workspaces) {
+    for (const capability of ALLOWED_CAPABILITIES) {
+      const config = await getRunConfig(workspace.id, capability);
+      const unfinished = await getActiveRun(workspace.id, capability);
+      if (!isDue(config, now) && !unfinished) continue;
+      candidates.push({ workspaceId: workspace.id, workspace: workspace.name, capability, lastRunAt: config.lastRunAt });
+    }
+  }
+  const ordered = fairOrder(candidates);
+
+  const results: { workspace: string; capability: string; outcome: string }[] = [];
+  for (let i = 0; i < ordered.length; i++) {
+    const c = ordered[i];
+    const remaining = totalBudgetMs - (Date.now() - startedAt);
+    // A step always runs at least one chunk, so do not start one that could not
+    // finish inside the limit. It will be first in line next time (it has now
+    // waited longer than the ones that did run).
+    if (remaining < worstChunkMsFor(c.capability) + 5_000) {
+      results.push({ workspace: c.workspace, capability: c.capability, outcome: "waiting for the next run" });
+      continue;
+    }
+
+    try {
+      const progress = await advanceCapabilityRun(c.workspaceId, c.capability, {
+        startNew: true,
+        budgetMs: sliceBudget(remaining, ordered.length - i),
+      });
+      results.push({
+        workspace: c.workspace,
+        capability: c.capability,
+        outcome: progress.status === "done" ? "ran" : `${progress.status} ${progress.processed}/${progress.total}`,
+      });
+    } catch (e) {
+      console.error(`Cron: "${c.workspace}"/${c.capability} failed`, e);
+      results.push({ workspace: c.workspace, capability: c.capability, outcome: "error" });
+    }
   }
 
   return NextResponse.json({ checkedAt: now.toISOString(), results, demoDates });

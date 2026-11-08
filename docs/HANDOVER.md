@@ -1,49 +1,31 @@
 # Handover: where things stand and what is left
 
-Written when the work was stopped part way (laptop battery). Everything below is committed to `main`.
+## What this is
 
-## The list (6 items, in this order)
+Bearing: an AI Customer Success platform (Health, Onboarding, Adoption, Expansion, Renewal). The owner's hosted site, bearing360.vercel.app, is a read-only demonstration: no signup, nothing saved there. Anyone who wants to save data runs their own copy on their own hosting and database (`SELF_HOSTED=true`); see the README, "Run your own copy".
 
-1. Remainder of the last session
-2. Not built yet: password reset, forms to add or edit a single customer, team roles (before any payment work)
-3. Stripe test mode
-4. Payment tests
-5. Flexible import with dynamic field mapping
-6. Skeptical end-to-end test of the whole solution (last, so it covers everything above)
+## Next weekend (5 items, in this order)
 
-## 1. Remainder of the last session (do these first)
+1. **Flexible import screens.** The foundations exist: `src/lib/import/mapping.ts` and `customFields.ts` (pure column-mapping logic, 260 checks in `prisma/test-import-mapping.ts`) and the database tables `CustomField`, `ImportMapping` and `Customer.customFields`. Still to build: the mapping screen after upload (map to an existing field, create a custom field, or ignore), saved mappings for repeat uploads, custom fields shown on customer pages, usable as Segment filters, carried in the export, and offered to the AI reads (each field has an include-in-AI switch), all with tests. Custom fields apply to the customers file only; the other files get map-or-ignore. Also: teach the mapping catalogue the columns added since it was written (region, city, sub_industry, nps_date, usage product, and the five newer kinds: stakeholders, goals, training, events, surveys), and decide where the blank-header rule lives (the mapper ignores blank headers, the importer refuses them).
+2. **Decide how you get paid, with no workspaces hosted on your servers.** Option A: a licence key for self-hosted copies, which run free for 14 days and then ask for a key bought through Stripe (nobody's data touches your servers; it needs your licence terms changed from open source, your decision and ideally legal advice). Option B: donations or sponsorship only, no Stripe needed. Recommendation was A if you want revenue. This decides what the next two items build.
+3. **Set up Stripe test mode.** You create the Stripe account and fill in the keys file yourself, because keys are never pasted into chat.
+4. **Payment tests.** The last part of the comprehensive test, after Stripe.
+5. **Final comprehensive (skeptical) test of the whole solution**, covering payments, the flexible import and everything built so far, then improvements.
 
-Built and committed, but not yet fully verified or finished:
+## How to run the checks
 
-1. **Upgrade Next.js and fix the other vulnerable packages (security).** `npm audit --omit=dev` reports 4 vulnerabilities, one critical: `next` 16.3.0 (remote code execution on Windows-hosted servers, and in the image optimiser) with the fix at 16.4.5, which is not a major change. Also `sharp`, `zod` and `source-map-js`. Run `npm install next@16.4.5 eslint-config-next@16.4.5`, then `npm audit fix`, then rebuild and run every test.
-2. **Find out why the browser journey timed out.** `npm run e2e` (needs a running production build, see the header of `scripts/e2e-journey.mjs`) passed 16 of 17 checks, then timed out after clicking "Find expansion opportunities" on the Expansion page. It may be the test's wait, or a real hang in `findOpportunities`. Diagnose first.
-3. **Run the rest of the journey.** Not yet run: the export download checks, the security checks (logged-out export, cross-site run request, headers), the delete-workspace flow, the shared-demo isolation (one visitor's Dismiss must not change what another visitor sees, and must disappear after logout), and the phone-width checks.
-4. **Clean up after failed journey runs.** A failed run leaves a "Journey Co ..." workspace. Delete it from Data, or with `deleteWorkspaceAndData`. Also: signup is capped at 3 per address per day on the hosted site, so delete the rate-limit row `signup-ip:unknown` before re-running the journey from your own machine.
-5. **Run all 19 test scripts, the build, lint and CI, and confirm CI is green.** The new scripts are `test-csv-parse-validate` (68 checks), `test-import-export` (62 checks) and `test-deployment-modes`; they are in `.github/workflows/ci.yml`.
-6. **Check production after the deploy.** This commit changes sessions (everyone is logged out once), adds security headers (a content security policy: check the live pages still render with no console errors), and adds the Data page, export, delete, per-visit demo state, signup limits and the free baseline Health run.
-7. **Screenshots and docs.** Add a Data page screenshot to `scripts/capture-screenshots.mjs` and the README gallery (the README says fourteen screenshots, it will be fifteen). Add a TESTING.md entry for the skeptical test and its findings (below).
-8. **Speed and accessibility checks** were not done. Known: some form labels are not tied to their inputs.
-9. **CI uses the live database.** The tests create and delete throwaway workspaces in the same database the demo runs on. Create a separate test database (a Neon branch) and point the CI `DATABASE_URL` secret at it.
-10. **A guarded seed.** `prisma/seed.ts` now refuses to run without `ALLOW_DEMO_SEED=true`. To reseed the hosted demo, set it for that one command.
+- **Unit and database tests:** `npx tsx prisma/<name>.ts` for each `prisma/test-*.ts` (23 scripts, about 1,200 checks; all are in `.github/workflows/ci.yml`). Set `SECRET_ENCRYPTION_KEY` from `.env` first. A test cut off part way can leave throwaway workspaces behind; never pipe a test's output into `head`.
+- **Browser journey:** `npm run e2e` walks signup, nine imports, a refused file, free Health, exports, delete, the demo's per-visit behaviour, the recovery-key flow, closed signup, the security policy and phone width. It needs a production build running (`npm run build`, then `npx next start -p 3200` with `ALLOW_SIGNUP=true TRUSTED_PROXY_HOPS=1`, and a second server on 3201 without `ALLOW_SIGNUP` for the closed-signup check) and Chrome for Puppeteer (`npx puppeteer browsers install chrome`, or set `PUPPETEER_EXECUTABLE_PATH`). Never run it with `SELF_HOSTED=true`: it clicks on the shared demo, which is only safe while the demo is locked. Antivirus that injects scripts can stop network-idle waits settling; the script waits on responses instead.
+- **CI** runs against a separate Neon branch (`ci-tests`, a copy of the demo database) held in the GitHub secret `DATABASE_URL`, and syncs its tables before the tests. After the demo is reseeded, use "Reset from parent" on that branch in Neon. Vercel's own `DATABASE_URL` points at the live database and must not be changed.
+- **The demo seed** (`prisma/seed.ts`) refuses to run without `ALLOW_DEMO_SEED=true`, and wipes the demo's AI results (about £5 and hours to regenerate). Do not run it casually.
+- **Screenshots:** `npm run screenshots` (needs the Chrome above).
 
-Findings and fixes from the skeptical test so far: session tokens were database ids (now 256-bit random, only the hash stored); no security headers (added); no import or export (built); a new signup was a dead end (import, free baseline Health, free opportunity finding); the shared demo could be changed by any visitor (now per-visit, read-only elsewhere); the seed would have created a public-password login on any deployment (now guarded); `SELF_HOSTED` is the single switch between the hosted site and your own copy.
+## Decisions made
 
-## 2. Not built yet (do these before any payment work)
+- The hosted site stores nobody's data. Monetisation therefore cannot rely on hosted workspaces; how paid licences work is item 2 above.
+- Password reset uses a recovery key because the project sends no email.
+- Custom fields (flexible import) apply to customers only; each custom field will have an include-in-AI switch; at most 25 per workspace.
 
-Stated honestly, not hidden: **password reset** (it needs email sending, so choose an email provider first), **forms to add or edit a single customer** (data currently comes in by CSV import only), and **team roles and invitations** (each workspace has one admin today).
+## Not built, stated honestly
 
-## 3. Stripe test mode
-
-Create a Stripe account and fill in the keys file yourself, because keys are never pasted into chat. Then replace the placeholder "Upgrade (demo only)" with Stripe test-mode checkout for the hosted site's 14-day trial. Self-hosted copies (`SELF_HOSTED=true`) stay free.
-
-## 4. Payment tests
-
-The last part of the comprehensive test, after Stripe.
-
-## 5. Flexible import with dynamic field mapping
-
-The import currently reads fixed columns. Build a mapping step so an uploaded file's columns can be matched to existing fields, turned into new custom fields (text, number, date or pick-list, per workspace), or ignored; show suggested matches; save the mapping for repeat uploads; show custom fields on customer pages, as Segment filters, in the export (so a round trip keeps them) and as AI context; keep the all-or-nothing checks and limits, cap custom fields per workspace, and test unknown, missing and wrongly typed columns, mapping reuse and a round trip.
-
-## 6. Skeptical end-to-end test of the whole solution
-
-Repeat the full skeptical test, after items 2 to 5 so it also covers the new forms, roles, password reset, payments and the flexible import: weaknesses, errors and functional gaps, then improvements for a more robust final version.
+Adding or editing a single customer by form, and team roles and invitations (each workspace has one admin). A customer with no product still gets a "Core product" link on import. The customers file carries only the first champion (the stakeholders file carries everyone). Accessibility has had a labelling pass only, not a full audit.

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import { login } from "./actions";
+import { isSelfHosted, signupMode } from "@/lib/deployment";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +14,9 @@ const ERROR_MESSAGES: Record<string, string> = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; reset?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, reset } = await searchParams;
 
   return (
     <div className="min-h-screen grid md:grid-cols-2 bg-white">
@@ -44,6 +45,12 @@ export default async function LoginPage({
             <code className="text-zinc-700">demo-password-123</code> - see README.md.
           </p>
 
+          {reset && !error && (
+            <p role="status" className="mb-4 text-xs text-green-800 bg-green-50 rounded-lg px-3 py-2">
+              Your password was changed. Log in with the new password.
+            </p>
+          )}
+
           {error && (
             <p className="mb-4 text-xs text-red-800 bg-red-50 rounded-lg px-3 py-2">
               {ERROR_MESSAGES[error] ?? "Something went wrong - try again."}
@@ -52,8 +59,8 @@ export default async function LoginPage({
 
           <form action={login} className="space-y-3">
             <div>
-              <label className="block text-xs font-medium text-zinc-600 mb-1">Email</label>
-              <input
+              <label htmlFor="f-email-1" className="block text-xs font-medium text-zinc-600 mb-1">Email</label>
+              <input id="f-email-1"
                 type="email"
                 name="email"
                 required
@@ -62,8 +69,8 @@ export default async function LoginPage({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-zinc-600 mb-1">Password</label>
-              <input
+              <label htmlFor="f-password-1" className="block text-xs font-medium text-zinc-600 mb-1">Password</label>
+              <input id="f-password-1"
                 type="password"
                 name="password"
                 required
@@ -79,13 +86,28 @@ export default async function LoginPage({
             </button>
           </form>
 
-          <p className="mt-4 text-xs text-zinc-500 text-center">
-            No account?{" "}
-            <Link href="/signup" className="text-[#378ADD] hover:underline">
-              Sign up
-            </Link>{" "}
-            - creates a real, isolated new workspace.
+          <p className="mt-3 text-xs text-zinc-500 text-center">
+            <Link href="/forgot-password" className="text-[#378ADD] hover:underline">
+              Forgot password?
+            </Link>
           </p>
+
+          {signupMode() === "closed" ? (
+            !isSelfHosted() && (
+              <p className="mt-4 text-xs text-zinc-500 text-center">
+                This is a demonstration site. The demo login above is the only login on this site, and nothing you do
+                here is saved. To use Bearing with your own data, run your own copy (see the README on GitHub).
+              </p>
+            )
+          ) : (
+            <p className="mt-4 text-xs text-zinc-500 text-center">
+              No account?{" "}
+              <Link href="/signup" className="text-[#378ADD] hover:underline">
+                Sign up
+              </Link>{" "}
+              - creates a real, isolated new workspace.
+            </p>
+          )}
         </div>
       </div>
     </div>

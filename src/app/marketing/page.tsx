@@ -52,6 +52,10 @@ const TIERS = [
   },
 ];
 
+// Rendered per request so it always carries the Content-Security-Policy nonce
+// (a page built ahead of time has no request to take a nonce from).
+export const dynamic = "force-dynamic";
+
 export default function MarketingPage() {
   return (
     <div className="min-h-screen bg-white text-zinc-900">

@@ -97,7 +97,7 @@ export async function computeAgenticLayer(
   drivers: DriverResult[],
   apiKey: string
 ): Promise<AgenticResult> {
-  const anthropic = new Anthropic({ apiKey });
+  const anthropic = new Anthropic({ apiKey, timeout: 45_000, maxRetries: 1 }); // see the time budget in capabilityBatches.ts
   const customer = await prisma.customer.findUniqueOrThrow({
     where: { id: customerId },
     include: { products: true },

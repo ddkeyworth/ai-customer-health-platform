@@ -29,6 +29,8 @@ export async function deleteWorkspaceAndData(workspaceId: string): Promise<void>
       await tx.segment.deleteMany({ where: { workspaceId } });
       await tx.capabilityRun.deleteMany({ where: { workspaceId } });
       await tx.capabilityRunConfig.deleteMany({ where: { workspaceId } });
+      await tx.customField.deleteMany({ where: { workspaceId } });
+      await tx.importMapping.deleteMany({ where: { workspaceId } });
       await tx.session.deleteMany({ where: { user: { workspaceId } } });
       await tx.user.deleteMany({ where: { workspaceId } });
       await tx.workspace.delete({ where: { id: workspaceId } });

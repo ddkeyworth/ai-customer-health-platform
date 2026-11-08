@@ -6,7 +6,7 @@
 // customer, so it goes one at a time and the time budget is checked after
 // every customer. The others review fewer, quicker items per step.
 import { assertCanRun, type Capability } from "@/lib/capabilityRuns";
-import { advanceRun, type RunProgress, type WorkAdapter } from "@/lib/capabilityBatches";
+import { advanceRun, AI_CALL_WORST_MS, type RunProgress, type WorkAdapter } from "@/lib/capabilityBatches";
 import { computeHealthScoresForWorkspace, listHealthWorkIds } from "@/lib/health/computeHealthScores";
 import { computeOnboardingActionsForWorkspace, listOnboardingWorkIds } from "@/lib/onboarding/computeOnboardingActions";
 import { computeAdoptionActionsForWorkspace, listAdoptionWorkIds } from "@/lib/adoption/computeAdoptionActions";
@@ -23,17 +23,30 @@ function needsKey(
   };
 }
 
+// Chunk sizes follow the time arithmetic in capabilityBatches.ts: every item is
+// at most one AI call (worst case AI_CALL_WORST_MS), a chunk of N items is at
+// most N of them, and the engine keeps that worst case in reserve before it
+// starts another chunk. Health is one customer per step; the others are two.
+const NON_HEALTH_CHUNK = 2;
+
 export const ADAPTERS: Record<Capability, WorkAdapter> = {
   health: {
     list: listHealthWorkIds,
     process: (workspaceId, _apiKey, ids) => computeHealthScoresForWorkspace(workspaceId, ids),
     chunk: 1,
+    worstChunkMs: 1 * AI_CALL_WORST_MS,
   },
-  onboarding: { list: listOnboardingWorkIds, process: needsKey(computeOnboardingActionsForWorkspace), chunk: 4 },
-  adoption: { list: listAdoptionWorkIds, process: needsKey(computeAdoptionActionsForWorkspace), chunk: 4 },
-  expansion: { list: listExpansionWorkIds, process: needsKey(computeExpansionActionsForWorkspace), chunk: 4 },
-  renewal: { list: listRenewalWorkIds, process: needsKey(computeRenewalActionsForWorkspace), chunk: 4 },
+  onboarding: { list: listOnboardingWorkIds, process: needsKey(computeOnboardingActionsForWorkspace), chunk: NON_HEALTH_CHUNK, worstChunkMs: NON_HEALTH_CHUNK * AI_CALL_WORST_MS },
+  adoption: { list: listAdoptionWorkIds, process: needsKey(computeAdoptionActionsForWorkspace), chunk: NON_HEALTH_CHUNK, worstChunkMs: NON_HEALTH_CHUNK * AI_CALL_WORST_MS },
+  expansion: { list: listExpansionWorkIds, process: needsKey(computeExpansionActionsForWorkspace), chunk: NON_HEALTH_CHUNK, worstChunkMs: NON_HEALTH_CHUNK * AI_CALL_WORST_MS },
+  renewal: { list: listRenewalWorkIds, process: needsKey(computeRenewalActionsForWorkspace), chunk: NON_HEALTH_CHUNK, worstChunkMs: NON_HEALTH_CHUNK * AI_CALL_WORST_MS },
 };
+
+// The longest one chunk of this capability could take (used by the cron to
+// decide whether there is time left to start it).
+export function worstChunkMsFor(capability: Capability): number {
+  return ADAPTERS[capability].worstChunkMs ?? 0;
+}
 
 // Checks the trial and key first (so a workspace that may not run never
 // starts a run), then advances the capability's run by one time budget.

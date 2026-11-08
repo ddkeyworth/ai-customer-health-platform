@@ -11,6 +11,12 @@ async function currentSessionId(): Promise<string | null> {
   return token ? hashSessionToken(token) : null;
 }
 
+// The current visit's session id, for per-visit allowances such as the export
+// limit. Null when there is no session cookie.
+export async function getCurrentSessionId(): Promise<string | null> {
+  return currentSessionId();
+}
+
 // The recommendations this visitor has hidden. Empty for any workspace other
 // than the locked shared demo, where clicks change the real row instead.
 export async function getHiddenActionIds(workspace: { isDemoSeed: boolean }): Promise<string[]> {

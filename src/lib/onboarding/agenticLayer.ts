@@ -52,7 +52,7 @@ export async function computeOnboardingRecovery(
   interactions: { type: string; severity: string | null; text: string; occurredAt: Date }[],
   apiKey: string
 ): Promise<OnboardingRecoveryResult> {
-  const anthropic = new Anthropic({ apiKey });
+  const anthropic = new Anthropic({ apiKey, timeout: 45_000, maxRetries: 1 }); // see the time budget in capabilityBatches.ts
 
   const payload = {
     customerName,

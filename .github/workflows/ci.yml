@@ -60,9 +60,16 @@ jobs:
         run: npm run build
       - name: Type-check
         run: npx tsc --noEmit
+      - name: Sync the test database's tables
+        # DATABASE_URL here points at a separate Neon branch (a copy of the demo
+        # database used only by tests), never the live site's database. This
+        # adds any tables or columns the code has gained since the copy was
+        # made, so the copy can never fall out of date. db push without
+        # --accept-data-loss refuses any change that would delete data.
+        run: npx prisma db push --skip-generate
       - name: Run assert-based regression suite
         run: |
-          for f in test-auth test-workspace-secret test-settings-validation test-calibration test-segments test-workspace-scoping test-rate-limit test-capability-runs test-onboarding-pace test-trial-gate test-churn-model test-agent-actions test-agent-action-review test-demo-dates test-health-layer2-guards test-capability-batches test-csv-parse-validate test-import-export test-deployment-modes; do
+          for f in test-auth test-workspace-secret test-settings-validation test-calibration test-segments test-workspace-scoping test-rate-limit test-capability-runs test-onboarding-pace test-trial-gate test-churn-model test-agent-actions test-agent-action-review test-demo-dates test-health-layer2-guards test-capability-batches test-csv-parse-validate test-import-export test-deployment-modes test-password-reset test-pagination test-import-mapping test-csp; do
             echo "=== $f ==="
             npx tsx prisma/$f.ts
           done

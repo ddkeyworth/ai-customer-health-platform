@@ -1,12 +1,17 @@
 import "server-only";
 import { headers } from "next/headers";
+import { parseClientAddress, parseTrustedProxyHops } from "@/lib/clientAddress";
 
-// The visitor's address as the hosting platform reports it. Vercel sets
-// x-forwarded-for itself, so the first entry is the real client. If it is
-// missing (local development) every visitor shares one bucket, which only
-// makes the limits stricter, never looser.
+// The visitor's address, for the sign-up, login and password-reset limits. The
+// rules for which header to trust (and why) are in src/lib/clientAddress.ts.
+// Set TRUSTED_PROXY_HOPS if you run your own proxy in front of the app.
 export async function clientIp(): Promise<string> {
   const h = await headers();
-  const forwarded = h.get("x-forwarded-for");
-  return (forwarded ? forwarded.split(",")[0].trim() : h.get("x-real-ip")) || "unknown";
+  return parseClientAddress({
+    onVercel: !!process.env.VERCEL,
+    vercelForwardedFor: h.get("x-vercel-forwarded-for"),
+    forwardedFor: h.get("x-forwarded-for"),
+    realIp: h.get("x-real-ip"),
+    trustedProxyHops: parseTrustedProxyHops(process.env.TRUSTED_PROXY_HOPS),
+  });
 }

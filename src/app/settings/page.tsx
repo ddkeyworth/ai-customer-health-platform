@@ -18,6 +18,19 @@ import { getTrialStatus } from "@/lib/trialGate";
 import { getActiveRun } from "@/lib/capabilityBatches";
 import RunNowButton from "@/components/RunNowButton";
 import { DEMO_LOCK_NOTICE, isSpendLocked } from "@/lib/demoGuard";
+import { getSessionUser } from "@/lib/auth";
+import { changeMyPassword, regenerateMyRecoveryKey } from "./security-actions";
+
+const SECURITY_MESSAGES: Record<string, string> = {
+  password_changed: "Password changed. Your other sessions were signed out.",
+  current: "The current password is wrong.",
+  weak: "The new password must be between 8 and 128 characters.",
+  mismatch: "The two new passwords do not match.",
+  missing: "Fill in every field.",
+  locked: "This is switched off on the shared demo.",
+  rate_limited: "Too many attempts - wait a while and try again.",
+  invalid: "Something went wrong - try again.",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -35,10 +48,13 @@ const CAPABILITY_LABELS: Record<Capability, string> = {
 };
 
 export default async function SettingsPage({
+  searchParams,
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const workspace = await getCurrentWorkspace();
+  const { security } = await searchParams;
+  const sessionUser = await getSessionUser();
   const competitors = await prisma.competitorConfig.findMany({
     where: { workspaceId: workspace.id },
     orderBy: { riskWeight: "desc" },
@@ -63,8 +79,8 @@ export default async function SettingsPage({
       <h2 className="text-sm font-medium text-zinc-900 mb-3">Org profile &amp; localisation</h2>
       <form action={updateWorkspace} className="space-y-3 mb-8 rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
         <div>
-          <label className="block text-xs text-zinc-500 mb-1">Workspace name</label>
-          <input
+          <label htmlFor="f-name-1" className="block text-xs text-zinc-500 mb-1">Workspace name</label>
+          <input id="f-name-1"
             name="name"
             required
             maxLength={80}
@@ -74,8 +90,8 @@ export default async function SettingsPage({
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">Brand primary colour</label>
-            <input
+            <label htmlFor="f-brandPrimaryColor-1" className="block text-xs text-zinc-500 mb-1">Brand primary colour</label>
+            <input id="f-brandPrimaryColor-1"
               name="brandPrimaryColor"
               defaultValue={workspace.brandPrimaryColor ?? ""}
               placeholder="#378ADD"
@@ -85,8 +101,8 @@ export default async function SettingsPage({
             />
           </div>
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">Brand accent colour</label>
-            <input
+            <label htmlFor="f-brandAccentColor-1" className="block text-xs text-zinc-500 mb-1">Brand accent colour</label>
+            <input id="f-brandAccentColor-1"
               name="brandAccentColor"
               defaultValue={workspace.brandAccentColor ?? ""}
               placeholder="#e6f1fb"
@@ -98,8 +114,8 @@ export default async function SettingsPage({
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">Currency</label>
-            <input
+            <label htmlFor="f-currency-1" className="block text-xs text-zinc-500 mb-1">Currency</label>
+            <input id="f-currency-1"
               name="currency"
               required
               defaultValue={workspace.currency}
@@ -110,16 +126,16 @@ export default async function SettingsPage({
             />
           </div>
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">Date format</label>
-            <select name="dateFormat" defaultValue={workspace.dateFormat} className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
+            <label htmlFor="f-dateFormat-1" className="block text-xs text-zinc-500 mb-1">Date format</label>
+            <select id="f-dateFormat-1" name="dateFormat" defaultValue={workspace.dateFormat} className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
               <option value="DD/MM/YYYY">DD/MM/YYYY</option>
               <option value="MM/DD/YYYY">MM/DD/YYYY</option>
               <option value="YYYY-MM-DD">YYYY-MM-DD</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">Language</label>
-            <select name="language" defaultValue={workspace.language} className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
+            <label htmlFor="f-language-1" className="block text-xs text-zinc-500 mb-1">Language</label>
+            <select id="f-language-1" name="language" defaultValue={workspace.language} className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
               <option value="en-GB">en-GB</option>
               <option value="en-US">en-US</option>
             </select>
@@ -152,8 +168,8 @@ export default async function SettingsPage({
         ) : (
           <form action={updateAnthropicApiKey} className="flex items-end gap-2">
             <div className="flex-1">
-              <label className="block text-xs text-zinc-500 mb-1">API key</label>
-              <input
+              <label htmlFor="f-apiKey-1" className="block text-xs text-zinc-500 mb-1">API key</label>
+              <input id="f-apiKey-1"
                 name="apiKey"
                 type="password"
                 placeholder="sk-ant-..."
@@ -173,6 +189,66 @@ export default async function SettingsPage({
         saved. This field exists because the point of a downloadable, open-source project is that anyone running
         their own instance should use their own Anthropic key, not the demo deployment&apos;s - no capability below
         will run at all until this is configured.
+      </p>
+
+      <h2 className="text-sm font-medium text-zinc-900 mb-3">Security: password and recovery key</h2>
+      <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4 mb-2">
+        {isSpendLocked(workspace) ? (
+          <p className="text-sm text-zinc-700">
+            Switched off on the shared demo: its password and recovery key are public and cannot be changed. Sign up for your own workspace, or run your own copy, to manage them.
+          </p>
+        ) : (
+          <div className="space-y-5">
+            {security && (
+              <p
+                role="status"
+                className={`text-xs rounded-lg px-3 py-2 ${security === "password_changed" ? "text-green-800 bg-green-50" : "text-red-800 bg-red-50"}`}
+              >
+                {SECURITY_MESSAGES[security] ?? "Something went wrong - try again."}
+              </p>
+            )}
+            <form action={changeMyPassword} className="space-y-2">
+              <p className="text-sm font-medium text-zinc-900">Change password</p>
+              <div>
+                <label htmlFor="sec-current" className="block text-xs text-zinc-500 mb-1">Current password</label>
+                <input id="sec-current" name="current" type="password" required autoComplete="current-password" maxLength={128} className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label htmlFor="sec-next" className="block text-xs text-zinc-500 mb-1">New password (8 to 128 characters)</label>
+                  <input id="sec-next" name="next" type="password" required minLength={8} maxLength={128} autoComplete="new-password" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm" />
+                </div>
+                <div>
+                  <label htmlFor="sec-confirm" className="block text-xs text-zinc-500 mb-1">Confirm new password</label>
+                  <input id="sec-confirm" name="confirm" type="password" required minLength={8} maxLength={128} autoComplete="new-password" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm" />
+                </div>
+              </div>
+              <button type="submit" className="rounded-lg bg-[#0C447C] hover:bg-[#0a3a69] transition-colors text-white text-sm px-3 py-1.5">
+                Change password
+              </button>
+              <p className="text-xs text-zinc-500">Your other sessions are signed out; this one stays signed in.</p>
+            </form>
+
+            <form action={regenerateMyRecoveryKey} className="space-y-2 border-t border-zinc-100 pt-4">
+              <p className="text-sm font-medium text-zinc-900">Recovery key</p>
+              <p className="text-xs text-zinc-600">
+                {sessionUser?.recoveryKeyCreatedAt
+                  ? `A recovery key was set on ${sessionUser.recoveryKeyCreatedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}. It is not shown again. Make a new one if you have lost it: the old one stops working.`
+                  : "You have no recovery key yet, so a forgotten password could not be reset. Make one now and keep it somewhere safe."}
+              </p>
+              <div>
+                <label htmlFor="sec-key-current" className="block text-xs text-zinc-500 mb-1">Current password</label>
+                <input id="sec-key-current" name="current" type="password" required autoComplete="current-password" maxLength={128} className="w-full max-w-xs rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm" />
+              </div>
+              <button type="submit" className="rounded-lg border border-zinc-300 bg-white hover:bg-zinc-50 text-sm text-zinc-800 px-3 py-1.5">
+                {sessionUser?.recoveryKeyCreatedAt ? "Make a new recovery key" : "Make a recovery key"}
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
+      <p className="text-xs text-zinc-500 mb-8">
+        Bearing sends no email, so a forgotten password is reset with the recovery key on the Forgot password page. Only a scrambled copy of the key is stored.
       </p>
 
       <h2 className="text-sm font-medium text-zinc-900 mb-3">Plan &amp; trial</h2>
@@ -300,8 +376,8 @@ export default async function SettingsPage({
               </div>
               {capability === "adoption" && (
                 <form action={updateAdoptionThreshold} className="flex items-center gap-2 mt-1.5 px-3">
-                  <label className="text-xs text-zinc-500">Underused-capability threshold</label>
-                  <input
+                  <label htmlFor="f-threshold-1" className="text-xs text-zinc-500">Underused-capability threshold</label>
+                  <input id="f-threshold-1"
                     name="threshold"
                     type="number"
                     min={0}
@@ -351,12 +427,12 @@ export default async function SettingsPage({
         </div>
         <form action={addCompetitor} className="flex items-end gap-2">
           <div className="flex-1">
-            <label className="block text-xs text-zinc-500 mb-1">Name</label>
-            <input name="name" required maxLength={80} className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent" />
+            <label htmlFor="f-name-2" className="block text-xs text-zinc-500 mb-1">Name</label>
+            <input id="f-name-2" name="name" required maxLength={80} className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent" />
           </div>
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">Risk weight (1-5)</label>
-            <input
+            <label htmlFor="f-riskWeight-1" className="block text-xs text-zinc-500 mb-1">Risk weight (1-5)</label>
+            <input id="f-riskWeight-1"
               name="riskWeight"
               type="number"
               min={1}

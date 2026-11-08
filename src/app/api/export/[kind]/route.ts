@@ -3,7 +3,8 @@
 // Only the caller's own workspace is ever read.
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
-import { withinRateLimit } from "@/lib/rateLimit";
+import { allowExport } from "@/lib/authLimits";
+import { getCurrentSessionId } from "@/lib/demoVisitServer";
 import { buildExport, EXPORT_KINDS, type ExportKind } from "@/lib/import/exportData";
 
 export const maxDuration = 60;
@@ -15,7 +16,9 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
-  if (!(await withinRateLimit(`export:${user.workspaceId}`, 30, 60 * 60_000))) {
+  // Each visit has its own allowance (so demo visitors do not share one), with a
+  // much higher per-workspace backstop. See src/lib/authLimits.ts.
+  if (!(await allowExport(await getCurrentSessionId(), user.workspaceId))) {
     return NextResponse.json({ error: "Too many downloads this hour. Try again shortly." }, { status: 429 });
   }
 

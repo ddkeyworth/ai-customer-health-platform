@@ -37,6 +37,10 @@ async function main() {
   await wait(1000);
   await page.screenshot({ path: path.join(OUT_DIR, "competitor-config-screenshot.png"), fullPage: true });
 
+  await page.goto(`${BASE}/data`, { waitUntil: "domcontentloaded" });
+  await wait(1000);
+  await page.screenshot({ path: path.join(OUT_DIR, "data-screenshot.png"), fullPage: true });
+
   await page.goto(`${BASE}/onboarding`, { waitUntil: "domcontentloaded" });
   await wait(1000);
   await page.screenshot({ path: path.join(OUT_DIR, "onboarding-screenshot.png") });

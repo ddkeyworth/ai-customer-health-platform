@@ -53,7 +53,7 @@ export async function computeExpansionReview(
   interactions: { type: string; severity: string | null; text: string }[],
   apiKey: string
 ): Promise<ExpansionReviewResult> {
-  const anthropic = new Anthropic({ apiKey });
+  const anthropic = new Anthropic({ apiKey, timeout: 45_000, maxRetries: 1 }); // see the time budget in capabilityBatches.ts
 
   const payload = {
     customerName,

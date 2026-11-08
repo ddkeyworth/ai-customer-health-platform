@@ -2,10 +2,11 @@
 
 import { useActionState } from "react";
 import { importCsvAction, type ImportState } from "@/app/data/actions";
+import type { ImportKind } from "@/lib/import/validate";
 
 // One upload box. The server checks the whole file before it writes anything,
 // so the result is either "imported N" or a list of the exact rows to fix.
-export default function ImportForm({ kind, disabled }: { kind: "customers" | "tickets" | "usage" | "outcomes"; disabled?: boolean }) {
+export default function ImportForm({ kind, disabled }: { kind: ImportKind; disabled?: boolean }) {
   const [state, action, pending] = useActionState<ImportState | null, FormData>(importCsvAction, null);
   return (
     <form action={action} className="mt-3">

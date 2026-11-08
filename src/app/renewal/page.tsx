@@ -9,6 +9,8 @@ import { resolveActiveSegment } from "@/lib/activeSegment";
 import { computeBaselineChurnRates } from "@/lib/renewal/churnModel";
 import AgentActionReview from "@/components/AgentActionReview";
 import CustomerRef from "@/components/CustomerRef";
+import ShowMore from "@/components/ShowMore";
+import { pageSlice, parseShow } from "@/lib/pagination";
 
 export const dynamic = "force-dynamic";
 
@@ -27,11 +29,13 @@ interface SavePlayMetadata {
 export default async function RenewalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ segment?: string }>;
+  searchParams: Promise<{ segment?: string; show?: string }>;
 }) {
   const workspace = await getCurrentWorkspace();
   const hiddenIds = await getHiddenActionIds(workspace);
-  const { segment: segmentId } = await searchParams;
+  const sp = await searchParams;
+  const segmentId = sp.segment;
+  const show = parseShow(sp.show);
   const activeSegment = await resolveActiveSegment(workspace.id, segmentId);
 
   const rows = await prisma.customerProduct.findMany({
@@ -116,7 +120,7 @@ export default async function RenewalPage({
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => {
+          {pageSlice(rows, show).map((r) => {
             const snap = r.customer.healthSnapshots[0];
             const savePlay = savePlayByProductId.get(r.id);
             const meta = savePlay?.metadata as SavePlayMetadata | null;
@@ -186,6 +190,7 @@ export default async function RenewalPage({
         </tbody>
       </table>
       </div>
+      <ShowMore path="/renewal" params={sp} show={show} total={rows.length} />
 
       <p className="mt-6 text-xs text-zinc-500">
         Churn risk per Health band now comes from real recorded outcomes on <code>/calibration</code> where there&apos;s

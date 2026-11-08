@@ -55,6 +55,8 @@ model Workspace {
   products          Product[]
   capabilityRunConfigs CapabilityRunConfig[]
   capabilityRuns       CapabilityRun[]
+  customFieldDefs      CustomField[]
+  importMappings       ImportMapping[]
   agentActions      AgentAction[]
 
   @@map("workspaces")
@@ -68,6 +70,10 @@ model User {
   name            String
   email           String   @unique
   passwordHash    String   // bcrypt, cost 12 - see src/lib/auth.ts
+  // Email-free password reset: a one-time recovery key shown to the person once,
+  // stored only as a hash (see src/lib/recoveryKey.ts). Null until one is issued.
+  recoveryKeyHash      String?
+  recoveryKeyCreatedAt DateTime?
   role            String   // "head_vp_cs" | "cs_manager" | "csm" | custom if customTeamStructure
   isAdmin         Boolean  @default(false)
   managerId       String?  // reports-to, enables team roll-up
@@ -163,6 +169,41 @@ model CapabilityRun {
   @@map("capability_runs")
 }
 
+// A field a workspace added itself, for a column in its own data that Bearing
+// has no built-in field for (see the flexible import). Values live on each
+// Customer in customFields, keyed by this row's id. Customer-level only.
+model CustomField {
+  id          String   @id @default(cuid())
+  workspaceId String
+  label       String
+  type        String   // "text" | "number" | "date" | "select"
+  options     Json?    // for "select": the allowed values, as a string array
+  shareWithAi Boolean  @default(true) // include this field when the AI reads the customer
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, label])
+  @@map("custom_fields")
+}
+
+// A saved column mapping, so the next upload with the same set of columns needs
+// no re-mapping. The signature is a hash of the file's column names (see
+// src/lib/import/mapping.ts).
+model ImportMapping {
+  id          String   @id @default(cuid())
+  workspaceId String
+  kind        String   // "customers" | "tickets" | "usage" | "outcomes"
+  signature   String
+  mapping     Json
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, kind, signature])
+  @@map("import_mappings")
+}
+
 // The managed customer record – deliberately NOT called "Account" (see README.md).
 model Customer {
   id             String   @id @default(cuid())
@@ -182,6 +223,9 @@ model Customer {
   interruptedReason String? // "customer_requested" | "contract_defined" | "company_defined"
   createdAt      DateTime @default(now())
   archivedAt     DateTime?
+  // Values of this workspace's custom fields (see CustomField), keyed by the
+  // field's id. Set by the flexible import; empty for customers that have none.
+  customFields   Json      @default("{}")
 
   workspace          Workspace              @relation(fields: [workspaceId], references: [id])
   products           CustomerProduct[]

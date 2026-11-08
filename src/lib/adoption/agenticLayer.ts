@@ -48,7 +48,7 @@ export async function computeAdoptionNudge(
   interactions: { type: string; severity: string | null; text: string }[],
   apiKey: string
 ): Promise<AdoptionNudgeResult> {
-  const anthropic = new Anthropic({ apiKey });
+  const anthropic = new Anthropic({ apiKey, timeout: 45_000, maxRetries: 1 }); // see the time budget in capabilityBatches.ts
 
   const payload = {
     customerName,

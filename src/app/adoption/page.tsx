@@ -6,6 +6,8 @@ import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { resolveActiveSegment } from "@/lib/activeSegment";
 import AgentActionReview from "@/components/AgentActionReview";
 import CustomerRef from "@/components/CustomerRef";
+import ShowMore from "@/components/ShowMore";
+import { pageSlice, parseShow } from "@/lib/pagination";
 import { notSnoozed } from "@/lib/agentActionStatus";
 import { visibleToVisit } from "@/lib/demoVisit";
 import { getHiddenActionIds } from "@/lib/demoVisitServer";
@@ -15,11 +17,13 @@ export const dynamic = "force-dynamic";
 export default async function AdoptionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ segment?: string }>;
+  searchParams: Promise<{ segment?: string; show?: string }>;
 }) {
   const workspace = await getCurrentWorkspace();
   const hiddenIds = await getHiddenActionIds(workspace);
-  const { segment: segmentId } = await searchParams;
+  const sp = await searchParams;
+  const segmentId = sp.segment;
+  const show = parseShow(sp.show);
   const activeSegment = await resolveActiveSegment(workspace.id, segmentId);
   const threshold = workspace.adoptionUnderusedThresholdPct;
 
@@ -39,10 +43,21 @@ export default async function AdoptionPage({
   const capabilities = await prisma.capability.findMany({ where: { product: { workspaceId: workspace.id } } });
   const usage = await prisma.usageSnapshot.findMany({ where: { customer: { workspaceId: workspace.id } } });
 
+  // Built once, so the work grows with the number of usage rows rather than
+  // with customers times rows.
+  const capsByCustomer = new Map<string, Set<string>>();
+  const customersByCap = new Map<string, Set<string>>();
+  for (const u of usage) {
+    if (!capsByCustomer.has(u.customerId)) capsByCustomer.set(u.customerId, new Set());
+    capsByCustomer.get(u.customerId)!.add(u.capabilityId);
+    if (!customersByCap.has(u.capabilityId)) customersByCap.set(u.capabilityId, new Set());
+    customersByCap.get(u.capabilityId)!.add(u.customerId);
+  }
+  const liveCustomerIds = new Set(liveProducts.map((cp) => cp.customerId));
+
   // Per-capability: how many live customers have any usage recorded at all.
   const capStats = capabilities.map((cap) => {
-    const usedByCustomerIds = new Set(usage.filter((u) => u.capabilityId === cap.id).map((u) => u.customerId));
-    const liveCustomerIds = new Set(liveProducts.map((cp) => cp.customerId));
+    const usedByCustomerIds = customersByCap.get(cap.id) ?? new Set<string>();
     const usedByLive = [...usedByCustomerIds].filter((id) => liveCustomerIds.has(id)).length;
     return { ...cap, usedByLive, liveTotal: liveCustomerIds.size };
   });
@@ -57,9 +72,8 @@ export default async function AdoptionPage({
   // Per-customer-product capability breadth.
   const rows = liveProducts.map((cp) => {
     const entitled = cp.product.capabilities.length;
-    const usedIds = new Set(
-      usage.filter((u) => u.customerId === cp.customerId && cp.product.capabilities.some((c) => c.id === u.capabilityId)).map((u) => u.capabilityId)
-    );
+    const entitledIds = new Set(cp.product.capabilities.map((c) => c.id));
+    const usedIds = new Set([...(capsByCustomer.get(cp.customerId) ?? [])].filter((id) => entitledIds.has(id)));
     return {
       cp,
       entitled,
@@ -118,7 +132,7 @@ export default async function AdoptionPage({
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
+          {pageSlice(rows, show).map((r) => (
             <Fragment key={r.cp.id}>
               <tr className="border-b border-zinc-100">
                 <td className="py-3 pr-3 whitespace-nowrap">
@@ -164,6 +178,7 @@ export default async function AdoptionPage({
         </tbody>
       </table>
       </div>
+      <ShowMore path="/adoption" params={sp} show={show} total={rows.length} />
 
       <p className="mt-6 text-xs text-zinc-500">
         Usage-depth and consumption trend per account (growing/flat/declining), plus Desired Outcome progress

@@ -5,6 +5,8 @@ import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { resolveActiveSegment } from "@/lib/activeSegment";
 import { computeDaysOverdue } from "@/lib/onboarding/pace";
 import CustomerRef from "@/components/CustomerRef";
+import ShowMore from "@/components/ShowMore";
+import { pageSlice, parseShow } from "@/lib/pagination";
 import { notSnoozed } from "@/lib/agentActionStatus";
 import { visibleToVisit } from "@/lib/demoVisit";
 import { getHiddenActionIds } from "@/lib/demoVisitServer";
@@ -20,11 +22,13 @@ interface Flag {
 export default async function BriefingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ segment?: string }>;
+  searchParams: Promise<{ segment?: string; show?: string }>;
 }) {
   const workspace = await getCurrentWorkspace();
   const hiddenIds = await getHiddenActionIds(workspace);
-  const { segment: segmentId } = await searchParams;
+  const sp = await searchParams;
+  const segmentId = sp.segment;
+  const show = parseShow(sp.show);
   const activeSegment = await resolveActiveSegment(workspace.id, segmentId);
 
   const customerProducts = await prisma.customerProduct.findMany({
@@ -160,7 +164,7 @@ export default async function BriefingPage({
       <p className="text-sm text-zinc-500 mb-6">{rows.length} accounts with something to review, ranked by impact</p>
 
       <div className="space-y-2.5">
-        {rows.map((r) => (
+        {pageSlice(rows, show).map((r) => (
           <Link
             key={r.id}
             href={`/health/${r.id}`}
@@ -180,6 +184,7 @@ export default async function BriefingPage({
           </Link>
         ))}
       </div>
+      <ShowMore path="/briefing" params={sp} show={show} total={rows.length} />
 
       <p className="mt-6 text-xs text-zinc-500">
         Consolidated by account, ranked by combined £ impact - not a raw per-signal activity feed. Health, Onboarding,

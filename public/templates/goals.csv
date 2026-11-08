@@ -1,0 +1,3 @@
+customer,name,target_value,actual_value,unit
+Example Customer One,Cut manual tracking time,40,26,hours/month
+Example Customer Two,Automate customs paperwork,80,0,% automated

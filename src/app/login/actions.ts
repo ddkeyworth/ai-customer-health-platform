@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword, createSessionCookie } from "@/lib/auth";
-import { withinRateLimit } from "@/lib/rateLimit";
+import { allowLoginAttempt, isPublicDemoEmail } from "@/lib/authLimits";
 import { clientIp } from "@/lib/clientIp";
 
 // A precomputed bcrypt hash of an arbitrary string, never a real password -
@@ -24,14 +24,13 @@ export async function login(formData: FormData) {
   // before it reaches the database or the password hasher.
   if (email.length > 254 || password.length > 128) redirect("/login?error=invalid");
 
-  // Rate-limited by the submitted email, not IP (none reliably available in
-  // this dev setup) - bounds brute-force guessing against any one account.
-  if (!(await withinRateLimit(`login:${email}`, 10, 15 * 60_000))) {
-    redirect("/login?error=rate_limited");
-  }
-  // Also limited per visitor address, so one address cannot try many different
-  // emails (credential stuffing) without hitting a wall.
-  if (!(await withinRateLimit(`login-ip:${await clientIp()}`, 40, 15 * 60_000))) {
+  // Limited by visitor address first (so a flood stops there), then by email
+  // and address together, with a higher per-email ceiling against guessing
+  // spread over many addresses. The public demo account, whose login is printed
+  // on this page, is limited per address only, so visitors cannot lock each
+  // other out. See src/lib/authLimits.ts.
+  const ip = await clientIp();
+  if (!(await allowLoginAttempt({ email, ip, isPublicDemo: () => isPublicDemoEmail(email) }))) {
     redirect("/login?error=rate_limited");
   }
 

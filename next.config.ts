@@ -1,27 +1,15 @@
 import type { NextConfig } from "next";
 
-// Security headers sent on every response. The content security policy is as
-// strict as Next.js allows without per-request nonces (it needs inline
-// scripts and styles), but it still blocks the things that matter most here:
-// the site being framed by another site (clickjacking), plugins, a changed
-// base URL, forms posting to other sites, and loading scripts from anywhere
-// except this site.
+// Security headers that are the same for every request, sent on every response.
+// The Content-Security-Policy is NOT here: it needs a fresh nonce per request, so
+// src/proxy.ts sets it (see src/lib/csp.ts). These cover the rest: the site being
+// framed by another site (clickjacking), content-type sniffing, how much of the
+// address is sent to other sites, browser features the app never uses, and
+// forcing HTTPS on later visits. HSTS is ignored by browsers over plain http, so
+// it does not affect local development; "preload" is deliberately left out, as it
+// is a long-lived commitment that suits the domain owner to choose.
 const SECURITY_HEADERS = [
-  {
-    key: "Content-Security-Policy",
-    value: [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'" + (process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'"),
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
-      "font-src 'self' data:",
-      "connect-src 'self'",
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-      "object-src 'none'",
-    ].join("; "),
-  },
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

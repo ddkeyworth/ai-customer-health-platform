@@ -66,27 +66,27 @@ export default async function SegmentsPage() {
       ) : (
         <form action={createSegment} className="space-y-3 rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">Name</label>
-            <input name="name" required maxLength={80} className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent" />
+            <label htmlFor="f-name-1" className="block text-xs text-zinc-500 mb-1">Name</label>
+            <input id="f-name-1" name="name" required maxLength={80} className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent" />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs text-zinc-500 mb-1">Industry</label>
-              <select name="industry" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
+              <label htmlFor="f-industry-1" className="block text-xs text-zinc-500 mb-1">Industry</label>
+              <select id="f-industry-1" name="industry" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
                 <option value="">Any</option>
                 {industries.map((i) => i.industry && <option key={i.industry} value={i.industry}>{i.industry}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-zinc-500 mb-1">Region</label>
-              <select name="region" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
+              <label htmlFor="f-region-1" className="block text-xs text-zinc-500 mb-1">Region</label>
+              <select id="f-region-1" name="region" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
                 <option value="">Any</option>
                 {regions.map((r) => r.region && <option key={r.region} value={r.region}>{r.region}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-zinc-500 mb-1">Tier</label>
-              <select name="tier" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
+              <label htmlFor="f-tier-1" className="block text-xs text-zinc-500 mb-1">Tier</label>
+              <select id="f-tier-1" name="tier" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
                 <option value="">Any</option>
                 {tiers.map((t) => t.tier && <option key={t.tier} value={t.tier}>{t.tier}</option>)}
               </select>
@@ -94,16 +94,16 @@ export default async function SegmentsPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-zinc-500 mb-1">Renewal type</label>
-              <select name="renewalType" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
+              <label htmlFor="f-renewalType-1" className="block text-xs text-zinc-500 mb-1">Renewal type</label>
+              <select id="f-renewalType-1" name="renewalType" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
                 <option value="">Any</option>
                 <option value="auto">Auto</option>
                 <option value="interrupted">Interrupted</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs text-zinc-500 mb-1">Health band</label>
-              <select name="healthBand" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
+              <label htmlFor="f-healthBand-1" className="block text-xs text-zinc-500 mb-1">Health band</label>
+              <select id="f-healthBand-1" name="healthBand" className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD] focus:border-transparent">
                 <option value="">Any</option>
                 <option value="Thriving">Thriving</option>
                 <option value="Stable">Stable</option>
