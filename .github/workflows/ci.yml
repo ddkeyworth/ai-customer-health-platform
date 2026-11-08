@@ -21,8 +21,16 @@ name: CI
 on:
   push:
     branches: [main]
+    # A change that only touches documentation or screenshots cannot break the
+    # app, so it does not need a full test run.
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
   workflow_dispatch:
 
 jobs:

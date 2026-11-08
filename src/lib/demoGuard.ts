@@ -9,7 +9,7 @@
 import { isSelfHosted } from "@/lib/deployment";
 
 export const DEMO_LOCK_NOTICE =
-  "AI runs, the API key and data changes are locked on the shared demo workspace, because it runs on the site owner's own key. Sign up for your own workspace, or run your own copy, to use the AI with your own key and your own data.";
+  "AI runs, the API key and data changes are locked on the shared demo workspace, because it runs on the site owner's own key. Run your own copy to use the AI with your own key and your own data.";
 
 export function demoLockEnabled(): boolean {
   return !isSelfHosted();

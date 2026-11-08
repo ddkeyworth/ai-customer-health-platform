@@ -72,7 +72,7 @@ export default async function SettingsPage({
       <h1 className="text-2xl font-semibold text-zinc-900 mb-6">Settings</h1>
       {isSpendLocked(workspace) && (
         <p className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
-          This is the shared demo, so changes here are switched off. Sign up for your own workspace, or run your own copy, to change settings and segments.
+          This is the shared demo, so changes here are switched off. Run your own copy to change settings and segments.
         </p>
       )}
 
@@ -195,7 +195,7 @@ export default async function SettingsPage({
       <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4 mb-2">
         {isSpendLocked(workspace) ? (
           <p className="text-sm text-zinc-700">
-            Switched off on the shared demo: its password and recovery key are public and cannot be changed. Sign up for your own workspace, or run your own copy, to manage them.
+            Switched off on the shared demo: its password and recovery key are public and cannot be changed. Run your own copy to manage them.
           </p>
         ) : (
           <div className="space-y-5">
