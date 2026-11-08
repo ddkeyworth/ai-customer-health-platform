@@ -17,6 +17,7 @@ const NAV_ITEMS = [
 
 const FOOTER_ITEMS = [
   { href: "/calibration", label: "Calibration" },
+  { href: "/data", label: "Data" },
   { href: "/settings", label: "Settings" },
 ];
 

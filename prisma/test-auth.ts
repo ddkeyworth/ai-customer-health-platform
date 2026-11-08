@@ -6,6 +6,7 @@
 // that should fail loudly, not require someone to notice a wrong printout.
 import { PrismaClient } from "@prisma/client";
 import { verifyPassword, hashPassword } from "../src/lib/password";
+import { hashSessionToken, newSessionToken } from "../src/lib/sessionToken";
 
 const prisma = new PrismaClient();
 
@@ -54,6 +55,14 @@ function assert(condition: boolean, message: string): void {
   const freshHash = await hashPassword("some-arbitrary-test-password");
   assert(await verifyPassword("some-arbitrary-test-password", freshHash), "hashPassword/verifyPassword round-trip correctly");
   assert(!(await verifyPassword("not-the-same-password", freshHash)), "A different password against that hash correctly fails");
+
+  // 5. Session tokens: long, unique, unpredictable, and only the hash is stored.
+  const tokens = Array.from({ length: 200 }, () => newSessionToken());
+  assert(tokens.every((t) => t.length === 43), "A session token is 43 characters of base64url, which is 256 bits of randomness");
+  assert(new Set(tokens).size === 200, "200 generated session tokens are all different");
+  const h = hashSessionToken(tokens[0]);
+  assert(/^[0-9a-f]{64}$/.test(h) && h !== tokens[0], "The stored value is a 64-character hash, never the token itself");
+  assert(hashSessionToken(tokens[0]) === h && hashSessionToken(tokens[1]) !== h, "Hashing is repeatable for one token and different for another");
 
   console.log("\nAll auth checks passed.");
 })()

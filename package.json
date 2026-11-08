@@ -9,7 +9,8 @@
     "lint": "eslint",
     "screenshots": "node scripts/capture-screenshots.mjs",
     "refresh-dates": "tsx prisma/refresh-demo-dates.ts",
-    "refresh-ai": "tsx prisma/refresh-ai.ts"
+    "refresh-ai": "tsx prisma/refresh-ai.ts",
+    "e2e": "node scripts/e2e-journey.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

@@ -1,0 +1,5 @@
+customer,capability,metric_type,date,value
+Example Customer One,Shipment tracking,adoption,2026-08-01,140
+Example Customer One,Shipment tracking,adoption,2026-09-01,128
+Example Customer One,Shipment tracking,adoption,2026-10-01,112
+Example Customer One,Data API calls,consumption,2026-10-01,52000

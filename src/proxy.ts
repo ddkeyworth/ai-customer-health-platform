@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SESSION_COOKIE } from "@/lib/sessionCookie";
+import { hashSessionToken } from "@/lib/sessionToken";
 
 // Next.js 16 renamed "middleware" to "proxy" and made the Node.js runtime the
 // default here (previously Edge-only) - which means this can now do the real,
@@ -25,7 +26,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  const session = await prisma.session.findUnique({ where: { id: token } });
+  const session = await prisma.session.findUnique({ where: { id: hashSessionToken(token) } });
   if (!session || session.expiresAt < new Date()) {
     return NextResponse.redirect(new URL("/login", request.url));
   }

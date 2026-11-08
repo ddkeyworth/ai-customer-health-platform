@@ -20,6 +20,7 @@ import { isSpendLocked } from "@/lib/demoGuard";
 
 export async function updateWorkspace(formData: FormData) {
   const workspace = await getCurrentWorkspace();
+  if (isSpendLocked(workspace)) return;
   if (!(await withinRateLimit(`updateWorkspace:${workspace.id}`, 10, 60_000))) return;
 
   const name = String(formData.get("name") ?? "").trim().slice(0, 80);
@@ -49,6 +50,7 @@ export async function updateWorkspace(formData: FormData) {
 
 export async function addCompetitor(formData: FormData) {
   const workspace = await getCurrentWorkspace();
+  if (isSpendLocked(workspace)) return;
   if (!(await withinRateLimit(`addCompetitor:${workspace.id}`, 20, 60_000))) return;
 
   const existing = await prisma.competitorConfig.count({ where: { workspaceId: workspace.id } });
@@ -67,6 +69,7 @@ export async function addCompetitor(formData: FormData) {
 
 export async function deleteCompetitor(id: string) {
   const workspace = await getCurrentWorkspace();
+  if (isSpendLocked(workspace)) return;
   await prisma.competitorConfig.deleteMany({ where: { id, workspaceId: workspace.id } });
   revalidatePath("/settings");
 }
@@ -113,6 +116,7 @@ export async function updateCapabilitySchedule(formData: FormData) {
 
 export async function updateAdoptionThreshold(formData: FormData) {
   const workspace = await getCurrentWorkspace();
+  if (isSpendLocked(workspace)) return;
   if (!(await withinRateLimit(`updateAdoptionThreshold:${workspace.id}`, 10, 60_000))) return;
 
   const threshold = clampAdoptionThreshold(Number(formData.get("threshold")));
@@ -129,18 +133,21 @@ export async function updateAdoptionThreshold(formData: FormData) {
 // anything or talks to a real payment provider.
 export async function simulateSubscribe() {
   const workspace = await getCurrentWorkspace();
+  if (isSpendLocked(workspace)) return;
   await prisma.workspace.update({ where: { id: workspace.id }, data: { subscriptionActive: true } });
   revalidatePath("/settings");
 }
 
 export async function cancelSimulatedSubscription() {
   const workspace = await getCurrentWorkspace();
+  if (isSpendLocked(workspace)) return;
   await prisma.workspace.update({ where: { id: workspace.id }, data: { subscriptionActive: false } });
   revalidatePath("/settings");
 }
 
 export async function updateExportAllowlist(formData: FormData) {
   const workspace = await getCurrentWorkspace();
+  if (isSpendLocked(workspace)) return;
   if (!(await withinRateLimit(`updateExportAllowlist:${workspace.id}`, 10, 60_000))) return;
 
   const selected = formData.getAll("field").map(String).filter((key) => EXPORT_FIELD_KEYS.includes(key as (typeof EXPORT_FIELD_KEYS)[number]));

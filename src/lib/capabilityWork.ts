@@ -13,16 +13,26 @@ import { computeAdoptionActionsForWorkspace, listAdoptionWorkIds } from "@/lib/a
 import { computeExpansionActionsForWorkspace, listExpansionWorkIds } from "@/lib/expansion/computeExpansionActions";
 import { computeRenewalActionsForWorkspace, listRenewalWorkIds } from "@/lib/renewal/computeRenewalActions";
 
+// Only Health can run without a key (baseline only). Everything else is AI.
+function needsKey(
+  fn: (workspaceId: string, apiKey: string, ids: string[]) => Promise<void>
+): WorkAdapter["process"] {
+  return (workspaceId, apiKey, ids) => {
+    if (!apiKey) throw new Error("This step needs an Anthropic API key.");
+    return fn(workspaceId, apiKey, ids);
+  };
+}
+
 export const ADAPTERS: Record<Capability, WorkAdapter> = {
   health: {
     list: listHealthWorkIds,
     process: (workspaceId, _apiKey, ids) => computeHealthScoresForWorkspace(workspaceId, ids),
     chunk: 1,
   },
-  onboarding: { list: listOnboardingWorkIds, process: computeOnboardingActionsForWorkspace, chunk: 4 },
-  adoption: { list: listAdoptionWorkIds, process: computeAdoptionActionsForWorkspace, chunk: 4 },
-  expansion: { list: listExpansionWorkIds, process: computeExpansionActionsForWorkspace, chunk: 4 },
-  renewal: { list: listRenewalWorkIds, process: computeRenewalActionsForWorkspace, chunk: 4 },
+  onboarding: { list: listOnboardingWorkIds, process: needsKey(computeOnboardingActionsForWorkspace), chunk: 4 },
+  adoption: { list: listAdoptionWorkIds, process: needsKey(computeAdoptionActionsForWorkspace), chunk: 4 },
+  expansion: { list: listExpansionWorkIds, process: needsKey(computeExpansionActionsForWorkspace), chunk: 4 },
+  renewal: { list: listRenewalWorkIds, process: needsKey(computeRenewalActionsForWorkspace), chunk: 4 },
 };
 
 // Checks the trial and key first (so a workspace that may not run never

@@ -1,3 +1,4 @@
+import { isSpendLocked } from "@/lib/demoGuard";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { createSegment, deleteSegment } from "./actions";
@@ -29,6 +30,11 @@ export default async function SegmentsPage() {
   return (
     <div className="max-w-3xl">
       <h1 className="text-2xl font-semibold text-zinc-900 mb-1">Segments</h1>
+      {isSpendLocked(workspace) && (
+        <p className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
+          This is the shared demo, so changes here are switched off. Sign up for your own workspace, or run your own copy, to change settings and segments.
+        </p>
+      )}
       <p className="text-sm text-zinc-500 mb-6">
         {segments.length} of {SEGMENT_CAP} saved segments
       </p>

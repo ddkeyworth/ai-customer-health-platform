@@ -1,3 +1,5 @@
+import { findOpportunities } from "./actions";
+import { isSpendLocked } from "@/lib/demoGuard";
 import AiKeyBanner from "@/components/AiKeyBanner";
 import { Fragment } from "react";
 import Link from "next/link";
@@ -7,6 +9,8 @@ import { resolveActiveSegment } from "@/lib/activeSegment";
 import AgentActionReview from "@/components/AgentActionReview";
 import CustomerRef from "@/components/CustomerRef";
 import { notSnoozed } from "@/lib/agentActionStatus";
+import { visibleToVisit } from "@/lib/demoVisit";
+import { getHiddenActionIds } from "@/lib/demoVisitServer";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +27,7 @@ export default async function ExpansionPage({
   searchParams: Promise<{ segment?: string }>;
 }) {
   const workspace = await getCurrentWorkspace();
+  const hiddenIds = await getHiddenActionIds(workspace);
   const { segment: segmentId } = await searchParams;
   const activeSegment = await resolveActiveSegment(workspace.id, segmentId);
 
@@ -37,7 +42,7 @@ export default async function ExpansionPage({
   });
 
   const reviews = await prisma.agentAction.findMany({
-    where: { workspaceId: workspace.id, area: "expansion", status: "proposed", ...notSnoozed() },
+    where: { workspaceId: workspace.id, area: "expansion", status: "proposed", ...notSnoozed(), ...visibleToVisit(hiddenIds) },
   });
   // subjectId is the Opportunity id - a customer with two open Opportunities
   // gets two independent reviews, not one shared between them.
@@ -55,6 +60,14 @@ export default async function ExpansionPage({
   return (
     <div>
       <AiKeyBanner workspace={workspace} />
+      {!isSpendLocked(workspace) && (
+        <form action={findOpportunities} className="mb-4 flex flex-wrap items-center gap-2">
+          <button type="submit" className="rounded-lg border border-zinc-300 bg-white hover:bg-zinc-50 text-sm text-zinc-800 px-3 py-1.5">
+            Find expansion opportunities
+          </button>
+          <span className="text-xs text-zinc-500">Free: simple rules over your data, no AI. Safe to run again.</span>
+        </form>
+      )}
       <h1 className="text-2xl font-semibold text-zinc-900 mb-1">
         Expansion{activeSegment ? <span className="text-zinc-400"> &middot; {activeSegment.name}</span> : null}
       </h1>

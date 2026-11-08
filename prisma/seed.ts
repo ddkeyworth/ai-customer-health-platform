@@ -25,6 +25,7 @@
 
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../src/lib/password";
+import { seedAllowed, SEED_REFUSAL } from "./seedGuard";
 
 const prisma = new PrismaClient();
 
@@ -217,6 +218,10 @@ const CHURNED_NOTES = [
 ];
 
 async function main() {
+  if (!seedAllowed(process.env)) {
+    console.error(SEED_REFUSAL);
+    process.exit(1);
+  }
   console.log("Clearing existing demo data (the flagged demo workspace only - real signups are never touched)...");
   // Real auth now means real signups create their own workspaces - an
   // unscoped deleteMany() here would silently wipe every workspace on every
@@ -266,6 +271,7 @@ async function main() {
     await prisma.bookSummary.deleteMany({ where: { workspaceId: wsId } });
     await prisma.competitorConfig.deleteMany({ where: { workspaceId: wsId } });
     await prisma.capabilityRunConfig.deleteMany({ where: { workspaceId: wsId } });
+    await prisma.capabilityRun.deleteMany({ where: { workspaceId: wsId } });
     await prisma.package.deleteMany({ where: { productId: { in: productIds } } });
     await prisma.capability.deleteMany({ where: { productId: { in: productIds } } });
     await prisma.product.deleteMany({ where: { workspaceId: wsId } });

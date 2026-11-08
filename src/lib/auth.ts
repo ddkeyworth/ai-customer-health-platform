@@ -7,7 +7,8 @@
 //
 // Security choices, stated explicitly rather than left implicit:
 //   - Passwords: bcrypt, cost factor 12.
-//   - Sessions: a long random token (the row's cuid id) as an httpOnly,
+//   - Sessions: a 256-bit random token (see sessionToken.ts; only its hash is
+//     stored in the database) as an httpOnly,
 //     sameSite=lax, secure-in-production cookie. httpOnly blocks JS/XSS
 //     from reading it; sameSite=lax blocks cross-site POST/PUT CSRF while
 //     still allowing normal top-level navigation (a plain "strict" setting
@@ -27,16 +28,18 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { SESSION_COOKIE } from "@/lib/sessionCookie";
 import { hashPassword, verifyPassword } from "@/lib/password";
+import { hashSessionToken, newSessionToken } from "@/lib/sessionToken";
 
 export { SESSION_COOKIE, hashPassword, verifyPassword };
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
 export async function createSessionCookie(userId: string): Promise<void> {
+  const token = newSessionToken();
   const session = await prisma.session.create({
-    data: { userId, expiresAt: new Date(Date.now() + SESSION_DURATION_MS) },
+    data: { id: hashSessionToken(token), userId, expiresAt: new Date(Date.now() + SESSION_DURATION_MS) },
   });
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, session.id, {
+  cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -55,7 +58,7 @@ export const getSessionUser = cache(async () => {
   if (!token) return null;
 
   const session = await prisma.session.findUnique({
-    where: { id: token },
+    where: { id: hashSessionToken(token) },
     include: { user: { include: { workspace: true } } },
   });
   if (!session) return null;
@@ -72,7 +75,7 @@ export async function destroySessionCookie(): Promise<void> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (token) {
-    await prisma.session.delete({ where: { id: token } }).catch(() => {});
+    await prisma.session.delete({ where: { id: hashSessionToken(token) } }).catch(() => {});
   }
   cookieStore.delete(SESSION_COOKIE);
 }

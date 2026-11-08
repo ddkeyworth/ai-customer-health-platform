@@ -60,6 +60,14 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Expired sessions are dead weight, and on the demo they carry a visitor's
+  // per-visit changes, which should disappear with the visit.
+  try {
+    await prisma.session.deleteMany({ where: { expiresAt: { lt: now } } });
+  } catch (e) {
+    console.error("Cron: expired-session cleanup failed", e);
+  }
+
   // Keeps the demo workspace's dates current (no AI cost, a no-op until the
   // reference date is a week old). See src/lib/demoDates.ts.
   let demoDates: { shiftedDays: number } | null = null;

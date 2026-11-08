@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { computeBaseline } from "./baseline";
 import { computeAgenticLayer } from "./agenticLayer";
 import { decryptSecret } from "@/lib/workspaceSecret";
+import { baselineConfidence, baselineNarrative } from "./baselineNarrative";
 
 function tierLabelFor(score: number): string {
   if (score >= 85) return "Thriving";
@@ -30,11 +31,9 @@ export async function listHealthWorkIds(workspaceId: string): Promise<string[]> 
 // for re-scoring a few accounts without paying for all of them.
 export async function computeHealthScoresForWorkspace(workspaceId: string, onlyIds?: string[]): Promise<void> {
   const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
-  if (!workspace.anthropicApiKeyEncrypted) {
-    console.log(`Skipping "${workspace.name}" - no Anthropic API key configured in Settings.`);
-    return;
-  }
-  const apiKey = decryptSecret(workspace.anthropicApiKeyEncrypted);
+  // With no key there is no AI layer, but the deterministic baseline is free
+  // and complete, so Health still runs: baseline only, no adjustment.
+  const apiKey = workspace.anthropicApiKeyEncrypted ? decryptSecret(workspace.anthropicApiKeyEncrypted) : null;
 
   const customers = await prisma.customer.findMany({
     where: { workspaceId, ...(onlyIds ? { id: { in: onlyIds } } : {}) },
@@ -43,7 +42,14 @@ export async function computeHealthScoresForWorkspace(workspaceId: string, onlyI
 
   for (const customer of customers) {
     const { baselineScore, drivers } = await computeBaseline(customer.id);
-    const agentic = await computeAgenticLayer(customer.id, baselineScore, drivers, apiKey);
+    const agentic = apiKey
+      ? await computeAgenticLayer(customer.id, baselineScore, drivers, apiKey)
+      : {
+          adjustmentDelta: 0,
+          adjustmentReason: null,
+          narrative: baselineNarrative(drivers, baselineScore),
+          confidenceLevel: baselineConfidence(drivers),
+        };
     const compositeScore = Math.max(0, Math.min(100, baselineScore + agentic.adjustmentDelta));
 
     await prisma.healthScoreSnapshot.create({

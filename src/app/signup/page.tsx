@@ -1,23 +1,26 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import { signup } from "./actions";
+import { isSelfHosted } from "@/lib/deployment";
 
 export const dynamic = "force-dynamic";
 
 const ERROR_MESSAGES: Record<string, string> = {
   missing: "Fill in every field.",
   invalid_email: "Enter a valid email address.",
-  weak_password: "Password must be at least 8 characters.",
+  weak_password: "Password must be between 8 and 128 characters.",
   email_taken: "An account with that email already exists.",
   rate_limited: "Too many attempts - wait a while and try again.",
+  signup_closed: "Signup is closed on this site.",
+  site_full: "This demonstration site is full. Run your own copy to use Bearing (see the README on GitHub).",
 };
 
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; deleted?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, deleted } = await searchParams;
 
   return (
     <div className="min-h-screen grid md:grid-cols-2 bg-white">
@@ -41,6 +44,15 @@ export default async function SignupPage({
           </div>
 
           <h1 className="text-xl font-medium text-zinc-900 mb-1">Sign up</h1>
+          {deleted && (
+            <p className="mb-3 text-xs text-green-800 bg-green-50 rounded-lg px-3 py-2">Your workspace and all its data were deleted.</p>
+          )}
+          {!isSelfHosted() && (
+            <p className="text-xs text-amber-900 mb-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              This is a public demonstration site. Use sample or anonymised data only. To use Bearing with your own real
+              data, run your own copy on your own hosting (see the README on GitHub).
+            </p>
+          )}
           <p className="text-xs text-zinc-500 mb-5 bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
             Creates a brand-new, empty, fully isolated workspace - not a login to the seeded demo data. See the demo
             login on the <Link href="/login" className="text-[#378ADD] hover:underline">log in</Link> page for that.

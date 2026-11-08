@@ -16,7 +16,7 @@ interface Initial {
 
 const MAX_BUSY_POLLS = 120; // another caller holds the run; wait at most about 10 minutes
 
-export default function RunNowButton({ capability, initial }: { capability: string; initial: Initial | null }) {
+export default function RunNowButton({ capability, initial, label: idleLabel }: { capability: string; initial: Initial | null; label?: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ processed: number; total: number } | null>(
@@ -79,7 +79,7 @@ export default function RunNowButton({ capability, initial }: { capability: stri
       : "Starting..."
     : unfinished
       ? `Continue (${progress!.processed} of ${progress!.total} done)`
-      : "Run now";
+      : (idleLabel ?? "Run now");
   const pct = progress && progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;
 
   return (

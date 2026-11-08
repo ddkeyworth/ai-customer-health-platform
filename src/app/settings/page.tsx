@@ -17,7 +17,7 @@ import { ALLOWED_CAPABILITIES, getRunConfig, type Capability } from "@/lib/capab
 import { getTrialStatus } from "@/lib/trialGate";
 import { getActiveRun } from "@/lib/capabilityBatches";
 import RunNowButton from "@/components/RunNowButton";
-import { DEMO_LOCK_NOTICE } from "@/lib/demoGuard";
+import { DEMO_LOCK_NOTICE, isSpendLocked } from "@/lib/demoGuard";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +54,11 @@ export default async function SettingsPage({
   return (
     <div className="max-w-2xl">
       <h1 className="text-2xl font-semibold text-zinc-900 mb-6">Settings</h1>
+      {isSpendLocked(workspace) && (
+        <p className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
+          This is the shared demo, so changes here are switched off. Sign up for your own workspace, or run your own copy, to change settings and segments.
+        </p>
+      )}
 
       <h2 className="text-sm font-medium text-zinc-900 mb-3">Org profile &amp; localisation</h2>
       <form action={updateWorkspace} className="space-y-3 mb-8 rounded-xl bg-white border border-zinc-200 shadow-sm p-4">
@@ -173,7 +178,7 @@ export default async function SettingsPage({
       <h2 className="text-sm font-medium text-zinc-900 mb-3">Plan &amp; trial</h2>
       <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4 mb-2">
         {trial.exempt ? (
-          <p className="text-sm text-zinc-700">Demo workspace - always has full access, not on a trial.</p>
+          <p className="text-sm text-zinc-700">{trial.selfHosted ? "Self-hosted copy - no trial and no subscription. You run it, you pay for your own key and servers." : "Demo workspace - always has full access, not on a trial."}</p>
         ) : trial.subscribed ? (
           <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
             <span className="text-sm text-zinc-900">Subscribed (demo only - no real payment was taken)</span>
@@ -225,7 +230,33 @@ export default async function SettingsPage({
             ))}
           </>
         ) : !workspace.anthropicApiKeyLast4 ? (
-          <p className="text-sm text-zinc-500">Configure your Anthropic API key above to enable this.</p>
+          <>
+            <p className="text-sm text-zinc-500">
+              Add your Anthropic API key above to turn on the AI steps. Health scoring works without one: it runs the free baseline only.
+            </p>
+            {trial.active && (
+              <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
+                <div>
+                  <p className="text-sm text-zinc-900 font-medium">Health scoring (baseline only, free)</p>
+                  <p className="text-xs text-zinc-500">{fmtRunTime(runConfigs.health.lastRunAt)}</p>
+                </div>
+                <RunNowButton
+                  capability="health"
+                  label="Run baseline now"
+                  initial={
+                    activeRuns.health
+                      ? {
+                          status: activeRuns.health.status as "running" | "failed",
+                          processed: activeRuns.health.processed,
+                          total: activeRuns.health.total,
+                          error: activeRuns.health.error,
+                        }
+                      : null
+                  }
+                />
+              </div>
+            )}
+          </>
         ) : !trial.active ? (
           <p className="text-sm text-zinc-500">Upgrade above to enable this - your free trial has ended.</p>
         ) : (

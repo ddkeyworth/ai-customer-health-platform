@@ -18,6 +18,12 @@ const IDS = ["a", "b", "c", "d", "e", "f", "g"];
 (async () => {
   assert(isSpendLocked({ isDemoSeed: true }) === true, "The shared demo workspace is locked from spending the owner's AI key");
   assert(isSpendLocked({ isDemoSeed: false }) === false, "A workspace someone signed up for is not locked");
+  process.env.SELF_HOSTED = "true";
+  assert(isSpendLocked({ isDemoSeed: true }) === false, "Someone running their own copy turns the demo lock off with SELF_HOSTED=true");
+  process.env.SELF_HOSTED = "yes";
+  assert(isSpendLocked({ isDemoSeed: true }) === true, "Any value other than exactly true keeps the lock on, so a mistyped setting stays safe");
+  delete process.env.SELF_HOSTED;
+  assert(isSpendLocked({ isDemoSeed: true }) === true, "With the setting missing the demo is locked by default");
   assert(!/postgres|prisma/i.test(safeRunError(new Error("Can't reach database server at postgres://user:pw@host:5432"))), "A database error message is replaced, so connection details never reach the page");
   assert(safeRunError(new Error("credit balance is too low")) === "credit balance is too low", "An ordinary error message (for example a low AI credit balance) is shown as it is");
 

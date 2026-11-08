@@ -6,6 +6,8 @@ import { resolveActiveSegment } from "@/lib/activeSegment";
 import { computeDaysOverdue } from "@/lib/onboarding/pace";
 import CustomerRef from "@/components/CustomerRef";
 import { notSnoozed } from "@/lib/agentActionStatus";
+import { visibleToVisit } from "@/lib/demoVisit";
+import { getHiddenActionIds } from "@/lib/demoVisitServer";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +23,7 @@ export default async function BriefingPage({
   searchParams: Promise<{ segment?: string }>;
 }) {
   const workspace = await getCurrentWorkspace();
+  const hiddenIds = await getHiddenActionIds(workspace);
   const { segment: segmentId } = await searchParams;
   const activeSegment = await resolveActiveSegment(workspace.id, segmentId);
 
@@ -47,7 +50,7 @@ export default async function BriefingPage({
   // by CustomerProduct id, not customerId - usage-breadth genuinely varies
   // by product, same as Onboarding/Renewal below.
   const adoptionNudges = await prisma.agentAction.findMany({
-    where: { workspaceId: workspace.id, area: "adoption", status: "proposed", ...notSnoozed() },
+    where: { workspaceId: workspace.id, area: "adoption", status: "proposed", ...notSnoozed(), ...visibleToVisit(hiddenIds) },
   });
   const adoptionByProductId = new Map(adoptionNudges.filter((a) => a.subjectId).map((a) => [a.subjectId, a]));
 

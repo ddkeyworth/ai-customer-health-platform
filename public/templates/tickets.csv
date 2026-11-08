@@ -1,0 +1,3 @@
+customer,date,type,severity,text
+Example Customer One,2026-10-28,ticket,medium,Question about exporting a monthly report to CSV.
+Example Customer Two,2026-11-02,email,high,Go-live is blocked until their IT team finishes a security review.

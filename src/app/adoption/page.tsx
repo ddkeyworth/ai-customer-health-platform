@@ -7,6 +7,8 @@ import { resolveActiveSegment } from "@/lib/activeSegment";
 import AgentActionReview from "@/components/AgentActionReview";
 import CustomerRef from "@/components/CustomerRef";
 import { notSnoozed } from "@/lib/agentActionStatus";
+import { visibleToVisit } from "@/lib/demoVisit";
+import { getHiddenActionIds } from "@/lib/demoVisitServer";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,7 @@ export default async function AdoptionPage({
   searchParams: Promise<{ segment?: string }>;
 }) {
   const workspace = await getCurrentWorkspace();
+  const hiddenIds = await getHiddenActionIds(workspace);
   const { segment: segmentId } = await searchParams;
   const activeSegment = await resolveActiveSegment(workspace.id, segmentId);
   const threshold = workspace.adoptionUnderusedThresholdPct;
@@ -45,7 +48,7 @@ export default async function AdoptionPage({
   });
 
   const nudges = await prisma.agentAction.findMany({
-    where: { workspaceId: workspace.id, area: "adoption", status: "proposed", ...notSnoozed() },
+    where: { workspaceId: workspace.id, area: "adoption", status: "proposed", ...notSnoozed(), ...visibleToVisit(hiddenIds) },
   });
   // Keyed by the CustomerProduct id, not customerId - a customer with two
   // live Products can have independently different breadth on each.

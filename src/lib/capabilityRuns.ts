@@ -71,7 +71,9 @@ export async function recordRun(workspaceId: string, capability: Capability, now
 // The single dispatch point - both Run Now and the cron call this, so
 // there's one place that decides what actually happens for a capability,
 // and one place that enforces "no key configured means it doesn't run."
-export async function assertCanRun(workspaceId: string, capability: Capability): Promise<string> {
+// Returns the workspace's Anthropic key, or null for Health on a workspace with
+// no key (the free baseline-only run). Every other capability needs the key.
+export async function assertCanRun(workspaceId: string, capability: Capability): Promise<string | null> {
   const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
 
   const trial = getTrialStatus(workspace);
@@ -80,6 +82,7 @@ export async function assertCanRun(workspaceId: string, capability: Capability):
   }
 
   if (!workspace.anthropicApiKeyEncrypted) {
+    if (capability === "health") return null;
     throw new Error(`Workspace "${workspace.name}" has no Anthropic API key configured - cannot run "${capability}".`);
   }
   return decryptSecret(workspace.anthropicApiKeyEncrypted); // fail fast if the stored value is somehow corrupt, before doing any work
@@ -95,13 +98,13 @@ export async function runCapability(workspaceId: string, capability: Capability)
   if (capability === "health") {
     await computeHealthScoresForWorkspace(workspaceId);
   } else if (capability === "onboarding") {
-    await computeOnboardingActionsForWorkspace(workspaceId, apiKey);
+    await computeOnboardingActionsForWorkspace(workspaceId, apiKey!);
   } else if (capability === "adoption") {
-    await computeAdoptionActionsForWorkspace(workspaceId, apiKey);
+    await computeAdoptionActionsForWorkspace(workspaceId, apiKey!);
   } else if (capability === "expansion") {
-    await computeExpansionActionsForWorkspace(workspaceId, apiKey);
+    await computeExpansionActionsForWorkspace(workspaceId, apiKey!);
   } else if (capability === "renewal") {
-    await computeRenewalActionsForWorkspace(workspaceId, apiKey);
+    await computeRenewalActionsForWorkspace(workspaceId, apiKey!);
   }
 
   await recordRun(workspaceId, capability, new Date());

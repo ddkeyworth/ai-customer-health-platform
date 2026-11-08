@@ -8,7 +8,7 @@ export default function AiKeyBanner({ workspace }: { workspace: { isDemoSeed: bo
   if (workspace.isDemoSeed || workspace.anthropicApiKeyLast4) return null;
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#378ADD]/30 bg-[#378ADD]/5 px-3 py-2">
-      <p className="text-sm text-zinc-700">Add your own Anthropic API key to run the AI on this workspace. It never uses anyone else&apos;s key.</p>
+      <p className="text-sm text-zinc-700">Health scores work now without a key (free baseline). Add your own Anthropic API key to turn on the AI reads and recommendations. It never uses anyone else&apos;s key.</p>
       <Link href="/settings" className="rounded-lg bg-[#0C447C] hover:bg-[#0a3a69] transition-colors text-white text-sm px-3 py-1.5">
         Add your key
       </Link>

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword, createSessionCookie } from "@/lib/auth";
 import { withinRateLimit } from "@/lib/rateLimit";
+import { clientIp } from "@/lib/clientIp";
 
 // A precomputed bcrypt hash of an arbitrary string, never a real password -
 // used only so a login attempt against a nonexistent email still pays the
@@ -19,10 +20,18 @@ export async function login(formData: FormData) {
   const password = String(formData.get("password") ?? "");
 
   if (!email || !password) redirect("/login?error=missing");
+  // Anything longer than signup allows cannot be a real credential; refuse it
+  // before it reaches the database or the password hasher.
+  if (email.length > 254 || password.length > 128) redirect("/login?error=invalid");
 
   // Rate-limited by the submitted email, not IP (none reliably available in
   // this dev setup) - bounds brute-force guessing against any one account.
   if (!(await withinRateLimit(`login:${email}`, 10, 15 * 60_000))) {
+    redirect("/login?error=rate_limited");
+  }
+  // Also limited per visitor address, so one address cannot try many different
+  // emails (credential stuffing) without hitting a wall.
+  if (!(await withinRateLimit(`login-ip:${await clientIp()}`, 40, 15 * 60_000))) {
     redirect("/login?error=rate_limited");
   }
 

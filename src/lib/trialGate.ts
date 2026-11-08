@@ -6,6 +6,8 @@
 // in Settings. The demo seed workspace is permanently exempt: it exists to
 // showcase the product to visitors, not to simulate a real customer's trial
 // economics, and its createdAt long predates this gate.
+import { isSelfHosted } from "@/lib/deployment";
+
 export const TRIAL_DAYS = 14;
 
 export interface TrialWorkspace {
@@ -16,21 +18,23 @@ export interface TrialWorkspace {
 
 export interface TrialStatus {
   active: boolean; // has AI access right now
-  exempt: boolean; // demo workspace - never gated
+  exempt: boolean; // demo workspace, or any workspace on a self-hosted copy - never gated
+  selfHosted: boolean; // someone's own copy: no trial, no subscription
   subscribed: boolean;
   daysRemaining: number; // 0 once the trial has ended
   trialEndsAt: Date;
 }
 
-export function getTrialStatus(workspace: TrialWorkspace, now: Date = new Date()): TrialStatus {
+export function getTrialStatus(workspace: TrialWorkspace, now: Date = new Date(), selfHosted: boolean = isSelfHosted()): TrialStatus {
   const trialEndsAt = new Date(workspace.createdAt.getTime() + TRIAL_DAYS * 86_400_000);
-  const exempt = workspace.isDemoSeed;
+  const exempt = workspace.isDemoSeed || selfHosted;
   const withinTrial = now.getTime() < trialEndsAt.getTime();
   const daysRemaining = Math.max(0, Math.ceil((trialEndsAt.getTime() - now.getTime()) / 86_400_000));
 
   return {
     active: exempt || workspace.subscriptionActive || withinTrial,
     exempt,
+    selfHosted,
     subscribed: workspace.subscriptionActive,
     daysRemaining,
     trialEndsAt,

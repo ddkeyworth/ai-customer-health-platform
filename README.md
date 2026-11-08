@@ -1,6 +1,6 @@
 # ai-customer-health-platform
 
-A conceptual exploration of an agentic-AI Customer Success platform – planned and built with Claude Code as a portfolio piece. **This is a prototype, not a production system, and not a real product.** Nothing here is a real company. It is live at [bearing360.vercel.app](https://bearing360.vercel.app) (see [Stage 2](#stage-2-live-deployment)) – demo login below, or sign up for your own isolated workspace – with no real customer data anywhere, and no outbound contact beyond the Anthropic API itself.
+An agentic-AI Customer Success platform: Health scoring, onboarding, adoption, expansion and renewal, planned and built with Claude Code. **It is early-stage software, built in the open.** It works end to end (import your data, score it, get reviewed recommendations, export it again) but it has not been tested at large scale. The hosted copy at [bearing360.vercel.app](https://bearing360.vercel.app) is a public demo with synthetic data only; to use it with your own real data, [run your own copy](#run-your-own-copy). Nothing here is a real company, and there is no outbound contact beyond the Anthropic API itself.
 
 > No AI reads every account right. It gets you close enough, fast enough, to act. Across onboarding, health, expansion, and renewal.
 
@@ -41,6 +41,18 @@ All fourteen screenshots are real captures of the live app (`/login`, `/signup`,
 
 The repo is named descriptively for portfolio discoverability; **"Bearing"** is the working product name used within the app and mockups themselves.
 
+## Two ways to use it
+
+| | **Try the demo** | **Run your own copy** |
+|---|---|---|
+| Where | The owner's hosted site, [bearing360.vercel.app](https://bearing360.vercel.app) | Your own hosting and your own database |
+| Whose keys and costs | Nothing you do can cost the owner anything. The demo's AI results are already stored, so looking at them is free | Yours. You add your own Anthropic key and pay your own provider |
+| Your data | Look around the sample data. You can also sign up for a workspace of your own, but use sample or anonymised data only | Anything you choose to import. It stays in your own database |
+| What you can change | The demo is read-only for shared things. Accept, Dismiss and Snooze work, but only for your own visit and they disappear when you log out | Everything |
+| Free trial | 14 days per workspace, then a subscription (the payment step is a placeholder for now) | None: set `SELF_HOSTED=true` and there is no trial and no lock |
+
+One setting, `SELF_HOSTED`, is the whole difference. See [Your servers or the hosted site](#your-servers-or-the-hosted-site).
+
 ## What this is
 
 Most Customer Success tooling is a system of record – a place to manage accounts, log interactions, and store contracts. This project is deliberately **not** that. It's an insight layer that sits on top of the systems that already do that job, organised around five areas of the customer lifecycle:
@@ -57,11 +69,11 @@ Every screen is meant to carry its own synthesised narrative, not just a data ta
 
 Every design decision in this repo follows one rule: **anything that would touch the outside world, real data, or a real compliance claim is shown as a concept only – never operationalised.**
 
-- No real customer or personal data, anywhere, ever. All data is synthetic.
+- **This repository and the maintainer's hosted demo hold only synthetic data, ever.** That is a rule about the maintainer's own deployment, not a limit on you: a copy you run on your own hosting and your own database holds whatever you choose to import, and it never leaves your database.
 - No outbound network call except to the Anthropic API for the agent's own reasoning – see [Health scoring](#health-scoring--built-and-how-it-actually-works) below for what that actually does. Any other integration (a real CRM sync, a real email send, a real OAuth login, monitoring job boards or competitor websites) is represented as a UI concept, not a working connection, unless explicitly extended later with deliberate sign-off.
 - No compliance claims that aren't true. No fabricated traction, testimonials, or results anywhere in this repo or its documentation.
 - Every agent action is designed to be a draft a human reviews – nothing is ever sent or executed automatically.
-- **No other GitHub user or self-hosted deployment can ever spend or touch the maintainer's own private API keys, database, or accounts.** Every capability that costs money (see [Automation](#automation)) requires that workspace's own configured key, with no fallback to a shared platform-wide one – enforced in code (`runCapability()` throws if a workspace has no key configured), not left as a documentation promise.
+- **No other GitHub user or self-hosted deployment can ever spend or touch the maintainer's own private API keys, database, or accounts.** Every capability that costs money (see [Automation](#automation)) requires that workspace's own configured key, with no fallback to a shared platform-wide one – enforced in code (`assertCanRun()` throws if a workspace has no key configured; the only exception is Health's free baseline, which uses no AI), not left as a documentation promise.
 
 ## What's real vs. planned
 
@@ -90,6 +102,15 @@ All 10 dashboard screens (Home, Health, Briefing, Onboarding, Adoption, Expansio
 | `/login`, `/signup` | Real email/password authentication (bcrypt + database-backed sessions) - see [Authentication](#authentication). Signup creates a genuine new, empty, isolated workspace, not a new user in the shared demo one |
 | Agent core / playbooks for areas beyond Health | **Built and tested for real.** All four (Onboarding, Adoption, Expansion, Renewal) now have their own agentic layer, matching Health's two-layer depth - see [Playbook agentic layers](#playbook-agentic-layers) and [`docs/playbook-proposals.md`](docs/playbook-proposals.md) for the original design this was built from |
 | Live public deployment | **Done.** [bearing360.vercel.app](https://bearing360.vercel.app) - see [Stage 2: live deployment](#stage-2-live-deployment) |
+| `/data` | **Import, export and delete.** Upload customers, tickets, usage and outcome history as CSV files (all or nothing, with row-by-row error messages), download the same layouts back, and delete a workspace and all its data. See [Importing and exporting your data](#importing-and-exporting-your-data) |
+
+### Not built yet
+
+- **Password reset.** It needs email sending, which this project does not do.
+- **Adding or editing a single customer by form.** Data comes in by CSV import.
+- **Flexible import.** The import reads the columns listed on the Data page. Mapping your own column names, or turning extra columns into new custom fields, is planned.
+- **Team roles and invitations.** Each workspace has one admin.
+- **Real payments.** The subscribe button is a placeholder. A Stripe test mode is planned.
 
 ## Health scoring – built, and how it actually works
 
@@ -198,7 +219,7 @@ snoozing a plan never makes an account look safer than it is.
 Real email/password auth, hand-rolled rather than a library (Auth.js's Prisma adapter expects its own schema shape, which would fight this app's already-custom `User` model). Full reasoning and code in `src/lib/auth.ts`; the short version:
 
 - **Passwords:** bcrypt, cost factor 12.
-- **Sessions, not stateless JWTs:** a `Session` row in Postgres per login, referenced by a long random token in an httpOnly/sameSite=lax/secure-in-production cookie. A session can be genuinely revoked (logout deletes the row, not just the cookie) - confirmed by checking the database directly after logout, not just the redirect.
+- **Sessions, not stateless JWTs:** a `Session` row in Postgres per login, referenced by a 256-bit random token (only its SHA-256 hash is stored, so a database leak does not hand out working logins) in an httpOnly/sameSite=lax/secure-in-production cookie. A session can be genuinely revoked (logout deletes the row, not just the cookie) - confirmed by checking the database directly after logout, not just the redirect.
 - **Fixed 7-day expiry, no silent renewal.**
 - **Checked twice, not once:** `src/proxy.ts` (Next.js 16's replacement for `middleware.ts`, now Node.js runtime by default) validates the session against the database - expired or forged tokens are rejected before a protected page even starts rendering. `getCurrentWorkspace()` validates it again independently at the page level, as defence-in-depth for any request path that might reach a page without going through the proxy.
 - **Real multi-tenancy, not a shared demo account:** signing up creates a brand-new, empty `Workspace` and its first admin `User` - not a new user added to the existing seeded workspace. This is the only choice that actually exercises the workspace-isolation work done earlier (see below) - confirmed live: a fresh signup sees zero customers, zero ARR, and no trace of any other workspace's data. Both writes happen in one transaction, so a failed signup can't leave an orphaned empty workspace behind.
@@ -209,7 +230,7 @@ Real email/password auth, hand-rolled rather than a library (Auth.js's Prisma ad
 
 **Verified live** (see `TESTING.md` for the full log): login success and failure, logout genuinely deleting the session row (checked the database directly, not just the client-side redirect), a real signup producing a workspace with zero visibility into the seeded demo data, and every dashboard page rendering a graceful empty state (not a crash) for that fresh workspace. A follow-up adversarial review then found and fixed a timing side-channel, a signup race condition, and the workspace-name collision risk above - full writeup in `TESTING.md`.
 
-**Known limitations:** no password-reset flow (would need real email sending, out of scope by design); expired sessions are cleaned up lazily on next use rather than by a scheduled sweep; `/login` and `/signup` stay reachable even when already logged in rather than redirecting to Home. None of these are security gaps, just scope left for later.
+**Known limitations:** no password-reset flow (would need real email sending, out of scope by design); expired sessions are removed by the daily cron, and also when next used; `/login` and `/signup` stay reachable even when already logged in rather than redirecting to Home. None of these are security gaps, just scope left for later.
 
 **Test coverage:** `prisma/test-auth.ts` covers password verification, the demo-seed flag, and session-expiry logic - see [Test coverage](#test-coverage) below for the full set of assert-based scripts across the app.
 
@@ -220,6 +241,54 @@ A workspace can store its own Anthropic API key in Settings, encrypted at rest (
 **Why this exists:** this repo is meant to be downloaded and run as someone else's own instance, not just viewed as a live demo - the point of that is their own usage should be billed to their own Anthropic account, never to the demo deployment's key.
 
 **Fully real, not just at rest:** the storage and encryption are tested (`prisma/test-workspace-secret.ts` - round-trips correctly, and tampering with the stored ciphertext is detected and rejected via GCM's auth tag, not just decrypted into garbage) - and, since [Automation](#automation) below, it's actually read and used: Health scoring genuinely runs against whichever key a workspace has configured, with no fallback to a shared platform key. `runCapability()` throws if a workspace has none configured - a workspace that has not set up its own key cannot run this feature, by construction, not by convention.
+
+## Importing and exporting your data
+
+Open **Data** in the sidebar. Four CSV files can be imported, customers first; each has a downloadable template with example rows.
+
+| File | What it holds | Columns (only `name` is required in the customers file) |
+|---|---|---|
+| Customers | One row per customer and product | name, ref, country, industry, tier, product, lifecycle_status, contractual_arr, consumption_arr, renewal_date, expected_go_live_date, go_live_date, payment_status, days_past_due, renewal_type, interrupted_reason, nps, champion_name, champion_last_engaged |
+| Support tickets | What customers raised | customer, date, type, severity, text |
+| Usage | Readings over time, per feature or metered amount | customer, capability, metric_type, date, value |
+| Outcome history | Past renewals, churn and expansions (the churn model and Calibration learn from this) | customer, date, type, notes |
+
+How it behaves:
+
+- **All or nothing.** The whole file is checked before anything is saved. If any row is wrong you are shown every bad row with its spreadsheet row number and the reason, and nothing is imported, so you never end up with half a dataset.
+- **Several products per customer.** Repeat the customer's name on a new row with a different product. The first row defines the customer.
+- **Customers are matched by reference or exact name.** Tickets, usage and outcomes name a customer by its `ref` (such as `CUS-0001`) or its exact name, ignoring case. References are assigned automatically if you leave `ref` blank.
+- **Limits:** 1,000 KB per file, 500 customers and 100,000 tickets or usage readings per workspace. Dates are written `YYYY-MM-DD`; amounts are plain numbers (a currency sign and thousands commas are accepted).
+- **Safe to upload twice at once.** Imports for one workspace are serialised, so the same file uploaded twice at the same moment imports once.
+
+**Export** downloads your data in the same layouts, so the first four files can be loaded straight back into another workspace or another copy of Bearing (this round trip is tested). The customers file also carries each customer's Health score, band and narrative, and a fifth file lists the AI's recommendations with their reasoning and status. Text that begins with `=`, `+`, `-` or `@` gets a leading quote in the export so a spreadsheet cannot run it as a formula, and the import removes that quote again.
+
+**Delete this workspace** (bottom of the Data page) permanently removes the workspace, every customer and all their data, the AI results and your login. You must type the workspace name to confirm.
+
+**The Health score needs no AI.** The first Health run on a new workspace works without an Anthropic key: it uses the deterministic scoring and writes a plain explanation marked as the free baseline. The Expansion page has a free "Find expansion opportunities" button that uses simple rules. Adding a key turns on the AI reads and recommendations on top.
+
+## What costs money
+
+| Step | Costs |
+|---|---|
+| Importing, exporting, the Health baseline, finding expansion opportunities, every screen | Nothing |
+| Health AI read | About 1p per customer on your key (about £1.20 for 120 customers, measured) |
+| Onboarding, Adoption, Expansion, Renewal AI steps | A few pence per account reviewed. About £3 to £5 for all five steps at 120 customers |
+
+All AI cost is billed by Anthropic to the key in your own workspace's Settings. A run can take a long time on a large workspace; it is done in pieces that save their place, so it can be paused and continued (see [Automation](#automation)).
+
+## Your servers or the hosted site
+
+One setting decides which mode a deployment is in. Leave it unset for the owner's hosted site; set it on your own copy.
+
+| | Hosted site (default) | Your own copy (`SELF_HOSTED=true`) |
+|---|---|---|
+| 14-day trial per workspace | Yes | No: full access |
+| Shared demo workspace | Locked: no AI runs, no schedules, no key changes, no imports or deletes; Accept/Dismiss/Snooze are remembered per visit only | Not locked |
+| Signup | Open, capped at 3 per visitor per day and 200 workspaces in total | Open, no caps (set `ALLOW_SIGNUP=false` to close it) |
+| Warning to use sample data only | Shown on signup and on the Data page | Not shown |
+
+Only the exact value `true` counts, so a missing or mistyped setting leaves the locked-down hosted behaviour on. `ALLOW_SIGNUP=false` closes signup in either mode. The demo seed (below) refuses to run unless `ALLOW_DEMO_SEED=true`, because it creates a login with a publicly known password.
 
 ## Automation
 
@@ -242,11 +311,11 @@ separate, additional requirement, not a substitute for an active trial.
 
 ## Test coverage
 
-Sixteen assert-based regression scripts (each throws and exits non-zero on failure, rather than printing output for a human to eyeball), all under `prisma/` and run via `npx tsx prisma/<name>.ts`:
+Nineteen assert-based regression scripts (each throws and exits non-zero on failure, rather than printing output for a human to eyeball), all under `prisma/` and run via `npx tsx prisma/<name>.ts`:
 
 | Script | Covers |
 |---|---|
-| `test-auth.ts` | Password verification, the demo-seed flag, session-expiry logic |
+| `test-auth.ts` | Password verification, the demo-seed flag, session-expiry logic, and the session tokens (256-bit, unique, only the hash is stored) |
 | `test-workspace-secret.ts` | Encryption round-trip, and that a tampered ciphertext is rejected, not silently decrypted |
 | `test-settings-validation.ts` | Hex-colour/currency/date-format/language/Anthropic-key-shape rules, and risk-weight clamping |
 | `test-calibration.ts` | Every (outcome type &times; Health tier) classification the Calibration screen can produce |
@@ -260,6 +329,9 @@ Sixteen assert-based regression scripts (each throws and exits non-zero on failu
 | `test-agent-action-review.ts` | Accept/Dismiss/Snooze on AI recommendations: status, who and when; a reviewed row cannot be reviewed again; another workspace's recommendation cannot be touched by guessing its id; Snooze accepts only 7, 14 and 30 days, hides until the exact date, then reappears, and a dismissed row cannot be snoozed |
 | `test-health-layer2-guards.ts` | Health Layer 2's guards: no evidence means no adjustment, the -15 bound, and an upward nudge never leaving the baseline's band |
 | `test-capability-batches.ts` | The resumable-run engine, with a fake adapter and clock: a tiny budget still makes progress, resuming never repeats finished work, a failed run keeps its place and finishes on resume, a held lease stops a second caller (and an expired one is taken over), runs are separate per workspace, and the demo spend lock and the database-error filter |
+| `test-csv-parse-validate.ts` | The CSV reader and every import file's row rules, with no database: quotes, commas and line breaks inside cells, Windows line endings, a byte-order mark, blank lines, bad dates and amounts, every bad-value case reported with its row number, duplicate and multi-product customers, the size limits, and the export's formula protection |
+| `test-import-export.ts` | The real-use journey against the database: each import, a bad file changing nothing, workspaces unable to see each other, two uploads at once, free Health scoring with no key through the resumable engine, repeatable opportunity finding, export scoping, an export-then-import round trip into a new workspace compared field by field, deleting a workspace completely, and the per-visit demo state |
+| `test-deployment-modes.ts` | The settings that separate the hosted site from your own copy (`SELF_HOSTED`, `ALLOW_SIGNUP`, `ALLOW_DEMO_SEED`): only the exact value counts, so a mistyped setting stays safe |
 | `test-demo-dates.ts` | The demo date refresh: dates move by exactly N days, nulls stay null, another workspace is untouched, real AI-run timestamps are not shifted, quoted dates move with the data, and day-count headlines are recalculated |
 | `test-agent-actions.ts` | The shared AgentAction upsert helper - refreshes an existing proposed row in place, leaves a reviewed one alone, and keeps two different subjects (e.g. two Products) independent rather than one overwriting the other |
 
@@ -271,24 +343,30 @@ Everything else (workspace scoping as exercised through the actual pages, and th
 
 Next.js (App Router) + TypeScript, Tailwind CSS, Inter (Google Fonts, open-licensed), Prisma (pinned to v6 for its simpler schema-only datasource config) on Postgres (Neon free tier), Anthropic API for Layer 2 reasoning, bcrypt + hand-rolled database-backed sessions for auth (see [Authentication](#authentication)) – email/password only, no third-party OAuth, so no real identity provider is ever contacted. Deployment-scale rate limiting runs on the same Postgres database rather than a separate paid service (see [Stage 2](#stage-2-live-deployment)). A daily Vercel Cron job drives scheduled capability runs (see [Automation](#automation)). Both the database and the Anthropic key are free-tier/spend-capped with no payment method attached, and are local-only credentials, not deployed anywhere public.
 
-## Running it locally
+## Run your own copy
 
-```
-npm install
-```
+You need Node 22, a Postgres database (a free [Neon](https://neon.tech) one is fine) and somewhere to host a Next.js app ([Vercel](https://vercel.com) is what this repo is set up for). Your own copy never uses the maintainer's keys, database or accounts.
 
-Create a `.env` file (copy `.env.example`) with your own `DATABASE_URL` (a free Neon/Supabase Postgres instance), `ANTHROPIC_API_KEY` (spend-capped), and `SECRET_ENCRYPTION_KEY` (generate your own - see `.env.example`, it encrypts any workspace's own stored Anthropic key, unrelated to your own key above). Then:
+1. **Get the code.** Fork or clone this repository and run `npm install`.
+2. **Create a `.env` file** (copy `.env.example`) with these settings. On Vercel, add the same names under Settings, Environment Variables.
 
-```
-npx prisma db push
-npx tsx prisma/seed.ts
-npx tsx prisma/compute-health-scores.ts
-npx tsx prisma/compute-book-summary.ts
-npx tsx prisma/generate-opportunities.ts
-npm run dev
-```
+   | Setting | What it is |
+   |---|---|
+   | `DATABASE_URL` | Your Postgres connection string |
+   | `SECRET_ENCRYPTION_KEY` | A random 32-byte key that encrypts each workspace's stored Anthropic key. Generate your own: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` |
+   | `SELF_HOSTED` | Set to `true`. Turns off the trial and every hosted-site lock |
+   | `CRON_SECRET` | Only needed for scheduled runs on Vercel. Generate your own: `node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"` |
+   | `ALLOW_SIGNUP` | Optional. Set to `false` once your own account exists, so strangers who find the address cannot create workspaces |
 
-Opens at `http://localhost:3000`, which redirects to `/login` - every dashboard route requires a real session now. Log in with the seeded demo account (`priya.chandra@meridian-ops.example` / `demo-password-123`, see [Authentication](#authentication)) to see the full synthetic dataset, or sign up at `/signup` for a fresh, empty workspace of your own. Once logged in, every screen reads real, seeded/computed data - start at `/health` for the deepest one (full driver breakdown per customer at `/health/[customerId]`, real LLM-generated executive summary), or `/briefing` for the consolidated cross-area view.
+3. **Create the tables:** `npx prisma db push`. Back your database up before you update to a newer version of the code: this command can change tables, and the project does not keep migration history yet.
+4. **Run it.** Locally, `npm run dev` and open `http://localhost:3000`. To deploy, import the repository into Vercel, add the same settings, and deploy (the build command is already `npm run build`).
+5. **Create your account** at `/signup`. That is your own empty workspace. If it is private, set `ALLOW_SIGNUP=false` now and redeploy.
+6. **Bring your data in:** Data, then download each template, fill it in, and import customers first. Run Health from Settings: it works with no key.
+7. **Turn on the AI (optional):** Settings, paste your own Anthropic API key, then run Onboarding, Adoption, Expansion and Renewal. Pick a schedule under Automation if you want them to run daily or weekly.
+
+**Do not run the demo seed on a real deployment.** `prisma/seed.ts` creates the public demo workspace with a login whose password is printed in this README. It refuses to run unless `ALLOW_DEMO_SEED=true`. To look at the demo data locally: `ALLOW_DEMO_SEED=true npx tsx prisma/seed.ts`, then `npx tsx prisma/compute-health-scores.ts`, `npx tsx prisma/compute-book-summary.ts` and `npx tsx prisma/generate-opportunities.ts`.
+
+For development, `npm run dev` opens at `http://localhost:3000`, which redirects to `/login`: every dashboard route needs a real session. The seeded demo account is `priya.chandra@meridian-ops.example` / `demo-password-123` (see [Authentication](#authentication)); or sign up for a fresh, empty workspace.
 
 ## License
 

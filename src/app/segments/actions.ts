@@ -1,5 +1,6 @@
 "use server";
 
+import { isSpendLocked } from "@/lib/demoGuard";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
@@ -7,6 +8,7 @@ import { withinRateLimit } from "@/lib/rateLimit";
 
 export async function createSegment(formData: FormData) {
   const workspace = await getCurrentWorkspace();
+  if (isSpendLocked(workspace)) return;
   if (!(await withinRateLimit(`createSegment:${workspace.id}`, 20, 60_000))) return;
 
   const name = String(formData.get("name") ?? "").trim();
@@ -29,6 +31,7 @@ export async function createSegment(formData: FormData) {
 
 export async function deleteSegment(id: string) {
   const workspace = await getCurrentWorkspace();
+  if (isSpendLocked(workspace)) return;
   await prisma.segment.deleteMany({ where: { id, workspaceId: workspace.id } });
   revalidatePath("/segments");
 }

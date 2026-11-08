@@ -1,3 +1,4 @@
+import { getHiddenActionIds } from "@/lib/demoVisitServer";
 import AiKeyBanner from "@/components/AiKeyBanner";
 import { Fragment } from "react";
 import Link from "next/link";
@@ -29,6 +30,7 @@ export default async function RenewalPage({
   searchParams: Promise<{ segment?: string }>;
 }) {
   const workspace = await getCurrentWorkspace();
+  const hiddenIds = await getHiddenActionIds(workspace);
   const { segment: segmentId } = await searchParams;
   const activeSegment = await resolveActiveSegment(workspace.id, segmentId);
 
@@ -155,7 +157,7 @@ export default async function RenewalPage({
                     </span>
                   </td>
                 </tr>
-                {savePlay && !isSnoozed(savePlay) && (
+                {savePlay && !isSnoozed(savePlay) && !hiddenIds.includes(savePlay.id) && (
                   <tr className="border-b border-zinc-100">
                     <td colSpan={7} className="pb-3">
                       <div className="rounded-xl bg-[#378ADD]/5 border border-[#378ADD]/20 p-3 text-sm text-zinc-800">

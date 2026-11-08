@@ -4,6 +4,13 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, createSessionCookie } from "@/lib/auth";
 import { withinRateLimit } from "@/lib/rateLimit";
+import { clientIp } from "@/lib/clientIp";
+import { isSelfHosted, signupAllowed } from "@/lib/deployment";
+
+// The owner's hosted site has a free database, so it caps how many workspaces
+// can exist and how many one visitor can create. A self-hosted copy has neither.
+const HOSTED_MAX_WORKSPACES = 200;
+const HOSTED_SIGNUPS_PER_IP_PER_DAY = 3;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -13,12 +20,21 @@ export async function signup(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
 
+  if (!signupAllowed()) redirect("/signup?error=signup_closed");
   if (!name || !workspaceName || !email || !password) redirect("/signup?error=missing");
-  if (!EMAIL_PATTERN.test(email)) redirect("/signup?error=invalid_email");
-  if (password.length < 8) redirect("/signup?error=weak_password");
+  if (email.length > 254 || !EMAIL_PATTERN.test(email)) redirect("/signup?error=invalid_email");
+  // bcrypt only uses the first 72 bytes, and hashing a huge password costs real
+  // CPU, so very long passwords are refused rather than silently truncated.
+  if (password.length < 8 || password.length > 128) redirect("/signup?error=weak_password");
 
   if (!(await withinRateLimit(`signup:${email}`, 5, 60 * 60_000))) {
     redirect("/signup?error=rate_limited");
+  }
+  if (!isSelfHosted()) {
+    if (!(await withinRateLimit(`signup-ip:${await clientIp()}`, HOSTED_SIGNUPS_PER_IP_PER_DAY, 24 * 60 * 60_000))) {
+      redirect("/signup?error=rate_limited");
+    }
+    if ((await prisma.workspace.count()) >= HOSTED_MAX_WORKSPACES) redirect("/signup?error=site_full");
   }
 
   const existing = await prisma.user.findUnique({ where: { email } });

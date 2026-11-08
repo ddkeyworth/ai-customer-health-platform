@@ -27,7 +27,7 @@ export const LEASE_MS = 310_000;
 
 export interface WorkAdapter {
   list(workspaceId: string): Promise<string[]>;
-  process(workspaceId: string, apiKey: string, ids: string[]): Promise<void>;
+  process(workspaceId: string, apiKey: string | null, ids: string[]): Promise<void>;
   chunk: number; // ids processed per step
 }
 
@@ -65,7 +65,7 @@ export async function advanceRun(args: {
   workspaceId: string;
   capability: Capability;
   adapter: WorkAdapter;
-  apiKey: string;
+  apiKey: string | null;
   startNew: boolean; // false: only continue an unfinished run, never begin one
   budgetMs?: number;
   now?: () => number; // injectable clock, for tests

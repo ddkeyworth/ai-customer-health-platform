@@ -10,11 +10,19 @@ import { revalidatePath } from "next/cache";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { getSessionUser } from "@/lib/auth";
 import { setAgentActionStatus, snoozeAgentAction as snooze } from "@/lib/agentActionStatus";
+import { isSpendLocked } from "@/lib/demoGuard";
+import { hideCurrentVisitAction } from "@/lib/demoVisitServer";
 
 const REVALIDATE_PATHS = ["/onboarding", "/adoption", "/expansion", "/renewal", "/briefing"];
 
 async function review(id: string, status: "accepted" | "dismissed") {
   const workspace = await getCurrentWorkspace();
+  // On the shared demo a click is remembered for this visitor only.
+  if (isSpendLocked(workspace)) {
+    await hideCurrentVisitAction(workspace.id, id);
+    for (const path of REVALIDATE_PATHS) revalidatePath(path);
+    return;
+  }
   const user = await getSessionUser();
   await setAgentActionStatus(workspace.id, id, status, user?.name ?? null);
   for (const path of REVALIDATE_PATHS) revalidatePath(path);
@@ -30,6 +38,11 @@ export async function dismissAgentAction(id: string) {
 
 export async function snoozeAgentAction(id: string, days: number) {
   const workspace = await getCurrentWorkspace();
+  if (isSpendLocked(workspace)) {
+    await hideCurrentVisitAction(workspace.id, id);
+    for (const path of REVALIDATE_PATHS) revalidatePath(path);
+    return;
+  }
   await snooze(workspace.id, id, days);
   for (const path of REVALIDATE_PATHS) revalidatePath(path);
 }

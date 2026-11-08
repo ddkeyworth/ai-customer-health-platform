@@ -36,4 +36,14 @@ const demoStatus = getTrialStatus(demoWorkspace, now);
 assert(demoStatus.active, "The demo seed workspace always has AI access, however old it is");
 assert(demoStatus.exempt, "The demo seed workspace is flagged exempt, not just incidentally active");
 
+// Hosted by the owner (the default) versus someone's own copy.
+const oldWorkspace = { isDemoSeed: false, subscriptionActive: false, createdAt: daysAgo(400) };
+assert(!getTrialStatus(oldWorkspace, now, false).active, "On the hosted site an old workspace with no subscription has no AI access");
+const selfHostedStatus = getTrialStatus(oldWorkspace, now, true);
+assert(selfHostedStatus.active && selfHostedStatus.exempt && selfHostedStatus.selfHosted, "On a self-hosted copy there is no trial: the same old workspace has full access");
+process.env.SELF_HOSTED = "true";
+assert(getTrialStatus(oldWorkspace, now).selfHosted, "The SELF_HOSTED setting is what switches the trial off by default");
+delete process.env.SELF_HOSTED;
+assert(!getTrialStatus(oldWorkspace, now).active, "With the setting missing the trial applies, so the hosted site stays gated");
+
 console.log("\nAll trial-gate checks passed.");

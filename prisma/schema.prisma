@@ -95,6 +95,10 @@ model Session {
   userId    String
   expiresAt DateTime
   createdAt DateTime @default(now())
+  // Only used on the shared demo: the recommendations this one visitor has
+  // accepted, dismissed or snoozed. Kept on the session so it ends with the
+  // visit and never changes the demo for anyone else (see src/lib/demoVisit.ts).
+  demoHiddenActionIds String[] @default([])
 
   user User @relation(fields: [userId], references: [id])
 
