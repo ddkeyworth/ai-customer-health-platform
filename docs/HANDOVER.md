@@ -2,14 +2,14 @@
 
 Written when the work was stopped part way (laptop battery). Everything below is committed to `main`.
 
-## The list (6 items)
+## The list (6 items, in this order)
 
 1. Remainder of the last session
-2. Stripe test mode
-3. Payment tests
-4. Flexible import with dynamic field mapping
-5. Skeptical end-to-end test of the whole solution
-6. Not built, stated honestly
+2. Not built yet: password reset, forms to add or edit a single customer, team roles (before any payment work)
+3. Stripe test mode
+4. Payment tests
+5. Flexible import with dynamic field mapping
+6. Skeptical end-to-end test of the whole solution (last, so it covers everything above)
 
 ## 1. Remainder of the last session (do these first)
 
@@ -28,22 +28,22 @@ Built and committed, but not yet fully verified or finished:
 
 Findings and fixes from the skeptical test so far: session tokens were database ids (now 256-bit random, only the hash stored); no security headers (added); no import or export (built); a new signup was a dead end (import, free baseline Health, free opportunity finding); the shared demo could be changed by any visitor (now per-visit, read-only elsewhere); the seed would have created a public-password login on any deployment (now guarded); `SELF_HOSTED` is the single switch between the hosted site and your own copy.
 
-## 2. Stripe test mode
+## 2. Not built yet (do these before any payment work)
+
+Stated honestly, not hidden: **password reset** (it needs email sending, so choose an email provider first), **forms to add or edit a single customer** (data currently comes in by CSV import only), and **team roles and invitations** (each workspace has one admin today).
+
+## 3. Stripe test mode
 
 Create a Stripe account and fill in the keys file yourself, because keys are never pasted into chat. Then replace the placeholder "Upgrade (demo only)" with Stripe test-mode checkout for the hosted site's 14-day trial. Self-hosted copies (`SELF_HOSTED=true`) stay free.
 
-## 3. Payment tests
+## 4. Payment tests
 
 The last part of the comprehensive test, after Stripe.
 
-## 4. Flexible import with dynamic field mapping
+## 5. Flexible import with dynamic field mapping
 
 The import currently reads fixed columns. Build a mapping step so an uploaded file's columns can be matched to existing fields, turned into new custom fields (text, number, date or pick-list, per workspace), or ignored; show suggested matches; save the mapping for repeat uploads; show custom fields on customer pages, as Segment filters, in the export (so a round trip keeps them) and as AI context; keep the all-or-nothing checks and limits, cap custom fields per workspace, and test unknown, missing and wrongly typed columns, mapping reuse and a round trip.
 
-## 5. Skeptical end-to-end test of the whole solution
+## 6. Skeptical end-to-end test of the whole solution
 
-Repeat the full skeptical test, after items 2 to 4 so it also covers payments and the flexible import: weaknesses, errors and functional gaps, then improvements for a more robust final version.
-
-## 6. Not built, stated honestly
-
-Password reset (it needs email), forms to add or edit a single customer, and team roles.
+Repeat the full skeptical test, after items 2 to 5 so it also covers the new forms, roles, password reset, payments and the flexible import: weaknesses, errors and functional gaps, then improvements for a more robust final version.
