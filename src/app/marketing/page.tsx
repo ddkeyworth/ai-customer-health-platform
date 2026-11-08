@@ -61,7 +61,7 @@ export default function MarketingPage() {
     <div className="min-h-screen bg-white text-zinc-900">
       <header className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 max-w-5xl mx-auto">
         <div className="flex items-center gap-3">
-          <Logo height="1.1em" className="text-[#0C447C]" />
+          <Logo height="1.6em" className="text-[#0C447C]" />
           <span className="text-[10px] rounded-full bg-zinc-100 text-zinc-500 px-2 py-0.5">
             Mobile app – coming soon
           </span>

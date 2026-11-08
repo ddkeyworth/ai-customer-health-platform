@@ -28,25 +28,26 @@ export default async function SignupPage({
   const closed = mode === "closed" || (mode === "first_account_only" && (await prisma.user.count()) > 0);
   const firstAccount = mode === "first_account_only" && !closed;
 
+  const headline = closed
+    ? isSelfHosted()
+      ? "Signup is closed on this copy."
+      : "This is a demo. Nothing you do here is saved."
+    : firstAccount
+      ? "Create the first account."
+      : "Create a workspace.";
+
   return (
     <div className="min-h-screen grid md:grid-cols-2 bg-white">
       <div className="hidden md:flex flex-col justify-between bg-[#0C447C] text-white p-12 lg:p-16">
-        <Logo height="1.5em" className="text-white" />
-        <div>
-          <p className="text-2xl font-medium leading-snug max-w-md">
-            A brand-new, empty, fully isolated workspace - your own data, your own Anthropic key, nothing shared.
-          </p>
-          <p className="mt-6 text-sm text-blue-100/80 tracking-wide uppercase">
-            Health &middot; Onboarding &middot; Adoption &middot; Expansion &middot; Renewal
-          </p>
-        </div>
-        <p className="text-xs text-blue-100/60">Conceptual portfolio piece - no real customer data, ever.</p>
+        <Logo height="3em" className="text-white" />
+        <p className="text-2xl font-medium leading-snug max-w-md">{headline}</p>
+        {!isSelfHosted() ? <p className="text-xs text-blue-100/60">Demonstration site. Sample data only.</p> : <span />}
       </div>
 
       <div className="flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <div className="mb-8 text-center md:hidden">
-            <Logo height="1.3em" className="text-[#0C447C]" />
+            <Logo height="2em" className="text-[#0C447C]" />
           </div>
 
           <h1 className="text-xl font-medium text-zinc-900 mb-1">Sign up</h1>

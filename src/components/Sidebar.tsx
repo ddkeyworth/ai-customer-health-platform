@@ -40,7 +40,7 @@ export default function Sidebar() {
   return (
     <div className="w-full md:w-52 md:shrink-0 bg-white border-b md:border-b-0 md:border-r border-zinc-200 p-3 flex flex-col">
       <div className="px-2 pb-3 md:pb-5 pt-1 text-lg text-[#0C447C]">
-        <Logo height="1.1em" />
+        <Logo height="1.5em" />
       </div>
       <nav className="flex flex-row md:flex-col gap-0.5 overflow-x-auto md:overflow-visible whitespace-nowrap">
         {NAV_ITEMS.map((item) => (

@@ -21,7 +21,7 @@ export default async function RecoveryKeyPage({ searchParams }: { searchParams: 
     <div className="min-h-screen flex items-center justify-center bg-white p-6">
       <div className="w-full max-w-md">
         <div className="mb-6 text-center">
-          <Logo height="1.3em" className="text-[#0C447C]" />
+          <Logo height="2em" className="text-[#0C447C]" />
         </div>
         <h1 className="text-xl font-medium text-zinc-900 mb-2">Save your recovery key</h1>
         <p className="text-sm text-zinc-600 mb-4">

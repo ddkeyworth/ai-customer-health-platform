@@ -21,7 +21,7 @@ export default async function LoginPage({
   return (
     <div className="min-h-screen grid md:grid-cols-2 bg-white">
       <div className="hidden md:flex flex-col justify-between bg-[#0C447C] text-white p-12 lg:p-16">
-        <Logo height="1.5em" className="text-white" />
+        <Logo height="3em" className="text-white" />
         <div>
           <p className="text-2xl font-medium leading-snug max-w-md">
             No AI reads every account right. It gets you close enough, fast enough, to act.
@@ -36,7 +36,7 @@ export default async function LoginPage({
       <div className="flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <div className="mb-8 text-center md:hidden">
-            <Logo height="1.3em" className="text-[#0C447C]" />
+            <Logo height="2em" className="text-[#0C447C]" />
           </div>
 
           <h1 className="text-xl font-medium text-zinc-900 mb-1">Log in</h1>

@@ -26,6 +26,13 @@ Bearing: an AI Customer Success platform (Health, Onboarding, Adoption, Expansio
 - Password reset uses a recovery key because the project sends no email.
 - Custom fields (flexible import) apply to customers only; each custom field will have an include-in-AI switch; at most 25 per workspace.
 
+## If hosted workspaces are ever wanted again
+
+The hosted site was briefly built with open signup, caps and a 14-day trial before it was decided that nothing should be stored on the owner's servers. None of that was deleted:
+- **Git tag `hosted-open-signup-snapshot`** (commit 57352a4) is the exact state where signup was open by default on the hosted site, with the per-address cap (3 a day), the 200-workspace cap, the trial gate and the sample-data warnings.
+- **In the current code** it still exists, switched off by default: `ALLOW_SIGNUP=true` reopens signup on a hosted deployment (`signupMode()` in `src/lib/deployment.ts`), the caps are in `src/app/signup/actions.ts` and `src/lib/authLimits.ts`, the trial is `src/lib/trialGate.ts`, and the hosted import limits are in `src/lib/import/validate.ts` (the lower hosted limits apply whenever `SELF_HOSTED` is not `true`).
+- Ideas that were dropped, not built: automatically deleting a workspace 30 days after its trial ends with a 7-day warning banner; a per-workspace storage ceiling beyond the row caps.
+
 ## Not built, stated honestly
 
 Adding or editing a single customer by form, and team roles and invitations (each workspace has one admin). A customer with no product still gets a "Core product" link on import. The customers file carries only the first champion (the stakeholders file carries everyone). Accessibility has had a labelling pass only, not a full audit.

@@ -23,8 +23,7 @@ export default function Logo({ className, height = "1em" }: { className?: string
   return (
     <svg
       viewBox={`0 0 ${TOTAL_W} ${TOTAL_H}`}
-      height={height}
-      width={`${(TOTAL_W / TOTAL_H).toFixed(3)}em`}
+      style={{ height, width: `calc(${height} * ${(TOTAL_W / TOTAL_H).toFixed(3)})` }}
       role="img"
       aria-label="Bearing"
       className={className}
