@@ -13,6 +13,7 @@ import { loadSavedMapping, reconcileSavedMapping } from "./savedMappings";
 
 export interface PreviewColumn {
   header: string;
+  display: string; // the heading as written in the file, for showing to a person
   index: number;
   // A column with no heading, or the same heading as an earlier column, is always
   // ignored and is not part of the choices that are sent back.
@@ -104,6 +105,7 @@ export async function buildPreview(workspaceId: string, kind: string, text: stri
     const entry: ColumnMappingEntry = locked ? { header: s.header, action: "ignore" } : (chosenFor.get(n) ?? { header: s.header, action: "ignore" });
     const column: PreviewColumn = {
       header: s.header,
+      display: parsed.rawHeaders?.[s.index] || s.header,
       index: s.index,
       locked,
       action: entry.action,

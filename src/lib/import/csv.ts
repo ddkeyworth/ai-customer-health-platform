@@ -20,6 +20,8 @@ export const MAX_RECORDS = 20_001;
 
 export interface CsvResult {
   headers: string[];
+  // The headings as written (trimmed, original capitalisation), for showing to a person.
+  rawHeaders?: string[];
   rows: Record<string, string>[];
   // lines[i] is the physical line number (1-based) that rows[i] starts on.
   lines: number[];
@@ -111,8 +113,9 @@ export function parseCsv(input: string): CsvResult {
   if (inQuotes) throw new Error("The file has a quoted value that is never closed.");
   if (field !== "" || cells.length > 0) endRecord();
 
-  if (records.length === 0) return { headers: [], rows: [], lines: [] };
-  const headers = records[0].cells.map((h) => h.trim().toLowerCase());
+  if (records.length === 0) return { headers: [], rows: [], lines: [], rawHeaders: [] };
+  const rawHeaders = records[0].cells.map((h) => h.trim());
+  const headers = rawHeaders.map((h) => h.toLowerCase());
   const rows: Record<string, string>[] = [];
   const lines: number[] = [];
   for (let n = 1; n < records.length; n++) {
@@ -124,7 +127,7 @@ export function parseCsv(input: string): CsvResult {
     rows.push(row);
     lines.push(records[n].line);
   }
-  return { headers, rows, lines };
+  return { headers, rows, lines, rawHeaders };
 }
 
 // Problems with the header row that make a file unsafe to read by column name.

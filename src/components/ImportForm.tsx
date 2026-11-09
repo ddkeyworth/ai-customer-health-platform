@@ -101,7 +101,7 @@ export default function ImportForm({ kind, disabled }: { kind: ImportKind; disab
 
   const onSelect = (i: number, value: string, column: PreviewColumn) => {
     if (value === "ignore") setChoice(i, { action: "ignore" });
-    else if (value === "new") setChoice(i, { action: "custom", label: choices[i].label || column.label || titleFromHeader(column.header), shareWithAi: false });
+    else if (value === "new") setChoice(i, { action: "custom", label: choices[i].label || column.label || titleFromHeader(column.display), shareWithAi: false });
     else if (value.startsWith("existing:")) setChoice(i, { action: "existing_custom", fieldId: value.slice("existing:".length) });
     else if (value.startsWith("map:")) setChoice(i, { action: "map", target: value.slice("map:".length) });
   };
@@ -119,15 +119,15 @@ export default function ImportForm({ kind, disabled }: { kind: ImportKind; disab
       if (c.action === "map") {
         const other = owner.get(c.target);
         const label = preview.known.find((k) => k.name === c.target)?.label ?? c.target;
-        if (other !== undefined) problems.push(`"${other}" and "${col.header}" are both set to ${label}. Choose one of them.`);
-        else owner.set(c.target, col.header);
+        if (other !== undefined) problems.push(`"${other}" and "${col.display}" are both set to ${label}. Choose one of them.`);
+        else owner.set(c.target, col.display);
       } else if (c.action === "existing_custom") {
         const other = fieldOwner.get(c.fieldId);
-        if (other !== undefined) problems.push(`"${other}" and "${col.header}" are both set to the same custom field. Choose one of them.`);
-        else fieldOwner.set(c.fieldId, col.header);
+        if (other !== undefined) problems.push(`"${other}" and "${col.display}" are both set to the same custom field. Choose one of them.`);
+        else fieldOwner.set(c.fieldId, col.display);
       } else if (c.action === "custom") {
         newCount += 1;
-        if (c.label.trim() === "") problems.push(`Give the new custom field for "${col.header}" a name.`);
+        if (c.label.trim() === "") problems.push(`Give the new custom field for "${col.display}" a name.`);
         if (c.type === "pick_list" && parseOptions(c.optionsText).length === 0) problems.push(`Add the choices for the pick-list "${c.label || col.header}", separated by commas.`);
       }
     });
@@ -234,7 +234,7 @@ export default function ImportForm({ kind, disabled }: { kind: ImportKind; disab
                   return (
                     <tr key={i} className="border-t border-zinc-200 align-top">
                       <td className="py-2 pr-3">
-                        <p className="font-medium text-zinc-900">{col.header === "" ? "(no heading)" : col.header}</p>
+                        <p className="font-medium text-zinc-900">{col.display === "" ? "(no heading)" : col.display}</p>
                         {col.samples.length > 0 && <p className="mt-0.5 text-zinc-500">e.g. {col.samples.join(" | ")}</p>}
                       </td>
                       <td className="py-2 pr-3">
@@ -245,7 +245,7 @@ export default function ImportForm({ kind, disabled }: { kind: ImportKind; disab
                             <select
                               value={selectValue(c)}
                               disabled={pending}
-                              aria-label={`What to do with the column ${col.header}`}
+                              aria-label={`What to do with the column ${col.display}`}
                               onChange={(e) => onSelect(i, e.target.value, col)}
                               className="w-full max-w-xs rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm"
                             >

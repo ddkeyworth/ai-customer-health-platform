@@ -106,25 +106,86 @@ async function login(page, email, password) {
   await Promise.all([page.waitForNavigation({ waitUntil: "networkidle2" }), page.click('button[type="submit"]')]);
 }
 
-async function upload(page, kind, file) {
+// Importing is two steps. Choose the file and press "Check file": a table shows what each column
+// looks like it is (a file shaped like the template needs no changes). Press "Import" to send it.
+// `options.before(root)` runs once the table is showing, so a test can change the choices.
+// Returns the result message, or a string starting CHECK FAILED / IMPORT DISABLED.
+async function upload(page, kind, file, options = {}) {
   const input = await page.$(`input[aria-label="CSV file for ${kind}"]`);
-  // A form keeps showing its previous result until the next one arrives, so
-  // remember it and wait for a different one.
-  const previous = await input.evaluate((el) => el.closest("form").querySelector('[role="status"]')?.innerText ?? "");
+  const root = await input.evaluateHandle((el) => el.closest("div.mt-3"));
+  // A card keeps showing its previous result until the next one arrives, so remember it.
+  const previous = await root.evaluate((el) => el.querySelector('[role="status"]')?.innerText ?? "");
   await input.uploadFile(file);
-  await input.evaluate((el) => el.closest("form").querySelector('button[type="submit"]').click());
+  const [checkButton] = await root.$$("xpath/.//button[normalize-space()='Check file']");
+  await checkButton.click();
+  await page.waitForFunction((el) => !!el.querySelector("table") || !!el.querySelector('[role="alert"]'), { polling: 250, timeout: 30000 }, root);
+  if (!(await root.$("table"))) return `CHECK FAILED: ${await root.$eval('[role="alert"]', (e) => e.innerText)}`;
+  if (options.before) await options.before(root);
+  const [importButton] = await root.$$("xpath/.//button[normalize-space()='Import']");
+  if (await importButton.evaluate((b) => b.disabled)) {
+    return `IMPORT DISABLED: ${await root.$eval('ul[role="alert"]', (e) => e.innerText).catch(() => "")}`;
+  }
+  await page.evaluate(() => {
+    window.__sawGone = false;
+  });
+  await importButton.click();
   await page.waitForFunction(
-    (k, prev) => {
-      const form = document.querySelector(`input[aria-label="CSV file for ${k}"]`)?.closest("form");
-      const status = form && form.querySelector('[role="status"]');
-      return status && status.innerText !== prev;
+    (el, prev) => {
+      const status = el.querySelector('[role="status"]');
+      if (!status) {
+        window.__sawGone = true;
+        return false;
+      }
+      return status.innerText !== prev || window.__sawGone;
     },
-    { polling: 250, timeout: 30000 },
-    kind,
+    { polling: 250, timeout: 60000 },
+    root,
     previous
   );
-  return input.evaluate((el) => el.closest("form").querySelector('[role="status"]').innerText);
+  return root.$eval('[role="status"]', (e) => e.innerText);
 }
+
+// In the mapping table, make this column a NEW custom field with a name and a type.
+// Returns whether the "Include in AI reads" box is ticked (it must start unticked).
+async function chooseCustom(root, header, { label, type }) {
+  // The mapping table shows each column heading as it was written in the file; match without regard to case.
+  const wanted = `what to do with the column ${header}`.toLowerCase();
+  let select = null;
+  for (const el of await root.$$("select")) {
+    const aria = ((await el.evaluate((e) => e.getAttribute("aria-label"))) ?? "").toLowerCase();
+    if (aria === wanted) {
+      select = el;
+      break;
+    }
+  }
+  if (!select) {
+    const found = await root.$$eval("select", (els) => els.map((e) => e.getAttribute("aria-label")));
+    const tableText = await root.$eval("table", (t) => t.innerText).catch(() => "(no table)");
+    throw new Error(`No mapping dropdown for the column "${header}". Dropdowns found: ${found.join(" | ")}. Table: ${tableText.replace(/\s+/g, " ").slice(0, 400)}`);
+  }
+  if ((await select.evaluate((el) => el.value)) !== "new") await select.select("new");
+  const row = await select.evaluateHandle((el) => el.closest("tr"));
+  const nameInput = await row.$('input[type="text"]');
+  // Replace the suggested name: select what is there, then type over it.
+  await nameInput.focus();
+  await nameInput.evaluate((el) => el.select());
+  await nameInput.type(label);
+  if ((await nameInput.evaluate((el) => el.value)) !== label) throw new Error(`The field name box holds "${await nameInput.evaluate((el) => el.value)}", not "${label}"`);
+  const selects = await row.$$("select");
+  await selects[1].select(type);
+  return row.$eval('input[type="checkbox"]', (el) => el.checked);
+}
+
+const writeTmp = (name, content) => {
+  const f = path.join(os.tmpdir(), `${name}-${stamp}.csv`);
+  fs.writeFileSync(f, content);
+  return f;
+};
+const dropTmp = (f) => {
+  try {
+    fs.unlinkSync(f); // Windows may still hold the file open; a leftover temp file is harmless
+  } catch {}
+};
 
 try {
   // ---------- 1. sign up, empty workspace ----------
@@ -238,6 +299,78 @@ try {
   check(rows === 2 && /Baseline score \d+/.test(t), `Health lists both customers with a baseline score and an explanation (${rows} rows)`);
   check(/Example Customer One/.test(t) && /Example Customer Two/.test(t), "Both imported customers appear on the Health screen");
 
+  // ---------- 4b. custom fields: new columns become fields, with a saved mapping ----------
+  await page.goto(`${BASE}/data`, { waitUntil: "networkidle2" });
+  const fieldsFile = writeTmp("fields", "name,Account Owner,Seats\nAlpha Cargo,Dana Smith,120\nBeta Haulage,Lee Jones,40\nGamma Freight,,75\n");
+  let aiTicked = null;
+  msg = await upload(page, "customers", fieldsFile, {
+    before: async (root) => {
+      const a = await chooseCustom(root, "Account Owner", { label: "Account Owner", type: "text" });
+      const b = await chooseCustom(root, "Seats", { label: "Seats", type: "number" });
+      aiTicked = a || b;
+    },
+  });
+  dropTmp(fieldsFile);
+  check(aiTicked === false, "The Include in AI reads tick is off by default for a new custom field");
+  check(/Imported 3 customers/.test(msg) && /Created 2 custom fields: Account Owner \(text\), Seats \(number\)/.test(msg), `The success message names the custom fields it created, exactly (${msg.split("\n")[0].slice(0, 140)})`);
+
+  const badFile = writeTmp("badfield", "name,Contract Score\nBad One,10\nBad Two,n/a\nBad Three,30\n");
+  msg = await upload(page, "customers", badFile, { before: (root) => chooseCustom(root, "Contract Score", { label: "Contract Score", type: "number" }) });
+  dropTmp(badFile);
+  check(/Nothing was imported/.test(msg) && /Row 3/.test(msg), `A bad value in a number custom field is refused and names Row 3 (${msg.split("\n")[0].slice(0, 100)})`);
+
+  await page.goto(`${BASE}/data`, { waitUntil: "networkidle2" });
+  t = await text(page);
+  const panelLabels = await page.$$eval('input[aria-label^="Include "][aria-label$=" in AI reads"]', (els) => els.map((e) => e.getAttribute("aria-label")));
+  check(panelLabels.length === 2 && panelLabels.includes("Include Account Owner in AI reads") && panelLabels.includes("Include Seats in AI reads"), `The Custom fields panel lists exactly the two fields, by name (${panelLabels.join(" | ")})`);
+  check(!t.includes("Contract Score"), "The refused file created no custom field");
+
+  const savedFile = writeTmp("saved", "name,Account Owner,Seats\nDelta Cargo,Sam Patel,200\n");
+  let previewText = "";
+  msg = await upload(page, "customers", savedFile, { before: async (root) => { previewText = await root.evaluate((el) => el.innerText); } });
+  dropTmp(savedFile);
+  check(/Saved mapping applied/.test(previewText), "A second upload with the same columns shows Saved mapping applied");
+  check(/Imported 1 customer/.test(msg), `...and imports using it (${msg.split("\n")[0].slice(0, 80)})`);
+
+  await page.goto(`${BASE}/data`, { waitUntil: "networkidle2" });
+  const seatsSwitch = 'input[aria-label="Include Seats in AI reads"]';
+  check((await page.$eval(seatsSwitch, (e) => e.checked)) === false, "The AI-reads switch starts off");
+  await clickAndWait(page, await page.$(seatsSwitch));
+  await page.goto(`${BASE}/data`, { waitUntil: "networkidle2" });
+  check((await page.$eval(seatsSwitch, (e) => e.checked)) === true, "Turning the AI-reads switch on survives a reload");
+  await clickAndWait(page, await page.$(seatsSwitch));
+  await page.goto(`${BASE}/data`, { waitUntil: "networkidle2" });
+  check((await page.$eval(seatsSwitch, (e) => e.checked)) === false, "Turning it off again also survives a reload");
+
+  // Health for the new customers, then the customer's own page shows its custom field values
+  await page.goto(`${BASE}/settings`, { waitUntil: "networkidle2" });
+  const [runAgain] = await page.$$("xpath/.//button[contains(., 'Run baseline now') or contains(., 'Continue')]");
+  await runAgain.click();
+  await page.waitForFunction(() => document.body.innerText.includes("Finished."), { polling: 250, timeout: 60000 });
+  await page.goto(`${BASE}/health`, { waitUntil: "networkidle2" });
+  const [alphaLink] = await page.$$("xpath/.//a[contains(., 'Alpha Cargo')]");
+  const alphaHref = await alphaLink.evaluate((a) => a.getAttribute("href"));
+  await page.goto(`${BASE}${alphaHref}`, { waitUntil: "networkidle2" });
+  t = await text(page);
+  // The panel heading is styled in capitals, and innerText returns it as shown, so match ignoring case.
+  const shown = ["custom fields", "account owner", "dana smith", "seats", "120"].filter((w) => !t.toLowerCase().includes(w));
+  check(shown.length === 0, shown.length === 0 ? "The customer's Health page shows its custom field values" : `The customer's Health page is missing: ${shown.join(", ")}. It shows: ${t.replace(/\s+/g, " ").slice(0, 300)}`);
+
+  // a Segment filtered on the number field
+  await page.goto(`${BASE}/segments`, { waitUntil: "networkidle2" });
+  const segName = `High seats ${stamp}`;
+  await page.type('input[name="name"]', segName);
+  const opId = await page.evaluate(() => [...document.querySelectorAll("fieldset label")].find((l) => l.textContent.trim() === "Seats")?.htmlFor);
+  await page.select(`#${opId}`, "at_least");
+  await page.type('input[aria-label="Seats value"]', "75");
+  const [saveSegment] = await page.$$("xpath/.//button[normalize-space()='Save segment']");
+  await clickAndWait(page, saveSegment);
+  await page.goto(`${BASE}/segments`, { waitUntil: "networkidle2" });
+  const [segLink] = await page.$$(`xpath/.//a[contains(., '${segName}')]`);
+  await page.goto(`${BASE}${await segLink.evaluate((a) => a.getAttribute("href"))}`, { waitUntil: "networkidle2" });
+  t = await text(page);
+  check(/Alpha Cargo/.test(t) && /Gamma Freight/.test(t) && /Delta Cargo/.test(t) && !/Beta Haulage/.test(t) && !/Example Customer/.test(t), "A Segment filtered on Seats is at least 75 selects exactly the customers with 75 or more (Alpha, Gamma, Delta)");
+
   // ---------- 5. opportunities and export ----------
   await page.goto(`${BASE}/expansion`, { waitUntil: "networkidle2" });
   const [findButton] = await page.$$("xpath/.//button[contains(., 'Find expansion opportunities')]");
@@ -270,6 +403,25 @@ try {
   check(newerProblems.length === 0, newerProblems.length === 0 ? "The five newer exports start with the import columns and contain the imported rows" : `The five newer exports have problems: ${newerProblems.join(" | ")}`);
   check(dl.nonsense.status === 404, "An unknown export name is a 404");
   check(dl.customers.bom, "The customers export starts with a byte-order mark so Excel reads the characters correctly");
+  const exportHeader = (dl.customers.body.split(/\r?\n/)[0] ?? "").split(",");
+  check(exportHeader.includes("Account Owner") && exportHeader.includes("Seats"), "The customers export has the custom columns, headed by their labels");
+
+  // Re-import that export file into the same workspace: its custom columns must map back to the
+  // existing fields (no duplicates). The customers exist already, so the import itself is refused.
+  const exportText = await page.evaluate(async () => (await fetch("/api/export/customers")).text());
+  const exportFile = writeTmp("reimport", exportText);
+  let remapped = [];
+  await page.goto(`${BASE}/data`, { waitUntil: "networkidle2" });
+  msg = await upload(page, "customers", exportFile, {
+    before: async (root) => {
+      remapped = await root.$$eval("select", (els) => els.filter((e) => /account owner|seats/i.test(e.getAttribute("aria-label") ?? "")).map((e) => `${e.getAttribute("aria-label").replace("What to do with the column ", "")}=${e.value.split(":")[0]}`));
+    },
+  });
+  dropTmp(exportFile);
+  check(remapped.length === 2 && remapped.every((r) => r.endsWith("=existing")), `Re-importing the export maps both custom columns back to the existing fields (${remapped.join(", ")})`);
+  check(/Nothing was imported|CHECK FAILED|IMPORT DISABLED/.test(msg), "The re-import of customers that already exist is refused and changes nothing");
+  await page.goto(`${BASE}/data`, { waitUntil: "networkidle2" });
+  check((await page.$$('input[aria-label^="Include "][aria-label$=" in AI reads"]')).length === 2, "No duplicate custom fields were created by the re-import");
   check(/^ref,name,country/.test(dl.customers.body) && /Example Customer One/.test(dl.customers.body), "The customers export starts with the import columns and contains the imported customers");
 
   // ---------- 7a. security edges ----------
@@ -434,6 +586,7 @@ try {
   }
   const disabled = await demoA.$$eval('input[type="file"]', (els) => els.every((e) => e.disabled));
   check(disabled, "The demo's upload boxes are disabled");
+  check(/Custom fields/.test(t), "The demo's Data page has the Custom fields panel");
   await demoA.goto(`${BASE}/settings`, { waitUntil: "networkidle2" });
   check(/changes here are switched off/.test(await text(demoA)), "The demo's Settings says changes are switched off");
   check(/Switched off on the shared demo: its password and recovery key are public/.test(await text(demoA)), "The demo's Security section is switched off");
