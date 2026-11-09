@@ -4,9 +4,21 @@
 // existing validators accept it, remembering a mapping by its columns, and
 // reading a mapping that arrives from the browser (untrusted input).
 import { parseCsv } from "../src/lib/import/csv";
-import { validateCustomerRows } from "../src/lib/import/validate";
+import {
+  KNOWN_COLUMNS as VALIDATOR_COLUMNS,
+  validateCustomerRows,
+  validateEventRows,
+  validateGoalRows,
+  validateStakeholderRows,
+  validateSurveyRows,
+  validateTrainingRows,
+  validateUsageRows,
+} from "../src/lib/import/validate";
+import { dataAccessProblem } from "../src/lib/import/access";
+import { DEMO_LOCK_NOTICE } from "../src/lib/demoGuard";
 import { CUSTOM_FIELD_LIMITS, coerceCustomValue } from "../src/lib/import/customFields";
 import {
+  EXPORT_ONLY_COLUMNS,
   KNOWN_COLUMNS,
   applyMapping,
   customFieldKey,
@@ -34,20 +46,32 @@ const targetOf = (kind: MappingKind, header: string) => {
 };
 
 // ---------- the catalogue matches the validators ----------
-const validatorColumns: Record<MappingKind, string[]> = {
-  customers: ["name", "ref", "country", "industry", "tier", "product", "lifecycle_status", "contractual_arr", "consumption_arr", "renewal_date", "expected_go_live_date", "go_live_date", "payment_status", "days_past_due", "renewal_type", "interrupted_reason", "nps", "champion_name", "champion_last_engaged"],
-  tickets: ["customer", "date", "type", "severity", "text"],
-  usage: ["customer", "capability", "metric_type", "date", "value"],
-  outcomes: ["customer", "date", "type", "notes"],
-};
-for (const kind of Object.keys(validatorColumns) as MappingKind[]) {
-  assert(JSON.stringify(KNOWN_COLUMNS[kind].map((c) => c.name)) === JSON.stringify(validatorColumns[kind]), `The ${kind} catalogue lists exactly the columns the validator reads, in the same names`);
+// The importer's own list (validate.ts) is the truth. The mapping catalogue must
+// offer exactly those columns for every kind, bar the Health results the export
+// writes (which are never imported), so nothing a file can carry is unmappable
+// and nothing is offered that the importer would not read.
+const kinds = Object.keys(VALIDATOR_COLUMNS) as MappingKind[];
+assert(kinds.length === 9 && Object.keys(KNOWN_COLUMNS).length === 9, "The mapping catalogue covers all nine kinds of file");
+for (const kind of kinds) {
+  const exportOnly = new Set(EXPORT_ONLY_COLUMNS[kind] ?? []);
+  const expected = VALIDATOR_COLUMNS[kind].filter((c) => !exportOnly.has(c)).sort();
+  const offered = KNOWN_COLUMNS[kind].map((c) => c.name).sort();
+  assert(JSON.stringify(offered) === JSON.stringify(expected), `The ${kind} catalogue lists exactly the columns the importer reads (${offered.length})`);
+  assert(new Set(offered).size === offered.length, `The ${kind} catalogue has no column twice`);
 }
+assert(JSON.stringify(EXPORT_ONLY_COLUMNS.customers) === JSON.stringify(["health_score", "health_band", "health_baseline", "health_adjustment", "health_narrative"]), "The export's Health result columns are the ones never imported");
+for (const col of ["region", "city", "sub_industry", "nps_date"]) assert(KNOWN_COLUMNS.customers.some((c) => c.name === col), `The customers catalogue includes ${col}`);
+assert(KNOWN_COLUMNS.usage.some((c) => c.name === "product"), "The usage catalogue includes product");
 assert(JSON.stringify(requiredColumns("customers")) === '["name"]', "Customers require only a name");
 assert(JSON.stringify(requiredColumns("tickets")) === '["customer","date","text"]', "Tickets require customer, date and text");
 assert(JSON.stringify(requiredColumns("usage")) === '["customer","capability","date","value"]', "Usage requires customer, capability, date and value");
 assert(JSON.stringify(requiredColumns("outcomes")) === '["customer","date","type"]', "Outcomes require customer, date and type");
-for (const kind of Object.keys(validatorColumns) as MappingKind[]) {
+assert(JSON.stringify(requiredColumns("stakeholders")) === '["customer","name"]', "Stakeholders require customer and name");
+assert(JSON.stringify(requiredColumns("goals")) === '["customer","name","target_value"]', "Goals require customer, name and target_value");
+assert(JSON.stringify(requiredColumns("training")) === '["customer","course","date"]', "Training requires customer, course and date");
+assert(JSON.stringify(requiredColumns("events")) === '["customer","event","date"]', "Events require customer, event and date");
+assert(JSON.stringify(requiredColumns("surveys")) === '["customer","type","score","date"]', "Surveys require customer, type, score and date");
+for (const kind of kinds) {
   const names = KNOWN_COLUMNS[kind].map((c) => c.name);
   const seen = new Map<string, string>();
   let clash = "";
@@ -76,6 +100,12 @@ const aliasCases: [MappingKind, string, string][] = [
   ["tickets", "Created At", "date"], ["tickets", "Opened", "date"], ["tickets", "Raised On", "date"], ["tickets", "Priority", "severity"], ["tickets", "Channel", "type"],
   ["tickets", "Description", "text"], ["tickets", "Summary", "text"], ["tickets", "Body", "text"], ["tickets", "Account", "customer"], ["tickets", "Customer Ref", "customer"],
   ["usage", "Feature", "capability"], ["usage", "Metric", "capability"], ["usage", "Module", "capability"], ["usage", "Product Area", "capability"], ["usage", "Month", "date"], ["usage", "Period", "date"], ["usage", "Amount", "value"], ["usage", "Quantity", "value"], ["usage", "Kind", "metric_type"],
+  ["customers", "Territory", "region"], ["customers", "HQ City", "city"], ["customers", "Sub Industry", "sub_industry"], ["customers", "NPS Survey Date", "nps_date"], ["usage", "Product Name", "product"],
+  ["stakeholders", "Account", "customer"], ["stakeholders", "Contact Name", "name"], ["stakeholders", "Job Title", "role"], ["stakeholders", "Is Champion", "is_champion"], ["stakeholders", "Last Contacted", "last_engaged_date"],
+  ["goals", "Account", "customer"], ["goals", "Objective", "name"], ["goals", "Target", "target_value"], ["goals", "Actual", "actual_value"], ["goals", "Unit of Measure", "unit"],
+  ["training", "Account", "customer"], ["training", "Course Name", "course"], ["training", "Participants", "attendees"], ["training", "Completed On", "date"],
+  ["events", "Account", "customer"], ["events", "Webinar", "event"], ["events", "Attended On", "date"],
+  ["surveys", "Account", "customer"], ["surveys", "Survey Type", "type"], ["surveys", "Rating", "score"], ["surveys", "Responded On", "date"],
   ["outcomes", "Result", "type"], ["outcomes", "Outcome", "type"], ["outcomes", "Closed On", "date"], ["outcomes", "Comments", "notes"], ["outcomes", "Account", "customer"],
 ];
 for (const [kind, header, expected] of aliasCases) {
@@ -95,9 +125,9 @@ assert(suggest("customers", ["Name"])[0].confidence === 1, "A heading identical 
 assert(suggest("customers", ["Customer Name"])[0].confidence === 0.95, "A well-known alternative name has confidence 0.95");
 
 // ---------- unknown columns, empty columns, duplicates ----------
-const unknown = suggest("customers", ["Name", "Region", "Owner", "Health Notes", "Postcode"], [{ name: "A", region: "x", owner: "y", "health notes": "z", postcode: "SW1A 1AA" }]);
+const unknown = suggest("customers", ["Name", "Account Manager", "Owner", "Health Notes", "Postcode"], [{ name: "A", "account manager": "x", owner: "y", "health notes": "z", postcode: "SW1A 1AA" }]);
 assert(unknown.slice(1).every((s) => s.action === "custom"), "Columns Bearing has no field for become suggested custom fields in the customers file");
-assert(unknown[3].label === "Health Notes" && unknown[1].label === "Region", "A suggested custom field label is the heading, tidied");
+assert(unknown[3].label === "Health Notes" && unknown[1].label === "Account Manager", "A suggested custom field label is the heading, tidied");
 assert(unknown.slice(1).every((s) => s.confidence === 0.6 && s.reason.length > 0), "Custom suggestions carry a lower confidence and a reason");
 const ticketUnknown = suggest("tickets", ["Customer", "Date", "Text", "Region"], [{ customer: "a", date: "2026-01-01", text: "t", region: "x" }]);
 assert(ticketUnknown[3].action === "ignore", "In the tickets file an unknown column is ignored, because custom fields are customers-only");
@@ -143,12 +173,12 @@ assert(inferCustomType(["", "  ", ""]).type === "text", "An all-blank column def
 assert(inferCustomType(["x".repeat(41), "x".repeat(41), "y".repeat(41), "y".repeat(41)]).type === "text", "Long values are never a pick-list");
 
 // ---------- accepting the suggestions ----------
-const s2m = suggestionsToMapping(suggest("customers", ["Name", "Region", ""], [{ name: "A", region: "EMEA" }]));
+const s2m = suggestionsToMapping(suggest("customers", ["Name", "Owner", ""], [{ name: "A", owner: "Sam" }]));
 assert(s2m[0].action === "map" && s2m[1].action === "custom" && s2m[2].action === "ignore", "Accepting the suggestions gives one choice per column");
 assert(s2m[1].action === "custom" && s2m[1].shareWithAi === false, "A custom field is NOT shared with the AI unless the person turns that on");
 
 // ---------- validateMapping ----------
-const ok: ColumnMapping = [{ header: "Name", action: "map", target: "name" }, { header: "Region", action: "custom", label: "Region", type: "text", shareWithAi: false }];
+const ok: ColumnMapping = [{ header: "Name", action: "map", target: "name" }, { header: "Owner", action: "custom", label: "Owner", type: "text", shareWithAi: false }];
 assert(validateMapping("customers", ok).length === 0, "A sound mapping has no errors");
 assert(validateMapping("customers", [{ header: "A", action: "map", target: "name" }, { header: "B", action: "map", target: "name" }]).some((e) => /both set to/.test(e)), "Two columns mapped to the same field are refused");
 assert(validateMapping("customers", [{ header: "A", action: "ignore" }]).some((e) => /Customer name/.test(e)), "A required column left unmapped is refused (customers need a name)");
@@ -169,12 +199,12 @@ assert(validateMapping("customers", custom("  champion NAME ")).some((e) => /bui
 assert(validateMapping("customers", custom("Owner"), [{ label: "owner" }]).some((e) => /already have/.test(e)), "A custom field that duplicates an existing one is refused, ignoring case");
 assert(validateMapping("customers", [...custom("Owner"), { header: "Y", action: "custom", label: " OWNER ", type: "text", shareWithAi: false }]).some((e) => /both create/.test(e)), "Two new custom fields with the same name are refused");
 assert(validateMapping("customers", custom("Owner", { type: "colour" })).some((e) => /must be one of/.test(e)), "An unknown field type is refused");
-assert(validateMapping("customers", custom("Region", { type: "pick_list" })).some((e) => /at least one choice/.test(e)), "A pick-list with no choices is refused");
-assert(validateMapping("customers", custom("Region", { type: "pick_list", options: Array.from({ length: 51 }, (_, i) => `o${i}`) })).some((e) => /at most 50/.test(e)), "A pick-list with 51 choices is refused");
-assert(validateMapping("customers", custom("Region", { type: "pick_list", options: Array.from({ length: 50 }, (_, i) => `o${i}`) })).length === 0, "A pick-list with exactly 50 choices is allowed");
-assert(validateMapping("customers", custom("Region", { type: "pick_list", options: ["A", "a"] })).some((e) => /different/.test(e)), "Pick-list choices that differ only by case are refused");
-assert(validateMapping("customers", custom("Region", { type: "pick_list", options: ["A", ""] })).some((e) => /1 to 60/.test(e)), "An empty pick-list choice is refused");
-assert(validateMapping("customers", custom("Region", { type: "text", options: ["A"] })).some((e) => /only a pick-list/.test(e)), "Choices on a non-pick-list field are refused");
+assert(validateMapping("customers", custom("Segment", { type: "pick_list" })).some((e) => /at least one choice/.test(e)), "A pick-list with no choices is refused");
+assert(validateMapping("customers", custom("Segment", { type: "pick_list", options: Array.from({ length: 51 }, (_, i) => `o${i}`) })).some((e) => /at most 50/.test(e)), "A pick-list with 51 choices is refused");
+assert(validateMapping("customers", custom("Segment", { type: "pick_list", options: Array.from({ length: 50 }, (_, i) => `o${i}`) })).length === 0, "A pick-list with exactly 50 choices is allowed");
+assert(validateMapping("customers", custom("Segment", { type: "pick_list", options: ["A", "a"] })).some((e) => /different/.test(e)), "Pick-list choices that differ only by case are refused");
+assert(validateMapping("customers", custom("Segment", { type: "pick_list", options: ["A", ""] })).some((e) => /1 to 60/.test(e)), "An empty pick-list choice is refused");
+assert(validateMapping("customers", custom("Segment", { type: "text", options: ["A"] })).some((e) => /only a pick-list/.test(e)), "Choices on a non-pick-list field are refused");
 const many = (n: number): ColumnMapping => [{ header: "Name", action: "map", target: "name" }, ...Array.from({ length: n }, (_, i) => ({ header: `C${i}`, action: "custom" as const, label: `Field ${i}`, type: "text" as const, shareWithAi: false }))];
 assert(validateMapping("customers", many(25)).length === 0, "25 custom fields in total is allowed");
 assert(validateMapping("customers", many(26)).some((e) => /at most 25/.test(e)), "26 custom fields in total is refused");
@@ -185,8 +215,8 @@ for (const kind of ["tickets", "usage", "outcomes"] as MappingKind[]) {
 }
 assert(validateMapping("tickets", [{ header: "Z", action: "map", target: "region" }]).some((e) => /no such field/.test(e)), "Mapping to a field the file type does not have is refused");
 assert(validateMapping("customers", [{ header: "Name", action: "map", target: "name" }, { header: " name ", action: "ignore" }]).some((e) => /more than once/.test(e)), "The same column chosen twice is refused");
-assert(validateMapping("customers", ok, [], ["Name", "Region", "Owner"]).some((e) => /"Owner" has no choice/.test(e)), "When the file's columns are known, a column with no choice is refused");
-assert(validateMapping("customers", ok, [], ["Name", "Region", ""]).length === 0, "A blank heading does not need a choice");
+assert(validateMapping("customers", ok, [], ["Name", "Owner", "Postcode"]).some((e) => /"Postcode" has no choice/.test(e)), "When the file's columns are known, a column with no choice is refused");
+assert(validateMapping("customers", ok, [], ["Name", "Owner", ""]).length === 0, "A blank heading does not need a choice");
 
 // ---------- applyMapping on a realistic messy file ----------
 const messy = [
@@ -204,20 +234,20 @@ const parsed = parseCsv(messy);
 const sugg = suggestMapping("customers", parsed.headers, parsed.rows);
 const byHeader = Object.fromEntries(sugg.map((s) => [s.header, s]));
 assert(byHeader["account name"].target === "name" && byHeader["acv (gbp)"].target === "contractual_arr" && byHeader["contract end"].target === "renewal_date", "The messy file's Account Name, ACV and Contract End are matched to Bearing fields");
-assert(byHeader["region"].action === "custom" && byHeader["region"].type === "pick_list" && byHeader["region"].options?.join("|") === "EMEA|APAC|AMER", "Region is suggested as a pick-list of its values");
+assert(byHeader["region"].action === "map" && byHeader["region"].target === "region", "Region is now a built-in Bearing column, so it is mapped rather than kept as a custom field");
 assert(byHeader["owner"].action === "custom" && byHeader["owner"].type === "pick_list", "Owner (few repeated names) is suggested as a pick-list");
 assert(byHeader["health notes"].action === "custom" && byHeader["health notes"].type === "text", "Health Notes is suggested as free text");
 const mapping = suggestionsToMapping(sugg);
 assert(validateMapping("customers", mapping, [], parsed.headers).length === 0, "Accepting the suggestions for the messy file gives a valid mapping");
 const applied = applyMapping(parsed, mapping);
-assert(applied.headers.join(",") === "name,contractual_arr,renewal_date", "The rewritten file has only canonical column names, in file order, with custom columns taken out");
+assert(applied.headers.join(",") === "name,contractual_arr,renewal_date,region", "The rewritten file has only canonical column names, in file order, with custom columns taken out");
 assert(applied.rows.length === 8 && applied.rows[0].name === "Acme Freight" && applied.rows[4].name === "Epsilon Haulage" && applied.rows[7].name === "Theta Express", "Every row is kept in its original order, so row numbers still match the spreadsheet");
 const check = validateCustomerRows(applied.headers, applied.rows, { refs: new Set(), names: new Set(), count: 0 });
 assert(check.errors.length === 0 && check.rows.length === 8, "The EXISTING customers validator accepts the rewritten file without any change");
 assert(check.rows[0].contractualArr === 48000 && check.rows[2].contractualArr === 120000 && check.rows[0].renewalDate instanceof Date, "Currency signs and thousands commas in the ACV column are read correctly");
-assert(applied.customFields.map((f) => f.key).join(",") === "region,owner,health_notes", "Custom fields get stable keys made from their names");
-assert(applied.customFieldValues.length === 8 && applied.customFieldValues[0].region === "EMEA" && applied.customFieldValues[2].health_notes === "" && applied.customFieldValues[3].owner === "Lee", "Each row's raw custom values are kept alongside it, row for row");
-assert(applied.customFields[0].type === "pick_list" && applied.customFields[0].shareWithAi === false, "Custom field definitions carry their type, choices and the AI-sharing choice");
+assert(applied.customFields.map((f) => f.key).join(",") === "owner,health_notes", "Custom fields get stable keys made from their names");
+assert(applied.customFieldValues.length === 8 && applied.customFieldValues[0].owner === "Sam" && applied.customFieldValues[2].health_notes === "" && applied.customFieldValues[3].owner === "Lee", "Each row's raw custom values are kept alongside it, row for row");
+assert(applied.customFields[0].type === "pick_list" && applied.customFields[0].options?.join("|") === "Priya|Sam|Lee" && applied.customFields[0].shareWithAi === false, "Custom field definitions carry their type, choices and the AI-sharing choice");
 const casedMapping: ColumnMapping = [{ header: "ACCOUNT NAME", action: "map", target: "name" }, { header: " Acv (GBP) ", action: "ignore" }];
 const casedApplied = applyMapping(parsed, casedMapping);
 assert(casedApplied.headers.join() === "name" && casedApplied.rows[0].acv === undefined, "A mapping written with different case or spacing still finds its column, and ignored columns are dropped");
@@ -314,5 +344,111 @@ for (const weird of [null, undefined, 5, {}, [], Symbol.iterator]) {
 }
 assert(!coerceCustomValue("colour" as never, "x").ok, "An unknown field type is refused, never thrown");
 assert(CUSTOM_FIELD_LIMITS.maxFields === 25 && CUSTOM_FIELD_LIMITS.maxLabel === 60 && CUSTOM_FIELD_LIMITS.maxOptions === 50, "The limits are 25 fields, 60-character names and 50 choices");
+
+// ---------- an existing custom field is a mapping target ----------
+const owned = [{ id: "cf_segment", label: "Segment Group" }, { id: "cf_owner", label: "Account Owner" }, { id: "cf_notes", label: "Health Notes" }];
+const rt = suggestMapping("customers", ["Name", "segment group", "ACCOUNT OWNER", "health_notes", "Postcode"], [{ name: "A", "segment group": "EMEA", "account owner": "Sam", health_notes: "ok", postcode: "x" }], owned);
+assert(rt[1].action === "existing_custom" && rt[1].fieldId === "cf_segment", "A heading that equals an existing custom field's name (ignoring case) is suggested for that field");
+assert(rt[2].action === "existing_custom" && rt[2].fieldId === "cf_owner" && rt[2].fieldLabel === "Account Owner", "...whatever the capitals or spacing, so an exported file reads back into the same fields");
+assert(rt[3].action === "existing_custom" && rt[3].fieldId === "cf_notes", "...and punctuation does not matter (health_notes is Health Notes)");
+assert(rt[4].action === "custom", "A column that matches nothing is still suggested as a new custom field");
+assert(rt[1].confidence === 1 && /custom fields/.test(rt[1].reason), "The suggestion carries full confidence and a reason");
+assert(suggestMapping("tickets", ["Customer", "Date", "Text", "Segment Group"], [{ customer: "a", date: "d", text: "t", "segment group": "x" }], owned)[3].action === "ignore", "Only the customers file has custom fields: in other files the same heading is ignored");
+const twoSame = suggestMapping("customers", ["Name", "Segment Group", "segment group"], [{ name: "A", "segment group": "EMEA" }], owned);
+assert(twoSame[1].action === "existing_custom" && twoSame[2].action === "ignore", "Two columns with the same heading: the first fills the field, the second is ignored");
+const withHealth = suggestMapping("customers", ["Name", "health_score", "health_band", "health_narrative", "health_baseline", "health_adjustment"], [{ name: "A", health_score: "50", health_band: "watch", health_narrative: "x", health_baseline: "1", health_adjustment: "2" }]);
+assert(withHealth.slice(1).every((s) => s.action === "ignore" && /export/.test(s.reason)), "The Health result columns the export writes are suggested as ignore, never kept as custom fields");
+const exAccept = suggestionsToMapping(rt);
+assert(exAccept[1].action === "existing_custom" && exAccept[1].fieldId === "cf_segment", "Accepting suggestions keeps the existing-field choice");
+
+const ex = (fieldId: string, header = "Segment Group"): ColumnMapping => [{ header: "Name", action: "map", target: "name" }, { header, action: "existing_custom", fieldId }];
+assert(validateMapping("customers", ex("cf_segment"), owned).length === 0, "A mapping to an existing custom field is accepted");
+assert(validateMapping("customers", ex("cf_gone"), owned).some((e) => /no longer exists/.test(e)), "A field id the workspace does not have is refused");
+assert(validateMapping("customers", ex("cf_segment"), [{ label: "Segment Group" }]).some((e) => /no longer exists/.test(e)), "Without the real field ids an existing-field choice cannot be trusted and is refused");
+assert(validateMapping("customers", [...ex("cf_segment"), { header: "Territory", action: "existing_custom", fieldId: "cf_segment" }], owned).some((e) => /same custom field/.test(e)), "Two columns cannot fill the same custom field");
+assert(validateMapping("tickets", [...KNOWN_COLUMNS.tickets.filter((c) => c.required).map((c) => ({ header: c.label, action: "map" as const, target: c.name })), { header: "R", action: "existing_custom", fieldId: "cf_segment" }], owned).some((e) => /only exist on the customers file/.test(e)), "An existing custom field cannot be used on a file other than customers");
+assert(validateMapping("customers", [...ex("cf_segment"), { header: "Y", action: "custom", label: "Segment Group", type: "text", shareWithAi: false }], owned).some((e) => /already have/.test(e)), "A new custom field cannot reuse an existing one's name");
+assert(validateMapping("customers", ex("cf_segment"), owned, ["Name", "Segment Group", "Other"]).some((e) => /"Other" has no choice/.test(e)), "File columns still need a choice when existing fields are involved");
+
+const exParsed = parseCsv("Name,Segment Group,Account Owner,Notes\nAcme,EMEA,Sam,hello\nBeta,APAC,,\n");
+const exApplied = applyMapping(exParsed, [{ header: "name", action: "map", target: "name" }, { header: "SEGMENT GROUP", action: "existing_custom", fieldId: "cf_segment" }, { header: "account owner", action: "existing_custom", fieldId: "cf_owner" }, { header: "notes", action: "ignore" }]);
+assert(exApplied.headers.join() === "name" && exApplied.existingFields.length === 2, "Existing-field columns are taken out of the rewritten file and listed");
+assert(exApplied.existingFieldValues.length === 2 && exApplied.existingFieldValues[0].cf_segment === "EMEA" && exApplied.existingFieldValues[0].cf_owner === "Sam" && exApplied.existingFieldValues[1].cf_owner === "", "Each row keeps its raw value for each existing field, row for row");
+assert(exApplied.customFields.length === 0, "An existing field is not treated as a new custom field");
+
+assert(parseColumnMapping([{ header: "Segment Group", action: "existing_custom", fieldId: "cf_segment" }]).ok, "A mapping with an existing_custom entry is accepted when read from the browser");
+reject([{ header: "a", action: "existing_custom" }], "an existing_custom with no field id");
+reject([{ header: "a", action: "existing_custom", fieldId: "" }], "an existing_custom with an empty field id");
+reject([{ header: "a", action: "existing_custom", fieldId: 5 }], "an existing_custom with a non-text field id");
+reject([{ header: "a", action: "existing_custom", fieldId: "x".repeat(501) }], "an existing_custom with a very long field id");
+reject([{ header: "a", action: "existing_custom", fieldId: "cf_x", label: "L" }], "an existing_custom with a label as well");
+reject([{ header: "a", action: "existing_custom", fieldId: "cf_x", shareWithAi: true }], "an existing_custom trying to change the AI setting");
+reject(JSON.parse('[{"header":"a","action":"existing_custom","fieldId":"x","__proto__":{"polluted":true}}]'), "an existing_custom with a __proto__ key");
+
+// ---------- a blank heading ----------
+// Decision: a column with no heading can be neither mapped nor named, so the
+// mapping screen shows it as "ignored" and leaves it out of the choices it sends.
+// The file still imports; the result says how many such columns were ignored.
+const blankFile = parseCsv("Name,,ARR,\nAcme,x,100,y\nBeta,,200,\n");
+const blankSugg = suggestMapping("customers", blankFile.headers, blankFile.rows);
+assert(blankSugg.length === 4 && blankSugg[1].action === "ignore" && blankSugg[3].action === "ignore", "A blank heading is suggested as ignore, one suggestion per column");
+const blankMapping = suggestionsToMapping(blankSugg).filter((e) => e.header !== "");
+assert(validateMapping("customers", blankMapping, [], blankFile.headers).length === 0, "Choices that leave out the blank-heading columns are valid for the whole file");
+const blankApplied = applyMapping(blankFile, blankMapping);
+assert(blankApplied.headers.join() === "name,contractual_arr" && blankApplied.rows[0].name === "Acme" && blankApplied.rows[0].contractual_arr === "100", "The blank-heading columns are dropped and the rest read normally");
+
+// ---------- all nine kinds go through the existing validators ----------
+const lookup = new Map([["acme freight", "c1"], ["cus-0001", "c1"]]);
+const messyKinds: { kind: MappingKind; csv: string; check: (headers: string[], rows: Record<string, string>[]) => { errors: unknown[]; rows: unknown[] }; expectMapped: string }[] = [
+  { kind: "stakeholders", csv: "Account Name,Contact Name,Job Title,Champion,Last Contacted,Extra\nAcme Freight,Alex,CTO,yes,2026-01-05,zzz\nCUS-0001,Bo,CFO,no,,zzz", check: (h, r) => validateStakeholderRows(h, r, lookup, 0), expectMapped: "customer,name,role,is_champion,last_engaged_date" },
+  { kind: "goals", csv: "Account,Objective,Target,Actual,Unit of Measure\nAcme Freight,Cut handling time,100,40,hours", check: (h, r) => validateGoalRows(h, r, lookup, 0), expectMapped: "customer,name,target_value,actual_value,unit" },
+  { kind: "training", csv: "Company,Course Name,Participants,Completed On\nAcme Freight,Onboarding 101,12,2026-02-01", check: (h, r) => validateTrainingRows(h, r, lookup, 0), expectMapped: "customer,course,attendees,date" },
+  { kind: "events", csv: "Client,Webinar,Attended On\nAcme Freight,Spring launch,2026-03-01", check: (h, r) => validateEventRows(h, r, lookup, 0), expectMapped: "customer,event,date" },
+  { kind: "surveys", csv: "Account,Survey Type,Rating,Responded On\nAcme Freight,nps,9,2026-03-02", check: (h, r) => validateSurveyRows(h, r, lookup, 0), expectMapped: "customer,type,score,date" },
+  { kind: "usage", csv: "Account,Product Name,Feature,Kind,Month,Amount\nAcme Freight,Freight,Shipment tracking,adoption,2026-01-01,40", check: (h, r) => validateUsageRows(h, r, lookup, 0), expectMapped: "customer,product,capability,metric_type,date,value" },
+];
+for (const m of messyKinds) {
+  const file = parseCsv(m.csv);
+  const sug = suggestMapping(m.kind, file.headers, file.rows);
+  const map = suggestionsToMapping(sug);
+  assert(validateMapping(m.kind, map, [], file.headers).length === 0, `${m.kind}: the suggestions for a file with differently named columns make a valid mapping`);
+  const applied = applyMapping(file, map);
+  assert(applied.headers.join() === m.expectMapped, `${m.kind}: the columns are read as ${m.expectMapped}`);
+  const checked = m.check(applied.headers, applied.rows);
+  assert(checked.errors.length === 0 && checked.rows.length === file.rows.length, `${m.kind}: the existing validator accepts the rewritten file`);
+}
+const noCustomHere = suggestMapping("stakeholders", ["Customer", "Name", "Favourite colour"], [{ customer: "a", name: "b", "favourite colour": "red" }]);
+assert(noCustomHere[2].action === "ignore", "stakeholders: an unknown column is ignored, because custom fields are customers-only");
+
+// ---------- who may use the Data page ----------
+assert(dataAccessProblem({ locked: true, isAdmin: true }, "import") === DEMO_LOCK_NOTICE, "The locked demo workspace refuses an import even to an admin");
+assert(dataAccessProblem({ locked: true, isAdmin: true }, "custom fields") === DEMO_LOCK_NOTICE, "...and refuses custom-field changes");
+assert(/Only a workspace admin/.test(dataAccessProblem({ locked: false, isAdmin: false }, "import") ?? ""), "A non-admin cannot import");
+assert(/Only a workspace admin/.test(dataAccessProblem({ locked: false, isAdmin: false }, "custom fields") ?? ""), "A non-admin cannot change custom fields");
+assert(dataAccessProblem({ locked: false, isAdmin: true }, "import") === null && dataAccessProblem({ locked: false, isAdmin: true }, "custom fields") === null, "An admin on an unlocked workspace may do both");
+assert(dataAccessProblem({ locked: true, isAdmin: false }, "import") === DEMO_LOCK_NOTICE, "The demo lock is reported before the admin check");
+
+// ---------- headings the export writes for custom fields ----------
+assert(normaliseHeader("'=SUM(A1)") === normaliseHeader("=SUM(A1)") && normaliseHeader("'@mention") === normaliseHeader("@mention") && normaliseHeader("'+1 score") === normaliseHeader("+1 score") && normaliseHeader("'-x") === normaliseHeader("-x"), "A heading the export guarded with a leading apostrophe reads as the plain label");
+assert(normaliseHeader("'hello") === "hello" && normaliseHeader("'") === "~'", "An apostrophe that is not a formula guard is only punctuation");
+assert(normaliseHeader("@") === "~@" && normaliseHeader("'@") === "~@" && normaliseHeader("-") === "~-" && normaliseHeader("   ") === "" && normaliseHeader("") === "", "A heading made only of symbols is compared as written, and stays apart from a blank heading");
+const guardFields = [{ id: "f1", label: "=SUM(A1)" }, { id: "f2", label: "@mention" }, { id: "f3", label: "-" }, { id: "f4", label: "Region" }, { id: "f5", label: "Health Score" }, { id: "f6", label: "Notes" }, { id: "f7", label: "Tier" }];
+const guardHeaders = ["name", "region", "tier", "health_score", "'=sum(a1)", "'@mention", "'-", "region (custom)", "health score (custom)", "notes", "tier (custom)"];
+const guarded = suggestMapping("customers", guardHeaders, [{ name: "A" }], guardFields);
+const at = (h: string) => guarded[guardHeaders.indexOf(h)];
+assert(at("'=sum(a1)").action === "existing_custom" && at("'=sum(a1)").fieldId === "f1", "A guarded formula-like heading maps to the existing field with that label");
+assert(at("'@mention").fieldId === "f2" && at("'-").fieldId === "f3", "...also an @ label and a symbols-only label");
+assert(at("region (custom)").action === "existing_custom" && at("region (custom)").fieldId === "f4", "A heading ending ' (custom)' maps to the existing field with that label (Region)");
+assert(at("health score (custom)").fieldId === "f5" && at("tier (custom)").fieldId === "f7", "...for every label that clashes with a standard column");
+assert(at("region").action === "map" && at("region").target === "region" && at("tier").target === "tier", "The plain standard heading stays the Bearing column even though a custom field has the same name");
+assert(at("health_score").action === "ignore", "The Health result column is ignored even though a custom field is called Health Score");
+assert(suggestMapping("customers", ["Name", "Health Score"], [{ name: "A", "health score": "7" }], guardFields)[1].fieldId === "f5", "...while a heading written as the field's own name (Health Score) is that field, beside the export's own health_score column");
+const side = suggestMapping("customers", ["name", "health_score", "health score"], [{ name: "A", health_score: "50", "health score": "7" }], guardFields);
+assert(side[1].action === "ignore" && side[2].action === "existing_custom" && side[2].fieldId === "f5", "The export's health_score and a custom field called Health Score, side by side, are told apart (the first is ignored, the second is the field)");
+assert(suggestMapping("customers", ["Name", "Contract value (ARR)"], [{ name: "A", "contract value (arr)": "7" }], [{ id: "f9", label: "Contract value (ARR)" }])[1].fieldId === "f9", "A field named like a Bearing column LABEL (not its column name) is matched by its exact name");
+assert(at("notes").fieldId === "f6", "An ordinary label still matches directly");
+assert(suggestMapping("customers", ["Name", "Bonus (custom)"], [{ name: "A", "bonus (custom)": "x" }], guardFields)[1].action === "custom", "A '(custom)' heading with no such existing field is just a new custom field suggestion");
+assert(suggestMapping("customers", ["Name", "Region (custom 2)"], [{ name: "A" }], guardFields)[1].fieldId === "f4", "A numbered '(custom 2)' heading, written when two names clash, also maps back");
+assert(suggestMapping("tickets", ["Customer", "Date", "Text", "Notes (custom)"], [{ customer: "a" }], guardFields)[3].action === "ignore", "Only the customers file maps to custom fields");
 
 console.log("\nAll import-mapping checks passed.");

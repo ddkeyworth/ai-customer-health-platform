@@ -5,6 +5,7 @@
 // on-pace account never reaches this, so it can't generate noise.
 import Anthropic from "@anthropic-ai/sdk";
 import { noEmDash, withStyleRules } from "../text";
+import { CUSTOM_FIELDS_SYSTEM_NOTE } from "../customFields/context";
 
 const RECOVERY_TOOL = {
   name: "record_onboarding_recovery",
@@ -50,7 +51,8 @@ export async function computeOnboardingRecovery(
   daysOverdue: number,
   expectedGoLiveDate: Date,
   interactions: { type: string; severity: string | null; text: string; occurredAt: Date }[],
-  apiKey: string
+  apiKey: string,
+  customContext = "" // workspace-defined custom fields, built by buildCustomFieldContext (empty when none)
 ): Promise<OnboardingRecoveryResult> {
   const anthropic = new Anthropic({ apiKey, timeout: 45_000, maxRetries: 1 }); // see the time budget in capabilityBatches.ts
 
@@ -65,10 +67,10 @@ export async function computeOnboardingRecovery(
     model: "claude-sonnet-4-5",
     max_tokens: 1024,
     system:
-      withStyleRules("You review one customer account that is overdue on its expected go-live date. You are given the account's interaction history. Decide whether there is enough real evidence to say why it stalled and suggest one concrete recovery step - if the only fact you have is 'it's late,' decline rather than inventing a plausible-sounding reason. Never invent facts not present in the data you were given."),
+      withStyleRules("You review one customer account that is overdue on its expected go-live date. You are given the account's interaction history. Decide whether there is enough real evidence to say why it stalled and suggest one concrete recovery step - if the only fact you have is 'it's late,' decline rather than inventing a plausible-sounding reason. Never invent facts not present in the data you were given." + (customContext ? CUSTOM_FIELDS_SYSTEM_NOTE : "")),
     tools: [RECOVERY_TOOL],
     tool_choice: { type: "tool", name: "record_onboarding_recovery" },
-    messages: [{ role: "user", content: JSON.stringify(payload, null, 2) }],
+    messages: [{ role: "user", content: JSON.stringify(customContext ? { ...payload, workspaceDefinedCustomFields: customContext } : payload, null, 2) }],
   });
 
   const toolUse = message.content.find((b) => b.type === "tool_use");

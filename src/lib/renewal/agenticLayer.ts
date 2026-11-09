@@ -7,6 +7,7 @@
 // Watch/Critical) - a healthy, on-track renewal never reaches this.
 import Anthropic from "@anthropic-ai/sdk";
 import { noEmDash, withStyleRules } from "../text";
+import { CUSTOM_FIELDS_SYSTEM_NOTE } from "../customFields/context";
 
 const SAVE_PLAY_TOOL = {
   name: "record_renewal_save_play",
@@ -59,7 +60,8 @@ export async function computeRenewalSavePlay(
   healthTier: string | null,
   healthNarrative: string | null,
   interactions: { type: string; severity: string | null; text: string }[],
-  apiKey: string
+  apiKey: string,
+  customContext = "" // workspace-defined custom fields, built by buildCustomFieldContext (empty when none)
 ): Promise<RenewalSavePlayResult> {
   const anthropic = new Anthropic({ apiKey, timeout: 45_000, maxRetries: 1 }); // see the time budget in capabilityBatches.ts
 
@@ -78,10 +80,10 @@ export async function computeRenewalSavePlay(
     model: "claude-sonnet-4-5",
     max_tokens: 1024,
     system:
-      withStyleRules("You review one at-risk renewal. A negative daysToRenewal means the renewal date has already passed without the account being marked renewed or churned. You are given a baseline churn likelihood for this account's Health band (either from real historical outcomes, or an illustrative estimate if there isn't enough history yet) and the account's own specific context. Decide whether this specific account's own signals warrant a bounded adjustment (-20 to +20 percentage points) to that baseline, list specific cited risk factors, and recommend one concrete save-play action for the CSM. Never invent facts not present in the data you were given."),
+      withStyleRules("You review one at-risk renewal. A negative daysToRenewal means the renewal date has already passed without the account being marked renewed or churned. You are given a baseline churn likelihood for this account's Health band (either from real historical outcomes, or an illustrative estimate if there isn't enough history yet) and the account's own specific context. Decide whether this specific account's own signals warrant a bounded adjustment (-20 to +20 percentage points) to that baseline, list specific cited risk factors, and recommend one concrete save-play action for the CSM. Never invent facts not present in the data you were given." + (customContext ? CUSTOM_FIELDS_SYSTEM_NOTE : "")),
     tools: [SAVE_PLAY_TOOL],
     tool_choice: { type: "tool", name: "record_renewal_save_play" },
-    messages: [{ role: "user", content: JSON.stringify(payload, null, 2) }],
+    messages: [{ role: "user", content: JSON.stringify(customContext ? { ...payload, workspaceDefinedCustomFields: customContext } : payload, null, 2) }],
   });
 
   const toolUse = message.content.find((b) => b.type === "tool_use");

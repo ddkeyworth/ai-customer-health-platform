@@ -4,6 +4,8 @@
 import { prisma } from "@/lib/prisma";
 import { computeAdoptionNudge } from "./agenticLayer";
 import { upsertProposedAgentAction } from "@/lib/agentActions";
+import { listCustomFields } from "@/lib/customFields/store";
+import { buildCustomFieldContext } from "@/lib/customFields/context";
 
 async function selectCandidates(workspaceId: string, onlyIds?: string[]) {
   const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
@@ -48,6 +50,9 @@ export async function computeAdoptionActionsForWorkspace(workspaceId: string, ap
 
   console.log(`Adoption agentic layer: ${candidates.length} account(s) below ${threshold}% breadth.`);
 
+  // Loaded once per run; each customer's shareable values are built from it.
+  const customFieldDefs = await listCustomFields(workspaceId);
+
   for (const c of candidates) {
     const entitledNames = c.entitled.map((cap) => cap.name);
     const usedNames = c.entitled.filter((cap) => c.usedIds.has(cap.id)).map((cap) => cap.name);
@@ -58,7 +63,8 @@ export async function computeAdoptionActionsForWorkspace(workspaceId: string, ap
       entitledNames,
       usedNames,
       c.cp.customer.interactions,
-      apiKey
+      apiKey,
+      buildCustomFieldContext(customFieldDefs, c.cp.customer.customFields)
     );
 
     await upsertProposedAgentAction({

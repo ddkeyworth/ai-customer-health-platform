@@ -3,7 +3,10 @@ import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import { demoLockEnabled, isSpendLocked, DEMO_LOCK_NOTICE } from "@/lib/demoGuard";
 import { activeLimits } from "@/lib/import/validate";
 import { isSelfHosted } from "@/lib/deployment";
+import { getSessionUser } from "@/lib/auth";
+import { listCustomFields } from "@/lib/customFields/store";
 import ImportForm from "@/components/ImportForm";
+import CustomFieldsPanel from "@/components/CustomFieldsPanel";
 import DeleteWorkspaceForm from "@/components/DeleteWorkspaceForm";
 
 export const dynamic = "force-dynamic";
@@ -92,6 +95,8 @@ export default async function DataPage() {
   // login with a publicly known password in its database.
   const selfHostedWithDemo = isSelfHosted() && demoWorkspaces > 0;
   const limits = activeLimits();
+  const user = await getSessionUser();
+  const customFields = await listCustomFields(workspace.id);
 
   return (
     <div className="max-w-3xl">
@@ -117,8 +122,10 @@ export default async function DataPage() {
 
       <h2 className="text-sm font-medium text-zinc-900 mb-2">Import</h2>
       <p className="text-xs text-zinc-500 mb-3">
-        Upload CSV files, customers first. Each file is checked completely before anything is saved: if any row is wrong
-        you are told which one and nothing is imported. Importing the same file again does not double your data: rows that
+        Upload CSV files, customers first. Choose a file and select Check file: Bearing shows what it thinks each column
+        is, you change anything that is wrong, then select Import. A file laid out like the template needs no changes.
+        Each file is checked completely before anything is saved: if any row is wrong you are told which one and nothing
+        is imported. Importing the same file again does not double your data: rows that
         already exist are skipped and counted. Limits: {Math.round(limits.maxBytes / 1000)} KB per file,{" "}
         {limits.maxCustomersPerWorkspace} customers and {limits.maxChildRowsPerWorkspace.toLocaleString("en-GB")} rows per
         file type per workspace. Every file after customers names a customer by its ref (such as CUS-0001) or its exact
@@ -138,6 +145,22 @@ export default async function DataPage() {
             <ImportForm kind={i.kind} disabled={locked} />
           </div>
         ))}
+      </div>
+
+      <h2 className="text-sm font-medium text-zinc-900 mb-2">Custom fields</h2>
+      <p className="text-xs text-zinc-500 mb-3">
+        Columns in a customers file that Bearing has no built-in field for can be kept as custom fields of your own. They
+        show on each customer, can be used to filter segments, and are written back out when you export. A field is only
+        sent to the AI if you switch on Include in AI reads. You can have up to 25.
+      </p>
+      <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm mb-8">
+        <CustomFieldsPanel
+          fields={customFields.map((f) => ({ id: f.id, label: f.label, type: f.type, options: f.options, shareWithAi: f.shareWithAi }))}
+          disabled={locked || !user?.isAdmin}
+        />
+        {!locked && !user?.isAdmin && customFields.length > 0 && (
+          <p className="mt-2 text-xs text-zinc-500">Only a workspace admin can change custom fields.</p>
+        )}
       </div>
 
       <h2 className="text-sm font-medium text-zinc-900 mb-2">Export</h2>

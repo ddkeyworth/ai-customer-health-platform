@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { createSegment, deleteSegment } from "./actions";
 import { customersMatchingCriteria, SegmentCriteria } from "@/lib/segments";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
+import { listCustomFields } from "@/lib/customFields/store";
+import CustomFieldFilters from "@/components/CustomFieldFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -12,11 +14,12 @@ const SEGMENT_CAP = 20;
 export default async function SegmentsPage() {
   const workspace = await getCurrentWorkspace();
 
-  const [segments, industries, regions, tiers] = await Promise.all([
+  const [segments, industries, regions, tiers, customFieldDefs] = await Promise.all([
     prisma.segment.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "desc" } }),
     prisma.customer.findMany({ where: { workspaceId: workspace.id }, distinct: ["industry"], select: { industry: true } }),
     prisma.customer.findMany({ where: { workspaceId: workspace.id }, distinct: ["region"], select: { region: true } }),
     prisma.customer.findMany({ where: { workspaceId: workspace.id }, distinct: ["tier"], select: { tier: true } }),
+    listCustomFields(workspace.id),
   ]);
 
   const counts = await Promise.all(
@@ -112,6 +115,7 @@ export default async function SegmentsPage() {
               </select>
             </div>
           </div>
+          <CustomFieldFilters defs={customFieldDefs} />
           <button type="submit" className="rounded-lg bg-[#0C447C] hover:bg-[#0a3a69] transition-colors text-white text-sm px-3 py-1.5">
             Save segment
           </button>

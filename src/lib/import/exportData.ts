@@ -18,6 +18,8 @@
 // link comes back with a "Core product" link, and the customers file carries only
 // the first champion (the stakeholders file carries everyone).
 import { prisma } from "@/lib/prisma";
+import { listCustomFields } from "@/lib/customFields/store";
+import { exportValue, storedValues, type CustomFieldLike } from "@/lib/customFields/values";
 
 export type ExportKind =
   | "customers"
@@ -62,6 +64,31 @@ export function toCsv(headers: string[], rows: Cell[][]): string {
   return [headers.join(","), ...rows.map((r) => r.map(cell).join(","))].join("\r\n") + "\r\n";
 }
 
+// The customers file's standard columns, in order. Custom fields come after them.
+export const CUSTOMER_EXPORT_HEADERS = [
+  "ref", "name", "country", "industry", "region", "city", "sub_industry", "tier", "product", "lifecycle_status",
+  "contractual_arr", "consumption_arr", "renewal_date", "expected_go_live_date", "go_live_date", "payment_status",
+  "days_past_due", "renewal_type", "interrupted_reason", "nps", "nps_date", "champion_name", "champion_last_engaged",
+  "health_score", "health_band", "health_baseline", "health_adjustment", "health_narrative",
+];
+
+// One header per custom field: its exact label, unless that would clash with a
+// standard column or an earlier custom field (compared ignoring case), in which
+// case " (custom)" is added, then a number if it still clashes. The result is
+// already quoted for CSV and, like any text, guarded against being read as a
+// spreadsheet formula.
+export function customFieldHeaders(defs: CustomFieldLike[], standard: string[] = CUSTOMER_EXPORT_HEADERS): string[] {
+  const taken = new Set(standard.map((h) => h.toLowerCase()));
+  return defs.map((d) => {
+    let label = d.label;
+    if (taken.has(label.toLowerCase())) label = `${d.label} (custom)`;
+    for (let n = 2; taken.has(label.toLowerCase()); n++) label = `${d.label} (custom ${n})`;
+    taken.add(label.toLowerCase());
+    const guarded = neutraliseFormula(label);
+    return /[",\r\n]/.test(guarded) ? `"${guarded.replace(/"/g, '""')}"` : guarded;
+  });
+}
+
 const who = (c: { ref: string | null; name: string }) => c.ref ?? c.name;
 const byCustomerThenDate = [{ customerId: "asc" as const }, { occurredAt: "asc" as const }];
 
@@ -80,8 +107,10 @@ export async function buildExport(workspaceId: string, kind: ExportKind): Promis
         healthSnapshots: { orderBy: { computedAt: "desc" }, take: 1 },
       },
     });
+    const defs = await listCustomFields(workspaceId);
     const rows: Cell[][] = [];
     for (const c of customers) {
+      const stored = storedValues(c.customFields);
       const champion = c.stakeholders.find((s) => s.isChampion);
       const snap = c.healthSnapshots[0];
       const nps = c.surveyResponses[0];
@@ -103,18 +132,13 @@ export async function buildExport(workspaceId: string, kind: ExportKind): Promis
           first ? snap?.compositeScore : null, first ? snap?.tierLabel : null,
           first ? snap?.baselineScore : null, first ? snap?.adjustmentDelta : null,
           first ? snap?.narrative : null,
+          // Custom fields: customer-level, so on the customer's first row only
+          // (the importer takes the first row as the customer).
+          ...defs.map((d) => (first ? exportValue(d.type, stored[d.id]) : null)),
         ]);
       });
     }
-    return toCsv(
-      [
-        "ref", "name", "country", "industry", "region", "city", "sub_industry", "tier", "product", "lifecycle_status",
-        "contractual_arr", "consumption_arr", "renewal_date", "expected_go_live_date", "go_live_date", "payment_status",
-        "days_past_due", "renewal_type", "interrupted_reason", "nps", "nps_date", "champion_name", "champion_last_engaged",
-        "health_score", "health_band", "health_baseline", "health_adjustment", "health_narrative",
-      ],
-      rows
-    );
+    return toCsv([...CUSTOMER_EXPORT_HEADERS, ...customFieldHeaders(defs)], rows);
   }
 
   if (kind === "tickets") {

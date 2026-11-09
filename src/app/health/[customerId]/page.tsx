@@ -5,6 +5,9 @@ import { DriverResult } from "@/lib/health/drivers";
 import { tierColor, driverBarColor } from "@/lib/health/ui";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import CustomerRef from "@/components/CustomerRef";
+import CustomFieldValues from "@/components/CustomFieldValues";
+import { listCustomFields } from "@/lib/customFields/store";
+import { customerCustomValues } from "@/lib/customFields/values";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +25,9 @@ export default async function CustomerHealthPage({
   });
   if (!customer || customer.workspaceId !== workspace.id) notFound();
 
+  // The workspace's own custom fields for this customer (empty when there are none).
+  const customValues = customerCustomValues(await listCustomFields(workspace.id), customer.customFields);
+
   const snapshot = await prisma.healthScoreSnapshot.findFirst({
     where: { customerId },
     orderBy: { computedAt: "desc" },
@@ -34,7 +40,8 @@ export default async function CustomerHealthPage({
           &larr; Back to Health
         </Link>
         <h1 className="text-2xl font-semibold text-zinc-900 mt-3">{customer.name}<CustomerRef value={customer.ref} /></h1>
-        <p className="mt-2 text-sm text-zinc-600">No Health score computed yet for this customer.</p>
+        <p className="mt-2 mb-6 text-sm text-zinc-600">No Health score computed yet for this customer.</p>
+        <CustomFieldValues values={customValues} />
       </div>
     );
   }
@@ -69,6 +76,8 @@ export default async function CustomerHealthPage({
           </span>
         ))}
       </div>
+
+      <CustomFieldValues values={customValues} />
 
       <div className="rounded-xl bg-[#378ADD]/5 border border-[#378ADD]/20 p-4 mb-6 text-sm text-zinc-800">
         {snapshot.narrative}

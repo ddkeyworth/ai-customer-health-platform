@@ -414,3 +414,19 @@ Three changes, each tested. Two of them fix problems found while testing, not ju
 - Stripe test mode.
 - Payment tests.
 - The final repeat of this skeptical test, after the items above, so it also covers payments and the flexible import.
+
+## Test 32 - Flexible import (mapping screen and custom fields)
+
+**What was built.** Importing is now two steps for all nine file kinds: choose a file and Check file (a table shows what Bearing thinks each column is, with sample values), then Import. A person can map a column to a built-in field or an existing custom field, ignore it, or (customers file only) keep it as a new custom field of type text, number, date or pick-list. Custom fields are stored per workspace (up to 25) and per customer, shown on the customer page, usable as Segment filters, written as extra export columns headed by the field's name, and offered to the AI reads only when the field's Include in AI reads switch is on (off by default). Column choices are saved per workspace and column signature and reused for the next file with the same columns. A Custom fields panel on the Data page renames, switches and deletes fields.
+
+**Tests added and run before the piece was called done:**
+- `prisma/test-import-mapping.ts` extended from 260 to 388 checks: the mapping for all nine kinds, mapping to an existing field, blank headers, an exported header that equals an existing field's label (including the guarded and "(custom)" forms).
+- `prisma/test-custom-fields.ts`, new, 210 checks against the database: create, rename and delete (the 25 cap, case-insensitive names, workspace isolation, delete removing values from every customer); the AI-reads switch persisting off, on, off; a messy realistic file ('Account Name, ACV (GBP), Contract End, Region, Owner, Health Notes') imported through the mapping; a text value in a number field refusing the whole import with the right row and leaving no field, no customer and no saved mapping; saved mappings reused by signature (reordered or recased columns reuse, a different column set does not); hostile mappings refused (prototype keys, a custom field for a non-customers file, 26 fields, another workspace's field id); all nine kinds imported through the mapping; and an export with awkward field names mapping every custom column back to its field.
+- `prisma/test-custom-fields-use.ts`, new, 152 checks: Segment filters for every type and operator, the export's custom columns (header exactly the label, formula guard, escaping, unchanged columns for a workspace with none), the AI context block (only switched-on fields, truncation, hostile text kept inside its block) and workspace isolation.
+- Existing tests kept passing: segments 9, import and export 149, CSV reader and rules 199, Layer 2 guards 18.
+
+**Findings handled along the way:** a custom field whose name begins with = + - or @ is guarded in the export header, and a name that clashes with a standard column is written with " (custom)" added; the importer now maps both back to the field. A plain column called "Health Score" in someone's own file is now offered as a new custom field instead of being treated as Bearing's own score column.
+
+**Not seen in a browser by its author:** the mapping screen and the Custom fields panel were type-checked, linted and tested through their server code; the browser journey (see above, updated for the two-step import) covers the screens.
+
+[LEAD TO FILL: flexible import browser journey results]

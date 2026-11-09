@@ -112,7 +112,6 @@ All 10 dashboard screens (Home, Health, Briefing, Onboarding, Adoption, Expansio
 
 - **Password reset by email.** Password reset works with a recovery key instead (see [Authentication](#authentication)); an emailed link would need an email provider.
 - **Adding or editing a single customer by form.** Data comes in by CSV import.
-- **Flexible import screens.** The column-mapping logic and database tables exist, but the screen to map your own column names, or turn extra columns into custom fields, is not built yet. The import reads the columns listed on the Data page.
 - **Team roles and invitations.** Each workspace has one admin.
 - **Real payments.** The subscribe button is a placeholder. A Stripe test mode is planned, after a decision on how paid licences will work.
 - **Small import limits.** A customer with no product still gets a "Core product" link on import, and the customers file carries only the first champion (the stakeholders file carries everyone).
@@ -279,6 +278,10 @@ How it behaves:
 - **Forgiving headers, reported honestly.** A heading such as "Contractual ARR" is read as the column it means, and any column Bearing does not know is reported as ignored. Amounts accept thousands commas only in correct groups ("1,200"); "1,50" is refused rather than read as 150. Dates are written `YYYY-MM-DD`.
 - **Limits.** 1,000 KB per file, 60 columns and 20,000 rows per file. A self-hosted copy allows 500 customers and 100,000 rows per kind per workspace; the hosted demo is far smaller. Only a workspace admin can import or delete.
 
+**Importing is two steps.** Choose a file and select **Check file**: Bearing shows what it thinks each column is, with up to three sample values. Change anything that is wrong, keep an unknown column as a **custom field** (text, number, date or pick-list), or ignore it, then select **Import**. A file laid out like the template needs no changes. The whole file is checked on the server before anything is saved, and one bad row means nothing is imported, no custom field is created and no mapping is saved. Custom fields are for the customers file; every other file maps or ignores columns. Bearing remembers your column choices for the next file with the same columns ("Saved mapping applied").
+
+**Custom fields** are your own columns, kept per workspace (up to 25). They show on each customer's page, can be used to filter a Segment (text, number, date and pick-list filters), and appear in the customers export as extra columns headed by the field's name, so an exported file loads straight back into the same fields. Under **Custom fields** on the Data page you can rename a field, switch **Include in AI reads** on or off, or delete it (which removes its values from every customer). A custom field is only sent to the AI if that switch is on. It is off by default, because the AI reads go to Anthropic on the workspace's own key and your own columns may be sensitive.
+
 **Export** downloads the same layouts, so any file can be loaded straight back into another workspace or another copy of Bearing, and exporting then re-importing returns your data field for field (this round trip is tested across all nine kinds). The customers file also carries each customer's Health score, band and narrative, and a tenth file lists the AI's recommendations with their reasoning and status. Text that begins with `=`, `+`, `-` or `@` gets a leading quote in the export so a spreadsheet cannot run it as a formula, and the import removes that quote again.
 
 **Delete this workspace** (bottom of the Data page) permanently removes the workspace, every customer and all their data, the AI results and your login. You must type the workspace name to confirm.
@@ -331,7 +334,7 @@ separate, additional requirement, not a substitute for an active trial.
 
 ## Test coverage
 
-Twenty-three assert-based regression scripts (each throws and exits non-zero on failure, rather than printing output for a human to eyeball), all under `prisma/` and run via `npx tsx prisma/<name>.ts`:
+Twenty-five assert-based regression scripts (each throws and exits non-zero on failure, rather than printing output for a human to eyeball), all under `prisma/` and run via `npx tsx prisma/<name>.ts`:
 
 | Script | Covers |
 |---|---|
@@ -354,7 +357,9 @@ Twenty-three assert-based regression scripts (each throws and exits non-zero on 
 | `test-deployment-modes.ts` | The settings that separate the hosted site from your own copy (`SELF_HOSTED`, `ALLOW_SIGNUP`, `ALLOW_DEMO_SEED`): only the exact value counts, so a mistyped setting stays safe |
 | `test-password-reset.ts` | Recovery-key password reset: key format and uniqueness, only the hash stored, a successful reset (new password works, old fails, every session ended, a new key issued, the old key dead), every wrong-key, wrong-email and weak-password case failing the same way, one user never affecting another, change-password rules, and the demo locked out |
 | `test-pagination.ts` | The "Show more" lists: the `show` parameter is a whole number from 25 to 500 or it falls back to 25, and slicing never changes order or totals |
-| `test-import-mapping.ts` | The column-mapping logic behind the planned flexible import: header aliases, value sniffing, the two-columns-one-target rule, custom-field limits, applying a mapping so the real validators accept the result, and hostile JSON being refused |
+| `test-import-mapping.ts` | The column-mapping logic behind the flexible import, for all nine file kinds: header aliases, value sniffing, the two-columns-one-target rule, mapping to an existing custom field, custom-field limits, applying a mapping so the real validators accept the result, and hostile JSON being refused |
+| `test-custom-fields.ts` | The flexible import against the database: creating, renaming and deleting custom fields (the 25 cap, case-insensitive names, one workspace never seeing another's), the AI-reads switch persisting off, on, off, a realistic messy file imported through the mapping, a bad value in a number field refusing the whole import with no field, customer or saved mapping left behind, saved mappings reused by column signature, hostile mappings refused, and an export with awkward field names mapping every custom column back |
+| `test-custom-fields-use.ts` | Where custom fields are used: Segment filters for every field type and operator (and never crashing on a deleted field or malformed filter), the export's custom columns with the formula guard and escaping, and the AI context block (only fields switched on for the AI, truncated, hostile text kept inside its block) |
 | `test-csp.ts` | The per-request Content Security Policy: every directive, the nonce only in the script rule, no inline scripts, no eval in production, and that every response path carries it |
 | `test-demo-dates.ts` | The demo date refresh: dates move by exactly N days, nulls stay null, another workspace is untouched, real AI-run timestamps are not shifted, quoted dates move with the data, and day-count headlines are recalculated |
 | `test-agent-actions.ts` | The shared AgentAction upsert helper - refreshes an existing proposed row in place, leaves a reviewed one alone, and keeps two different subjects (e.g. two Products) independent rather than one overwriting the other |

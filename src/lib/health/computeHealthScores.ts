@@ -13,6 +13,7 @@ import { computeBaseline } from "./baseline";
 import { computeAgenticLayer } from "./agenticLayer";
 import { decryptSecret } from "@/lib/workspaceSecret";
 import { baselineConfidence, baselineNarrative } from "./baselineNarrative";
+import { listCustomFields } from "@/lib/customFields/store";
 
 function tierLabelFor(score: number): string {
   if (score >= 85) return "Thriving";
@@ -40,10 +41,13 @@ export async function computeHealthScoresForWorkspace(workspaceId: string, onlyI
   });
   console.log(`Computing Health scores for "${workspace.name}" (${customers.length} customers)...`);
 
+  // Loaded once per run; each customer's shareable values are built from it.
+  const customFieldDefs = await listCustomFields(workspaceId);
+
   for (const customer of customers) {
     const { baselineScore, drivers } = await computeBaseline(customer.id);
     const agentic = apiKey
-      ? await computeAgenticLayer(customer.id, baselineScore, drivers, apiKey)
+      ? await computeAgenticLayer(customer.id, baselineScore, drivers, apiKey, customFieldDefs)
       : {
           adjustmentDelta: 0,
           adjustmentReason: null,

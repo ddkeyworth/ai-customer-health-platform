@@ -8,6 +8,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { PrismaClient } from "@prisma/client";
 import { DriverResult } from "./drivers";
 import { noEmDash, withStyleRules } from "../text";
+import { CUSTOM_FIELDS_SYSTEM_NOTE, buildCustomFieldContext } from "../customFields/context";
+import type { CustomFieldLike } from "../customFields/values";
 
 const prisma = new PrismaClient();
 
@@ -95,7 +97,8 @@ export async function computeAgenticLayer(
   customerId: string,
   baselineScore: number,
   drivers: DriverResult[],
-  apiKey: string
+  apiKey: string,
+  customFieldDefs: CustomFieldLike[] = []
 ): Promise<AgenticResult> {
   const anthropic = new Anthropic({ apiKey, timeout: 45_000, maxRetries: 1 }); // see the time budget in capabilityBatches.ts
   const customer = await prisma.customer.findUniqueOrThrow({
@@ -104,6 +107,9 @@ export async function computeAgenticLayer(
   });
   const interactions = await prisma.interaction.findMany({ where: { customerId } });
   const competitors = await prisma.competitorConfig.findMany({ where: { workspaceId: customer.workspaceId } });
+
+  // Only fields the workspace marked as shareable with the AI; empty when there are none.
+  const customContext = buildCustomFieldContext(customFieldDefs, customer.customFields);
 
   const payload = {
     accountContext: {
@@ -122,10 +128,10 @@ export async function computeAgenticLayer(
     model: "claude-sonnet-4-5",
     max_tokens: 1024,
     system:
-      withStyleRules("You compute a Customer Success Health read for one account. You are given a deterministic baseline score and the raw signals behind it. Your job: (1) decide whether a bounded adjustment (-15 to +15) to the baseline is warranted, (2) write a short evidence-grounded narrative, (3) scan the provided interaction text for mentions of the configured competitors' names or known capabilities. The baseline already scores all 15 drivers, including usage and engagement trend, champion engagement, engagement silence, payment health, NPS, support volume and severity, competitor risk, capability breadth, desired outcomes and training. Penalising or rewarding an account again for something a driver already scores counts it twice. The default adjustment is 0. Adjust only for evidence no driver captures, such as a stated intent in the interaction text that is specific and unusual (a cancellation threat, an executive sponsor leaving, a named internal decision), a one-off incident, or an interaction between signals that a per-driver score cannot express, and quote that evidence in evidenceNotInDrivers. A routine request or question is not evidence. Positive evidence is weighed against the account's overall risk: it does not outweigh declining usage, a silent champion or a late payment. Never invent facts not present in the data you were given."),
+      withStyleRules("You compute a Customer Success Health read for one account. You are given a deterministic baseline score and the raw signals behind it. Your job: (1) decide whether a bounded adjustment (-15 to +15) to the baseline is warranted, (2) write a short evidence-grounded narrative, (3) scan the provided interaction text for mentions of the configured competitors' names or known capabilities. The baseline already scores all 15 drivers, including usage and engagement trend, champion engagement, engagement silence, payment health, NPS, support volume and severity, competitor risk, capability breadth, desired outcomes and training. Penalising or rewarding an account again for something a driver already scores counts it twice. The default adjustment is 0. Adjust only for evidence no driver captures, such as a stated intent in the interaction text that is specific and unusual (a cancellation threat, an executive sponsor leaving, a named internal decision), a one-off incident, or an interaction between signals that a per-driver score cannot express, and quote that evidence in evidenceNotInDrivers. A routine request or question is not evidence. Positive evidence is weighed against the account's overall risk: it does not outweigh declining usage, a silent champion or a late payment. Never invent facts not present in the data you were given." + (customContext ? CUSTOM_FIELDS_SYSTEM_NOTE : "")),
     tools: [ADJUSTMENT_TOOL],
     tool_choice: { type: "tool", name: "record_health_adjustment" },
-    messages: [{ role: "user", content: JSON.stringify(payload, null, 2) }],
+    messages: [{ role: "user", content: JSON.stringify(customContext ? { ...payload, workspaceDefinedCustomFields: customContext } : payload, null, 2) }],
   });
 
   const toolUse = message.content.find((b) => b.type === "tool_use");

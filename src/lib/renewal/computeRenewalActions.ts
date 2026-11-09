@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { computeBaselineChurnRates } from "./churnModel";
 import { computeRenewalSavePlay } from "./agenticLayer";
 import { upsertProposedAgentAction } from "@/lib/agentActions";
+import { listCustomFields } from "@/lib/customFields/store";
+import { buildCustomFieldContext } from "@/lib/customFields/context";
 
 async function selectAtRisk(workspaceId: string, now: Date, onlyIds?: string[]) {
   const rows = await prisma.customerProduct.findMany({
@@ -48,6 +50,9 @@ export async function computeRenewalActionsForWorkspace(workspaceId: string, api
   console.log(`Renewal agentic layer: ${atRisk.length} at-risk renewal(s) in the next 90 days.`);
   const baselineRates = await computeBaselineChurnRates(workspaceId);
 
+  // Loaded once per run; each customer's shareable values are built from it.
+  const customFieldDefs = await listCustomFields(workspaceId);
+
   for (const r of atRisk) {
     const snap = r.customer.healthSnapshots[0] ?? null;
     const tier = snap?.tierLabel ?? "Stable";
@@ -63,7 +68,8 @@ export async function computeRenewalActionsForWorkspace(workspaceId: string, api
       tier,
       snap?.narrative ?? null,
       r.customer.interactions,
-      apiKey
+      apiKey,
+      buildCustomFieldContext(customFieldDefs, r.customer.customFields)
     );
 
     const adjustedLikelihood = Math.max(0, Math.min(1, baseline.rate + result.likelihoodAdjustmentPct / 100));

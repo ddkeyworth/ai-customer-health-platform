@@ -4,6 +4,7 @@
 // threshold - see Workspace.adoptionUnderusedThresholdPct.
 import Anthropic from "@anthropic-ai/sdk";
 import { noEmDash, withStyleRules } from "../text";
+import { CUSTOM_FIELDS_SYSTEM_NOTE } from "../customFields/context";
 
 const NUDGE_TOOL = {
   name: "record_adoption_nudge",
@@ -46,7 +47,8 @@ export async function computeAdoptionNudge(
   entitledCapabilities: string[],
   usedCapabilities: string[],
   interactions: { type: string; severity: string | null; text: string }[],
-  apiKey: string
+  apiKey: string,
+  customContext = "" // workspace-defined custom fields, built by buildCustomFieldContext (empty when none)
 ): Promise<AdoptionNudgeResult> {
   const anthropic = new Anthropic({ apiKey, timeout: 45_000, maxRetries: 1 }); // see the time budget in capabilityBatches.ts
 
@@ -63,10 +65,10 @@ export async function computeAdoptionNudge(
     model: "claude-sonnet-4-5",
     max_tokens: 1024,
     system:
-      withStyleRules("You review one account using less than expected of what it's entitled to. You are given the entitled/used capability split and the account's interaction history. Decide which unused capabilities are worth a nudge and what kind - check whether the account has actually asked about an unused capability (a real signal) versus never mentioned it at all. Never invent facts not present in the data you were given."),
+      withStyleRules("You review one account using less than expected of what it's entitled to. You are given the entitled/used capability split and the account's interaction history. Decide which unused capabilities are worth a nudge and what kind - check whether the account has actually asked about an unused capability (a real signal) versus never mentioned it at all. Never invent facts not present in the data you were given." + (customContext ? CUSTOM_FIELDS_SYSTEM_NOTE : "")),
     tools: [NUDGE_TOOL],
     tool_choice: { type: "tool", name: "record_adoption_nudge" },
-    messages: [{ role: "user", content: JSON.stringify(payload, null, 2) }],
+    messages: [{ role: "user", content: JSON.stringify(customContext ? { ...payload, workspaceDefinedCustomFields: customContext } : payload, null, 2) }],
   });
 
   const toolUse = message.content.find((b) => b.type === "tool_use");

@@ -13,9 +13,10 @@ import {
   coerceCustomValue,
   type CustomFieldType,
 } from "./customFields";
-import { parseDate } from "./validate";
+import { parseDate, type ImportKind } from "./validate";
 
-export type MappingKind = "customers" | "tickets" | "usage" | "outcomes";
+// The same nine kinds the importer reads.
+export type MappingKind = ImportKind;
 
 // ---------- the catalogue of columns Bearing already understands ----------
 
@@ -27,6 +28,7 @@ export interface KnownColumn {
 }
 
 const CUSTOMER_REF_ALIASES = ["customer name", "customer ref", "customer id", "account", "account name", "account id", "company", "company name", "client", "client name", "customer reference"];
+const CUSTOMER_COLUMN: KnownColumn = { name: "customer", label: "Customer", required: true, aliases: CUSTOMER_REF_ALIASES.concat(["ref", "customer"]) };
 
 export const KNOWN_COLUMNS: Record<MappingKind, KnownColumn[]> = {
   customers: [
@@ -34,6 +36,9 @@ export const KNOWN_COLUMNS: Record<MappingKind, KnownColumn[]> = {
     { name: "ref", label: "Customer reference", required: false, aliases: ["customer ref", "customer id", "account id", "id", "reference", "customer number", "crm id", "account number"] },
     { name: "country", label: "Country", required: false, aliases: ["nation", "country name"] },
     { name: "industry", label: "Industry", required: false, aliases: ["sector", "vertical", "industry sector"] },
+    { name: "region", label: "Region", required: false, aliases: ["territory", "sales region", "area", "geo", "geography"] },
+    { name: "city", label: "City", required: false, aliases: ["town", "hq city", "head office city"] },
+    { name: "sub_industry", label: "Sub-industry", required: false, aliases: ["sub industry", "subsector", "sub sector", "industry segment", "sub vertical"] },
     { name: "tier", label: "Tier", required: false, aliases: ["customer tier", "account tier", "size band", "customer size"] },
     { name: "product", label: "Product", required: false, aliases: ["product name", "product line", "solution"] },
     { name: "lifecycle_status", label: "Lifecycle status", required: false, aliases: ["lifecycle", "status", "stage", "lifecycle stage", "account status", "customer status"] },
@@ -47,29 +52,68 @@ export const KNOWN_COLUMNS: Record<MappingKind, KnownColumn[]> = {
     { name: "renewal_type", label: "Renewal type", required: false, aliases: ["renewal mode", "contract renewal type"] },
     { name: "interrupted_reason", label: "Interruption reason", required: false, aliases: ["interruption reason", "reason interrupted", "non renewal reason", "reason for interruption"] },
     { name: "nps", label: "NPS score", required: false, aliases: ["nps score", "net promoter score", "nps rating", "net promoter"] },
+    { name: "nps_date", label: "NPS date", required: false, aliases: ["nps survey date", "survey date", "nps recorded", "date of nps", "nps measured", "nps taken"] },
     { name: "champion_name", label: "Champion", required: false, aliases: ["champion", "main contact", "key contact", "sponsor", "exec sponsor", "executive sponsor", "primary contact", "champion name"] },
     { name: "champion_last_engaged", label: "Champion last engaged", required: false, aliases: ["champion last contacted", "last contact", "last engaged", "last contacted", "last touch", "last contact date", "sponsor last contacted", "champion last contact"] },
   ],
   tickets: [
-    { name: "customer", label: "Customer", required: true, aliases: CUSTOMER_REF_ALIASES.concat(["ref", "customer"]) },
+    CUSTOMER_COLUMN,
     { name: "date", label: "Date", required: true, aliases: ["created", "created at", "created date", "opened", "opened at", "date opened", "raised", "raised on", "timestamp", "ticket date", "logged", "logged on"] },
     { name: "type", label: "Type", required: false, aliases: ["channel", "ticket type", "kind", "interaction type", "source"] },
     { name: "severity", label: "Severity", required: false, aliases: ["priority", "urgency", "ticket priority", "impact"] },
     { name: "text", label: "Text", required: true, aliases: ["ticket text", "description", "summary", "body", "message", "details", "ticket description", "issue", "content", "comment"] },
   ],
   usage: [
-    { name: "customer", label: "Customer", required: true, aliases: CUSTOMER_REF_ALIASES.concat(["ref", "customer"]) },
+    CUSTOMER_COLUMN,
+    { name: "product", label: "Product", required: false, aliases: ["product name", "product line", "solution"] },
     { name: "capability", label: "Capability", required: true, aliases: ["feature", "metric", "product area", "module", "feature name", "metric name", "capability name", "usage metric"] },
     { name: "metric_type", label: "Metric type", required: false, aliases: ["metric kind", "kind", "measure type", "adoption or consumption"] },
     { name: "date", label: "Date", required: true, aliases: ["period", "month", "reading date", "measured at", "as of", "usage date", "recorded", "recorded on"] },
     { name: "value", label: "Value", required: true, aliases: ["amount", "count", "usage", "reading", "quantity", "units", "volume", "usage value"] },
   ],
   outcomes: [
-    { name: "customer", label: "Customer", required: true, aliases: CUSTOMER_REF_ALIASES.concat(["ref", "customer"]) },
+    CUSTOMER_COLUMN,
     { name: "date", label: "Date", required: true, aliases: ["outcome date", "closed", "closed on", "effective date", "decision date", "event date"] },
     { name: "type", label: "Outcome", required: true, aliases: ["outcome", "outcome type", "result", "event", "event type"] },
     { name: "notes", label: "Notes", required: false, aliases: ["note", "comment", "comments", "reason", "details", "description"] },
   ],
+  stakeholders: [
+    CUSTOMER_COLUMN,
+    { name: "name", label: "Person's name", required: true, aliases: ["contact", "contact name", "person", "stakeholder", "stakeholder name", "full name", "contact person"] },
+    { name: "role", label: "Role", required: false, aliases: ["title", "job title", "position", "function", "job role"] },
+    { name: "is_champion", label: "Is a champion", required: false, aliases: ["champion", "is champion", "champion flag", "main champion", "sponsor"] },
+    { name: "last_engaged_date", label: "Last engaged", required: false, aliases: ["last engaged", "last contacted", "last contact", "last contact date", "last touch", "last engagement", "last engaged at"] },
+  ],
+  goals: [
+    CUSTOMER_COLUMN,
+    { name: "name", label: "Goal", required: true, aliases: ["goal", "goal name", "objective", "outcome", "desired outcome", "kpi", "kpi name", "target name"] },
+    { name: "target_value", label: "Target", required: true, aliases: ["target", "goal value", "target amount", "goal target", "kpi target", "objective target"] },
+    { name: "actual_value", label: "Actual so far", required: false, aliases: ["actual", "current", "current value", "progress", "achieved", "actual amount", "to date"] },
+    { name: "unit", label: "Unit", required: false, aliases: ["units", "uom", "measure", "unit of measure", "metric unit"] },
+  ],
+  training: [
+    CUSTOMER_COLUMN,
+    { name: "course", label: "Course", required: true, aliases: ["course name", "training", "training course", "session", "session name", "class", "programme", "program", "module"] },
+    { name: "attendees", label: "Attendees", required: false, aliases: ["attendee count", "number of attendees", "people", "participants", "headcount", "attendance", "completions"] },
+    { name: "date", label: "Date", required: true, aliases: ["completed", "completed on", "completion date", "session date", "training date", "held on", "occurred", "occurred on"] },
+  ],
+  events: [
+    CUSTOMER_COLUMN,
+    { name: "event", label: "Event", required: true, aliases: ["event name", "webinar", "session", "conference", "meeting"] },
+    { name: "date", label: "Date", required: true, aliases: ["event date", "attended", "attended on", "held on", "occurred", "occurred on"] },
+  ],
+  surveys: [
+    CUSTOMER_COLUMN,
+    { name: "type", label: "Survey type", required: true, aliases: ["survey type", "survey", "score type", "metric", "kind"] },
+    { name: "score", label: "Score", required: true, aliases: ["rating", "survey score", "result", "response", "answer", "value"] },
+    { name: "date", label: "Date", required: true, aliases: ["survey date", "responded", "responded on", "response date", "submitted", "submitted on", "taken"] },
+  ],
+};
+
+// Columns the export writes that are results, not inputs: a re-import must
+// never keep them as custom fields, so they are suggested as "ignore".
+export const EXPORT_ONLY_COLUMNS: Partial<Record<MappingKind, string[]>> = {
+  customers: ["health_score", "health_band", "health_baseline", "health_adjustment", "health_narrative"],
 };
 
 export function knownColumns(kind: MappingKind): KnownColumn[] {
@@ -85,12 +129,34 @@ export function requiredColumns(kind: MappingKind): string[] {
 // A header as a person would compare it: no byte-order mark or zero-width
 // characters, lower case, letters and digits only, single spaces. So
 // "ACV (GBP)", "acv_gbp" and "  ACV  GBP " are all the same thing.
+//
+// Two more rules, both for custom-field columns written by the export. The export
+// puts one apostrophe in front of a heading that starts with = + - or @ (so a
+// spreadsheet cannot run it as a formula); that apostrophe is not part of the
+// name, so it is dropped here. And a heading made only of symbols (a field called
+// "@") has no letters or digits to compare, so it is compared as written, with a
+// "~" in front to keep it apart from a blank heading. The export's own result
+// columns (health_score and the like) keep their underscore, so a custom field the
+// person called "Health Score", written beside them, is not mistaken for one.
+const RESULT_COLUMNS = new Set(Object.values(EXPORT_ONLY_COLUMNS).flat());
 export function normaliseHeader(header: string): string {
-  return String(header ?? "")
+  const cleaned = String(header ?? "")
     .replace(/[﻿​-‍⁠]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+    .trim()
+    .toLowerCase();
+  if (RESULT_COLUMNS.has(cleaned)) return cleaned;
+  const unguarded = /^'+[=+\-@]/.test(cleaned) ? cleaned.slice(1) : cleaned;
+  const words = unguarded.replace(/[^a-z0-9]+/g, " ").trim();
+  if (words !== "") return words;
+  const symbols = unguarded.replace(/\s+/g, "");
+  return symbols === "" ? "" : `~${symbols}`;
+}
+
+// The export writes a custom field whose name clashes with a standard column as
+// "<name> (custom)" (or "(custom 2)" if that clashes too). Returns the name without that ending, or null if there is none.
+export function withoutCustomSuffix(header: string): string | null {
+  const m = /^(.*\S)\s*\(custom(?:\s+\d+)?\)\s*$/i.exec(String(header ?? "").trim());
+  return m ? m[1] : null;
 }
 
 // Words that say nothing about what a column is.
@@ -151,13 +217,16 @@ function scoreAgainst(headerNorm: string, col: KnownColumn): { score: number; ho
 export type ColumnMappingEntry =
   | { header: string; action: "map"; target: string }
   | { header: string; action: "custom"; label: string; type: CustomFieldType; options?: string[]; shareWithAi: boolean }
+  | { header: string; action: "existing_custom"; fieldId: string }
   | { header: string; action: "ignore" };
 export type ColumnMapping = ColumnMappingEntry[];
 
 export interface ColumnSuggestion {
   header: string;
   index: number;
-  action: "map" | "custom" | "ignore";
+  action: "map" | "custom" | "existing_custom" | "ignore";
+  fieldId?: string; // when action is "existing_custom"
+  fieldLabel?: string;
   target?: string; // when action is "map"
   targetLabel?: string;
   label?: string; // when action is "custom"
@@ -234,9 +303,29 @@ function sampleValues(values: string[]): string[] {
 export function suggestMapping(
   kind: MappingKind,
   headers: string[],
-  sampleRows: Record<string, string>[]
+  sampleRows: Record<string, string>[],
+  existingFields: { id: string; label: string }[] = []
 ): ColumnSuggestion[] {
   const known = KNOWN_COLUMNS[kind];
+  // A column headed exactly like one of the workspace's own custom fields is that
+  // field. The export writes custom fields as columns headed by their label, so
+  // this is what makes export-then-import round trip. Only the customers file has them.
+  const existingByLabel = new Map<string, { id: string; label: string }>();
+  if (kind === "customers") for (const f of existingFields) if (!existingByLabel.has(normaliseHeader(f.label))) existingByLabel.set(normaliseHeader(f.label), f);
+  // A heading written exactly as one of Bearing's own column names (region, tier,
+  // health_score) stays that column even if a custom field has the same name: the
+  // export writes such a field as "<name> (custom)". Any other heading that equals a
+  // custom field's name, in any case or punctuation, is that field.
+  const canonicalNames = new Set([...known.map((c) => c.name), ...(EXPORT_ONLY_COLUMNS[kind] ?? [])]);
+  const fieldFor = (header: string): { id: string; label: string } | undefined => {
+    const n = normaliseHeader(header);
+    if (n === "") return undefined;
+    const whole = existingByLabel.get(n);
+    if (whole && !canonicalNames.has(header.trim().toLowerCase())) return whole;
+    const bare = withoutCustomSuffix(header);
+    return bare === null ? undefined : existingByLabel.get(normaliseHeader(bare));
+  };
+  const exportOnly = new Set((EXPORT_ONLY_COLUMNS[kind] ?? []).map(normaliseHeader));
   // The file reader lower-cases headings, so look a cell up by the heading as
   // given first, then by its trimmed lower-case form.
   const cell = (row: Record<string, string>, header: string) => row[header] ?? row[header.trim().toLowerCase()] ?? "";
@@ -253,6 +342,7 @@ export function suggestMapping(
   headers.forEach((_, index) => {
     const n = normalised[index];
     if (n === "" || firstIndexOf.get(n) !== index) return;
+    if (fieldFor(headers[index]) || exportOnly.has(n)) return;
     for (const col of known) {
       const s = scoreAgainst(n, col);
       if (s.score >= MIN_MAP_CONFIDENCE) pairs.push({ index, col, score: s.score, how: s.how });
@@ -278,6 +368,13 @@ export function suggestMapping(
     }
     if (firstIndexOf.get(n) !== index) {
       return { header, index, action: "ignore", confidence: 1, reason: "Another column has the same heading", samples };
+    }
+    const existingField = fieldFor(header);
+    if (existingField) {
+      return { header, index, action: "existing_custom", fieldId: existingField.id, fieldLabel: existingField.label, confidence: 1, reason: "Same name as one of your custom fields", samples };
+    }
+    if (exportOnly.has(n)) {
+      return { header, index, action: "ignore", confidence: 1, reason: "A result written by the export, not something to import", samples };
     }
     const hit = chosen.get(index);
     if (hit) {
@@ -309,6 +406,7 @@ export function suggestMapping(
 export function suggestionsToMapping(suggestions: ColumnSuggestion[]): ColumnMapping {
   return suggestions.map((s): ColumnMappingEntry => {
     if (s.action === "map" && s.target) return { header: s.header, action: "map", target: s.target };
+    if (s.action === "existing_custom" && s.fieldId) return { header: s.header, action: "existing_custom", fieldId: s.fieldId };
     if (s.action === "custom" && s.label && s.type) {
       return { header: s.header, action: "custom", label: s.label, type: s.type, ...(s.options ? { options: s.options } : {}), shareWithAi: false };
     }
@@ -320,6 +418,7 @@ export function suggestionsToMapping(suggestions: ColumnSuggestion[]): ColumnMap
 
 export interface ExistingCustomField {
   label: string;
+  id?: string; // needed to check a column that is mapped to an existing field
 }
 
 function labelKey(label: string): string {
@@ -345,6 +444,8 @@ export function validateMapping(
   const targetOwner = new Map<string, string>();
   const newLabels = new Map<string, string>();
   const existingLabels = new Set(existingCustomFields.map((f) => labelKey(f.label)));
+  const existingIds = new Set(existingCustomFields.flatMap((f) => (f.id ? [f.id] : [])));
+  const fieldOwner = new Map<string, string>();
   let customCount = 0;
 
   for (const entry of mapping) {
@@ -376,7 +477,7 @@ export function validateMapping(
       } else {
         if (label.length > CUSTOM_FIELD_LIMITS.maxLabel) errors.push(`${show(entry.header)}: the custom field name must be ${CUSTOM_FIELD_LIMITS.maxLabel} characters or fewer.`);
         const key = labelKey(label);
-        if (key === "") errors.push(`${show(entry.header)}: the custom field name needs letters or numbers.`);
+        if (key === "" || !/[a-z0-9]/.test(key)) errors.push(`${show(entry.header)}: the custom field name needs letters or numbers.`);
         else if (reservedLabels.has(key)) errors.push(`${show(entry.header)}: "${label}" is already a built-in Bearing field. Map the column to it instead, or choose another name.`);
         else if (existingLabels.has(key)) errors.push(`${show(entry.header)}: you already have a custom field called "${label}".`);
         else if (newLabels.has(key)) errors.push(`${show(newLabels.get(key) as string)} and ${show(entry.header)} would both create a custom field called "${label}".`);
@@ -394,6 +495,18 @@ export function validateMapping(
       } else if (entry.options !== undefined && entry.options.length > 0) {
         errors.push(`${show(entry.header)}: only a pick-list has choices.`);
       }
+    } else if (entry.action === "existing_custom") {
+      if (kind !== "customers") {
+        errors.push(`${show(entry.header)}: custom fields only exist on the customers file. Map or ignore this column.`);
+        continue;
+      }
+      if (typeof entry.fieldId !== "string" || !existingIds.has(entry.fieldId)) {
+        errors.push(`${show(entry.header)}: the custom field you chose no longer exists. Choose again.`);
+        continue;
+      }
+      const owner = fieldOwner.get(entry.fieldId);
+      if (owner !== undefined) errors.push(`${show(owner)} and ${show(entry.header)} are both set to the same custom field. Choose one of them.`);
+      else fieldOwner.set(entry.fieldId, entry.header);
     } else if (entry.action !== "ignore") {
       errors.push(`${show((entry as { header: string }).header)}: unknown choice.`);
     }
@@ -423,7 +536,7 @@ export function validateMapping(
 // A stable key for a custom field, made from its name: lower case letters,
 // digits and underscores. Collisions get a number added.
 export function customFieldKey(label: string, taken: Set<string> = new Set()): string {
-  let base = normaliseHeader(label).replace(/ /g, "_").slice(0, 40);
+  let base = normaliseHeader(label).replace(/[^a-z0-9 ]/g, "").trim().replace(/ /g, "_").slice(0, 40);
   if (base === "") base = "field";
   let key = base;
   let n = 2;
@@ -443,7 +556,14 @@ export interface AppliedCustomField {
   shareWithAi: boolean;
 }
 
+export interface AppliedExistingField {
+  fieldId: string;
+  header: string;
+}
+
 export interface AppliedMapping {
+  existingFields: AppliedExistingField[];
+  existingFieldValues: Record<string, string>[]; // one per row, same order: existing field id -> raw cell
   headers: string[]; // canonical column names, in file order
   rows: Record<string, string>[]; // same rows, renamed, ready for the existing validators
   customFields: AppliedCustomField[];
@@ -465,6 +585,7 @@ export function applyMapping(
   }
 
   const maps: { from: string; to: string }[] = [];
+  const existingFields: AppliedExistingField[] = [];
   const customFields: AppliedCustomField[] = [];
   const takenKeys = new Set<string>();
   for (const entry of mapping) {
@@ -472,6 +593,8 @@ export function applyMapping(
     if (from === undefined) continue;
     if (entry.action === "map") {
       maps.push({ from, to: entry.target });
+    } else if (entry.action === "existing_custom") {
+      existingFields.push({ fieldId: entry.fieldId, header: from });
     } else if (entry.action === "custom") {
       const key = customFieldKey(entry.label, takenKeys);
       takenKeys.add(key);
@@ -497,7 +620,12 @@ export function applyMapping(
     for (const f of customFields) out[f.key] = row[f.header] ?? "";
     return out;
   });
-  return { headers: headersInFileOrder, rows, customFields, customFieldValues };
+  const existingFieldValues = parsed.rows.map((row) => {
+    const out: Record<string, string> = {};
+    for (const f of existingFields) out[f.fieldId] = row[f.header] ?? "";
+    return out;
+  });
+  return { existingFields, existingFieldValues, headers: headersInFileOrder, rows, customFields, customFieldValues };
 }
 
 // ---------- remembering a mapping for the next upload ----------
@@ -559,6 +687,10 @@ export function parseColumnMapping(input: unknown): ParseMappingResult {
       if (!allowOnly(["header", "action", "target"])) return { ok: false, error: `${at} has unexpected fields.` };
       if (typeof raw.target !== "string" || raw.target === "" || raw.target.length > MAX_STRING) return { ok: false, error: `${at} has no valid target.` };
       out.push({ header, action: "map", target: raw.target });
+    } else if (raw.action === "existing_custom") {
+      if (!allowOnly(["header", "action", "fieldId"])) return { ok: false, error: `${at} has unexpected fields.` };
+      if (typeof raw.fieldId !== "string" || raw.fieldId === "" || raw.fieldId.length > 100) return { ok: false, error: `${at} has no valid custom field.` };
+      out.push({ header, action: "existing_custom", fieldId: raw.fieldId });
     } else if (raw.action === "custom") {
       if (!allowOnly(["header", "action", "label", "type", "options", "shareWithAi"])) return { ok: false, error: `${at} has unexpected fields.` };
       if (typeof raw.label !== "string" || raw.label.length > MAX_STRING) return { ok: false, error: `${at} has no valid field name.` };

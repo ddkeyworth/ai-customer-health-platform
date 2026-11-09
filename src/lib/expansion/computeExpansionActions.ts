@@ -8,6 +8,8 @@
 import { prisma } from "@/lib/prisma";
 import { computeExpansionReview } from "./agenticLayer";
 import { upsertProposedAgentAction } from "@/lib/agentActions";
+import { listCustomFields } from "@/lib/customFields/store";
+import { buildCustomFieldContext } from "@/lib/customFields/context";
 
 const TYPE_LABELS: Record<string, string> = {
   price_increase: "Price increase",
@@ -41,6 +43,9 @@ export async function computeExpansionActionsForWorkspace(workspaceId: string, a
 
   console.log(`Expansion agentic layer: reviewing ${opportunities.length} open opportunit${opportunities.length === 1 ? "y" : "ies"}.`);
 
+  // Loaded once per run; each customer's shareable values are built from it.
+  const customFieldDefs = await listCustomFields(workspaceId);
+
   for (const o of opportunities) {
     const snap = o.customer.healthSnapshots[0] ?? null;
 
@@ -52,7 +57,8 @@ export async function computeExpansionActionsForWorkspace(workspaceId: string, a
       snap?.tierLabel ?? null,
       snap?.narrative ?? null,
       o.customer.interactions,
-      apiKey
+      apiKey,
+      buildCustomFieldContext(customFieldDefs, o.customer.customFields)
     );
 
     await upsertProposedAgentAction({

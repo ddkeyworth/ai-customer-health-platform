@@ -153,3 +153,9 @@ jobs:
       - name: test-workspace-secret
         timeout-minutes: 5
         run: npx tsx prisma/test-workspace-secret.ts
+      - name: test-custom-fields-use
+        timeout-minutes: 5
+        run: npx tsx prisma/test-custom-fields-use.ts
+      - name: test-custom-fields
+        timeout-minutes: 5
+        run: npx tsx prisma/test-custom-fields.ts

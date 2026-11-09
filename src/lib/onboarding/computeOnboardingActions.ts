@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { computeDaysOverdue } from "./pace";
 import { computeOnboardingRecovery } from "./agenticLayer";
 import { upsertProposedAgentAction } from "@/lib/agentActions";
+import { listCustomFields } from "@/lib/customFields/store";
+import { buildCustomFieldContext } from "@/lib/customFields/context";
 
 async function selectOverdue(workspaceId: string, now: Date, onlyIds?: string[]) {
   const rows = await prisma.customerProduct.findMany({
@@ -25,6 +27,9 @@ export async function computeOnboardingActionsForWorkspace(workspaceId: string, 
   const overdue = await selectOverdue(workspaceId, now, onlyIds);
   console.log(`Onboarding agentic layer: ${overdue.length} overdue account(s) to review.`);
 
+  // Loaded once per run; each customer's shareable values are built from it.
+  const customFieldDefs = await listCustomFields(workspaceId);
+
   for (const r of overdue) {
     const daysOverdue = computeDaysOverdue(r.expectedGoLiveDate, now)!;
     const result = await computeOnboardingRecovery(
@@ -32,7 +37,8 @@ export async function computeOnboardingActionsForWorkspace(workspaceId: string, 
       daysOverdue,
       r.expectedGoLiveDate!,
       r.customer.interactions,
-      apiKey
+      apiKey,
+      buildCustomFieldContext(customFieldDefs, r.customer.customFields)
     );
 
     if (!result.hasEnoughEvidence) {

@@ -176,8 +176,8 @@ model CustomField {
   id          String   @id @default(cuid())
   workspaceId String
   label       String
-  type        String   // "text" | "number" | "date" | "select"
-  options     Json?    // for "select": the allowed values, as a string array
+  type        String   // "text" | "number" | "date" | "pick_list"
+  options     Json?    // for "pick_list": the allowed values, as a string array
   shareWithAi Boolean  @default(true) // include this field when the AI reads the customer
   createdAt   DateTime @default(now())
 

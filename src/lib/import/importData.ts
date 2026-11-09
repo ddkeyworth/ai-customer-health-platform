@@ -23,6 +23,10 @@ import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { parseCsv, headerProblems } from "./csv";
+import { coerceCustomValue, type CustomFieldType } from "./customFields";
+import { applyMapping, mappingSignature, normaliseHeader, parseColumnMapping, validateMapping, type AppliedMapping, type ColumnMapping } from "./mapping";
+import { mappingToSave, saveMapping } from "./savedMappings";
+import { CustomFieldError, createCustomField, listCustomFields, type CustomFieldDef } from "@/lib/customFields/store";
 import {
   IMPORT_KINDS,
   LIMITS,
@@ -370,9 +374,25 @@ const usageSpec: ChildSpec<ParsedUsage> = {
 
 // ---------- the entry point ----------
 
+// Imports a file as it is: the columns must already be named as Bearing names them
+// (a few spelling variants are read, see canonicaliseHeaders).
 export async function importCsv(workspaceId: string, kind: ImportKind, text: string): Promise<ImportResult> {
+  return guarded(() => runImport(workspaceId, kind, text));
+}
+
+// Imports a file with the column choices a person confirmed on the mapping
+// screen. `mapping` is whatever arrived from the browser (JSON text or a parsed
+// value): it is parsed strictly and every choice is checked again here against
+// the real file and the workspace's real custom fields, so nothing the browser
+// sent is trusted. All or nothing: one bad row means no import, no new custom
+// field and no saved mapping.
+export async function importCsvMapped(workspaceId: string, kind: ImportKind, text: string, mapping: unknown): Promise<ImportResult> {
+  return guarded(() => runImport(workspaceId, kind, text, mapping));
+}
+
+async function guarded(run: () => Promise<ImportResult>): Promise<ImportResult> {
   try {
-    return await runImport(workspaceId, kind, text);
+    return await run();
   } catch (e) {
     // Never show an error page or a database message: say what happened in plain words.
     console.error("Import failed", e);
@@ -387,7 +407,7 @@ export async function importCsv(workspaceId: string, kind: ImportKind, text: str
   }
 }
 
-async function runImport(workspaceId: string, kind: ImportKind, text: string): Promise<ImportResult> {
+async function runImport(workspaceId: string, kind: ImportKind, text: string, mappingInput?: unknown): Promise<ImportResult> {
   if (!(IMPORT_KINDS as readonly string[]).includes(kind)) return fail([], "", `${NOTHING} Unknown import type.`);
   if (text.includes("\u0000")) return fail([], "", `${NOTHING} The file contains a null character, so it is not a plain CSV file.`);
 
@@ -398,6 +418,9 @@ async function runImport(workspaceId: string, kind: ImportKind, text: string): P
     return fail([{ row: 1, message: e instanceof Error ? e.message : "The file could not be read." }]);
   }
   if (raw.headers.length === 0) return fail([{ row: 1, message: "The file is empty." }]);
+
+  if (mappingInput !== undefined) return runMappedImport(workspaceId, kind, raw, mappingInput);
+
   const headerIssues = headerProblems(raw.headers);
   if (headerIssues.length > 0) return fail(headerIssues.map((message) => ({ row: 1, message })));
 
@@ -429,14 +452,198 @@ async function runImport(workspaceId: string, kind: ImportKind, text: string): P
   }
 }
 
+// ---------- the mapped import ----------
+
+// Which custom fields a customers file fills, and which it creates. `created`
+// is filled in as the new fields are made, so the saved mapping can point at them.
+interface CustomPlan {
+  applied: AppliedMapping;
+  existing: CustomFieldDef[];
+  created: { header: string; field: CustomFieldDef }[];
+}
+
+function ignoredNote(headers: string[], mapping: ColumnMapping): string {
+  const used = new Set(mapping.filter((e) => e.action !== "ignore").map((e) => normaliseHeader(e.header)));
+  const named = headers.filter((h) => h !== "" && !used.has(normaliseHeader(h)));
+  const unnamed = headers.filter((h) => h === "").length;
+  const parts = [...named, ...(unnamed > 0 ? [`${plural(unnamed, "column with no heading", "columns with no heading")}`] : [])];
+  return parts.length > 0 ? ` These columns were ignored: ${parts.join(", ")}.` : "";
+}
+
+async function runMappedImport(workspaceId: string, kind: ImportKind, raw: Parsed, mappingInput: unknown): Promise<ImportResult> {
+  const read = parseColumnMapping(mappingInput);
+  if (!read.ok) return fail([{ row: 1, message: read.error }], "", `${NOTHING} The column choices could not be read.`);
+  const mapping = read.mapping;
+
+  // Two columns with exactly the same heading cannot be told apart once the rows
+  // are read. (A column with no heading is fine: it can only be ignored.)
+  const seen = new Set<string>();
+  const dupes = new Set<string>();
+  for (const h of raw.headers) {
+    if (h === "") continue;
+    if (seen.has(h)) dupes.add(h);
+    seen.add(h);
+  }
+  if (dupes.size > 0) {
+    return fail([{ row: 1, message: `These column names appear more than once: ${[...dupes].join(", ")}. Each column needs its own name; rename or delete one of them and upload the file again.` }]);
+  }
+
+  const note = ignoredNote(raw.headers, mapping);
+  try {
+    return await prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"import:" + workspaceId}))`;
+        return importMapped(tx, workspaceId, kind, raw, mapping, note);
+      },
+      { timeout: 60_000, maxWait: 15_000 }
+    );
+  } catch (e) {
+    if (e instanceof Refusal) return { ...e.result, message: e.result.message + note };
+    throw e;
+  }
+}
+
+async function importMapped(tx: Tx, workspaceId: string, kind: ImportKind, raw: Parsed, mapping: ColumnMapping, note: string): Promise<ImportResult> {
+  // Checked against the workspace's real custom fields, inside the lock.
+  const existing = await listCustomFields(workspaceId, tx);
+  const problems = validateMapping(kind, mapping, existing, raw.headers);
+  if (problems.length > 0) return fail(problems.map((message) => ({ row: 1, message })), "", `${NOTHING} Fix the column choices below and import again.`);
+
+  const applied = applyMapping(raw, mapping);
+  const parsed: Parsed = { headers: applied.headers, rows: applied.rows, lines: raw.lines };
+  const plan: CustomPlan = { applied, existing, created: [] };
+
+  let result: ImportResult;
+  if (kind === "customers") {
+    result = await importCustomers(tx, workspaceId, parsed, note, plan);
+  } else {
+    const lookup = await customerLookup(tx, workspaceId);
+    if (lookup.size === 0) return fail([{ row: 1, message: "This workspace has no customers yet. Import the customers file first." }], note);
+    result = kind === "usage" ? await importChild(tx, workspaceId, parsed, lookup, spec<ParsedUsage>(usageSpec), note) : await importChild(tx, workspaceId, parsed, lookup, CHILD_SPECS[kind], note);
+  }
+
+  // Remember the choices for the next file with these columns, in the same
+  // transaction, so a failed import saves nothing.
+  if (result.ok) {
+    const createdByHeader = new Map(plan.created.map((c) => [normaliseHeader(c.header), c.field.id]));
+    await saveMapping(tx, workspaceId, kind, mappingSignature(raw.headers), mappingToSave(mapping, createdByHeader));
+  }
+  return result;
+}
+
+
 // ---------- customers ----------
 
-async function importCustomers(tx: Tx, workspaceId: string, parsed: Parsed, note: string): Promise<ImportResult> {
+// One custom field a customers file fills: a new one (made when the import
+// succeeds) or one the workspace already has.
+interface FieldSpec {
+  label: string;
+  type: CustomFieldType;
+  options: string[];
+  key: string; // the new field's key in the mapping, or the existing field's id
+  isNew: boolean;
+}
+
+const MAX_REPORTED = 200;
+const byRow = (a: RowError, b: RowError) => a.row - b.row;
+
+type CustomValue = string | number | null;
+
+// Checks every custom value against its field's type, with the row numbers of
+// the person's spreadsheet. Returns the value of every field on every row.
+function coerceCustomColumns(plan: CustomPlan, specs: FieldSpec[], lines: number[]): { values: CustomValue[][]; errors: RowError[] } {
+  const errors: RowError[] = [];
+  const values: CustomValue[][] = [];
+  const total = plan.applied.customFieldValues.length;
+  for (let i = 0; i < total; i++) {
+    const row: CustomValue[] = [];
+    for (const f of specs) {
+      const rawCell = f.isNew ? plan.applied.customFieldValues[i][f.key] : plan.applied.existingFieldValues[i][f.key];
+      const r = coerceCustomValue(f.type, rawCell ?? "", f.options);
+      if (r.ok) row.push(r.value);
+      else {
+        row.push(null);
+        errors.push({ row: lines[i] ?? i + 2, message: `${f.label}: ${r.error}` });
+      }
+    }
+    values.push(row);
+  }
+  return { values, errors };
+}
+
+async function importCustomers(tx: Tx, workspaceId: string, parsed: Parsed, note: string, plan?: CustomPlan): Promise<ImportResult> {
   const existing = await tx.customer.findMany({ where: { workspaceId }, select: { ref: true, name: true } });
   const refs = new Set(existing.flatMap((c) => (c.ref ? [c.ref.toLowerCase()] : [])));
   const names = new Set(existing.map((c) => nameKey(c.name)));
   const { rows, errors } = validateCustomerRows(parsed.headers, parsed.rows, { refs, names, count: existing.length }, parsed.lines);
-  if (errors.length > 0) return fail(errors, note);
+
+  // Custom fields filled by this file, checked before anything is written. Bad
+  // values are reported together with the other row problems.
+  const specs: FieldSpec[] = plan
+    ? [
+        ...plan.applied.customFields.map((f): FieldSpec => ({ label: f.label, type: f.type, options: f.options ?? [], key: f.key, isNew: true })),
+        ...plan.applied.existingFields.flatMap((f): FieldSpec[] => {
+          const def = plan.existing.find((d) => d.id === f.fieldId);
+          return def ? [{ label: def.label, type: def.type, options: def.options, key: def.id, isNew: false }] : [];
+        }),
+      ]
+    : [];
+  const coerced = plan && specs.length > 0 ? coerceCustomColumns(plan, specs, parsed.lines) : { values: [] as CustomValue[][], errors: [] as RowError[] };
+  const all = [...errors, ...coerced.errors].sort(byRow);
+  if (all.length > 0) {
+    const shown = all.slice(0, MAX_REPORTED);
+    if (all.length > MAX_REPORTED) shown.push({ row: shown[shown.length - 1].row, message: `${all.length - MAX_REPORTED} more problems not shown. Fix these first and check the file again.` });
+    return fail(shown, note);
+  }
+
+  // One value per customer and field. The first row that has a value sets it; a
+  // later row for the same customer may repeat it or leave it blank, but not
+  // contradict it (customer-level fields are the same on every row).
+  const valuesOf = new Map<string, { values: CustomValue[]; lines: number[] }>();
+  if (specs.length > 0) {
+    const contradictions: RowError[] = [];
+    rows.forEach((r, i) => {
+      const key = nameKey(r.name);
+      const line = parsed.lines[i] ?? i + 2;
+      let held = valuesOf.get(key);
+      if (!held) {
+        held = { values: specs.map(() => null), lines: specs.map(() => line) };
+        valuesOf.set(key, held);
+      }
+      specs.forEach((f, s) => {
+        const v = coerced.values[i][s];
+        if (v === null) return;
+        if (held!.values[s] === null) {
+          held!.values[s] = v;
+          held!.lines[s] = line;
+        } else if (held!.values[s] !== v) {
+          contradictions.push({ row: line, message: `${f.label}: "${v}" here, but "${held!.values[s]}" on row ${held!.lines[s]} for the same customer. A customer's custom fields must match on every row.` });
+        }
+      });
+    });
+    if (contradictions.length > 0) return fail(contradictions.slice(0, MAX_REPORTED), note);
+  }
+
+  // Everything is checked. Make the new custom fields (inside this transaction, so
+  // any later failure removes them again), then note which id each value goes to.
+  const fieldIds: string[] = [];
+  if (plan) {
+    for (const f of specs) {
+      if (!f.isNew) {
+        fieldIds.push(f.key);
+        continue;
+      }
+      const wanted = plan.applied.customFields.find((c) => c.key === f.key)!;
+      try {
+        const made = await createCustomField(workspaceId, { label: wanted.label, type: wanted.type, options: wanted.options, shareWithAi: wanted.shareWithAi }, tx);
+        plan.created.push({ header: wanted.header, field: made });
+        fieldIds.push(made.id);
+      } catch (e) {
+        if (e instanceof CustomFieldError) throw new Refusal(fail([{ row: 1, message: e.message }]));
+        throw e;
+      }
+    }
+  }
 
   const newRef = nextRefGenerator(
     existing.flatMap((c) => (c.ref ? [c.ref] : [])),
@@ -469,9 +676,13 @@ async function importCustomers(tx: Tx, workspaceId: string, parsed: Parsed, note
     if (!id) {
       id = randomUUID();
       idByName.set(key, id);
+      const customFields: Record<string, string | number> = {};
+      const held = valuesOf.get(key);
+      if (held) held.values.forEach((v, s) => { if (v !== null) customFields[fieldIds[s]] = v; });
       customers.push({
         id,
         workspaceId,
+        customFields,
         ref: r.ref ?? newRef(),
         name: r.name,
         country: r.country,
@@ -508,11 +719,15 @@ async function importCustomers(tx: Tx, workspaceId: string, parsed: Parsed, note
   await tx.customerProduct.createMany({ data: links });
   if (stakeholders.length) await tx.stakeholder.createMany({ data: stakeholders });
   if (surveys.length) await tx.surveyResponse.createMany({ data: surveys });
+  const createdText =
+    plan && plan.created.length > 0
+      ? ` Created ${plural(plan.created.length, "custom field", "custom fields")}: ${plan.created.map((c) => `${c.field.label} (${c.field.type === "pick_list" ? "pick-list" : c.field.type})`).join(", ")}.`
+      : "";
   return {
     ok: true,
     imported: customers.length,
     errors: [],
-    message: `Imported ${customers.length} customer${customers.length === 1 ? "" : "s"} (${links.length} product link${links.length === 1 ? "" : "s"}).${note}`,
+    message: `Imported ${customers.length} customer${customers.length === 1 ? "" : "s"} (${links.length} product link${links.length === 1 ? "" : "s"}).${createdText}${note}`,
   };
 }
 

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { customersMatchingCriteria, SegmentCriteria } from "@/lib/segments";
+import { customCriteriaReport, customersMatchingCriteria, SegmentCriteria } from "@/lib/segments";
+import { describeFilter } from "@/lib/customFields/segmentFilter";
 import { tierColor } from "@/lib/health/ui";
 import { getCurrentWorkspace } from "@/lib/currentWorkspace";
 import CustomerRef from "@/components/CustomerRef";
@@ -16,6 +17,14 @@ export default async function SegmentDetailPage({ params }: { params: Promise<{ 
 
   const criteria = segment.criteria as SegmentCriteria;
   const customers = await customersMatchingCriteria(segment.workspaceId, criteria);
+  // The saved custom-field filters, described in words, plus a note for any that
+  // were ignored (a deleted field or a malformed filter never breaks this page).
+  const custom = await customCriteriaReport(segment.workspaceId, criteria);
+  const defById = new Map(custom.defs.map((d) => [d.id, d]));
+  const customText = custom.filters.map((f) => {
+    const def = defById.get(f.fieldId);
+    return def ? describeFilter(def, f) : "";
+  });
 
   return (
     <div className="max-w-3xl">
@@ -25,10 +34,20 @@ export default async function SegmentDetailPage({ params }: { params: Promise<{ 
       <h1 className="text-2xl font-semibold text-zinc-900 mt-3 mb-1">{segment.name}</h1>
       <p className="text-sm text-zinc-500 mb-6">
         {customers.length} matching customers &middot;{" "}
-        {Object.entries(criteria)
-          .map(([k, v]) => `${k}: ${v}`)
-          .join(", ") || "no filters"}
+        {[
+          ...Object.entries(criteria)
+            .filter(([k]) => k !== "custom")
+            .map(([k, v]) => `${k}: ${String(v)}`),
+          ...customText,
+        ].join(", ") || "no filters"}
       </p>
+      {custom.ignored.length > 0 && (
+        <ul className="mb-6 -mt-4 list-disc pl-5 text-xs text-amber-800">
+          {custom.ignored.map((note, i) => (
+            <li key={i}>{note}</li>
+          ))}
+        </ul>
+      )}
 
       <div className="rounded-xl bg-white border border-zinc-200 shadow-sm p-4 overflow-x-auto">
       <table className="w-full text-sm">
